@@ -29,24 +29,24 @@ class Point3D:
         return self.coordinates
     def returnCopy(self):
         return Point3D( self.x(), self.y(), self.z() )
-    #def asVector3D(self):
-        #return Vector3D( self.x(), self.y(), self.z() )
+    def asVector3D(self):
+        return Vector3D( self.x(), self.y(), self.z() )
     def distance(self,other):
         return (other-self).length()
     def average(self,other):
         return Point3D( (self.x()+other.x())*0.5, (self.y()+other.y())*0.5, (self.z()+other.z())*0.5 )
     def __add__(self,other):
         return Point3D( self.x()+other.x(), self.y()+other.y(), self.z()+other.z() )
-    #def __sub__(self,other):
-        #if isinstance(other,Vector3D):
-            #return Point3D( self.x()-other.x(), self.y()-other.y(), self.z()-other.z() )
-        #return Vector3D( self.x()-other.x(), self.y()-other.y(), self.z()-other.z() )
+    def __sub__(self,other):
+        if isinstance(other,Vector3D):
+            return Point3D( self.x()-other.x(), self.y()-other.y(), self.z()-other.z() )
+        return Vector3D( self.x()-other.x(), self.y()-other.y(), self.z()-other.z() )
     def __eq__(self,other):
         return self.x()==other.x() and self.y()==other.y() and self.z()==other.z()
     def __ne__(self,other):
         return not (self==other)
 
-'''class Vector3D:
+class Vector3D:
     def __init__(self,x=0,y=0,z=0):
         self.coordinates = [x,y,z]
     def x(self):
@@ -100,7 +100,7 @@ class Point3D:
     def __eq__(self,other):
         return self.x()==other.x() and self.y()==other.y() and self.z()==other.z()
     def __ne__(self,other):
-        return not (self==other)'''
+        return not (self==other)
 
 class Matrix4x4:
     def __init__(self):
@@ -119,14 +119,14 @@ class Matrix4x4:
                    0.0, 0.0, 1.0, 0.0,
                    0.0, 0.0, 0.0, 1.0 ]
 
-    '''@staticmethod
+    @staticmethod
     def translation( vector3D ):
         M = Matrix4x4()
         M.m[ 0] = 1.0;   M.m[ 4] = 0.0;   M.m[ 8] = 0.0;   M.m[12] = vector3D.x();
         M.m[ 1] = 0.0;   M.m[ 5] = 1.0;   M.m[ 9] = 0.0;   M.m[13] = vector3D.y();
         M.m[ 2] = 0.0;   M.m[ 6] = 0.0;   M.m[10] = 1.0;   M.m[14] = vector3D.z();
         M.m[ 3] = 0.0;   M.m[ 7] = 0.0;   M.m[11] = 0.0;   M.m[15] = 1.0;
-        return M'''
+        return M
 
     @staticmethod
     def rotationAroundOrigin( angleInRadians, axisVector ):
@@ -154,10 +154,10 @@ class Matrix4x4:
         M.m[ 3] = 0.0;   M.m[ 7] = 0.0;   M.m[11] = 0.0;   M.m[15] = 1.0;
         return M
 
-    '''@staticmethod
+    @staticmethod
     def rotation( angleInRadians, axisVector, originPoint ):
         v = originPoint.asVector3D()
-        return Matrix4x4.translation(v) * Matrix4x4.rotationAroundOrigin(angleInRadians,axisVector) * Matrix4x4.translation(- v)'''
+        return Matrix4x4.translation(v) * Matrix4x4.rotationAroundOrigin(angleInRadians,axisVector) * Matrix4x4.translation(- v)
 
     @staticmethod
     def uniformScaleAroundOrigin(scaleFactor):
@@ -232,14 +232,14 @@ class Matrix4x4:
             M.m[15] = a.m[ 3]*b.m[12] + a.m[ 7]*b.m[13] + a.m[11]*b.m[14] + a.m[15]*b.m[15];
 
             return M
-        #elif isinstance(b,Vector3D):
+        elif isinstance(b,Vector3D):
             # We treat the vector as if its (homogeneous) 4th component were zero.
-            #return Vector3D(
-                #a.m[ 0]*b.x() + a.m[ 4]*b.y() + a.m[ 8]*b.z(), # + a.m[12]*b.w(),
-                #a.m[ 1]*b.x() + a.m[ 5]*b.y() + a.m[ 9]*b.z(), # + a.m[13]*b.w(),
-                #a.m[ 2]*b.x() + a.m[ 6]*b.y() + a.m[10]*b.z()  # + a.m[14]*b.w(),
+            return Vector3D(
+                a.m[ 0]*b.x() + a.m[ 4]*b.y() + a.m[ 8]*b.z(), # + a.m[12]*b.w(),
+                a.m[ 1]*b.x() + a.m[ 5]*b.y() + a.m[ 9]*b.z(), # + a.m[13]*b.w(),
+                a.m[ 2]*b.x() + a.m[ 6]*b.y() + a.m[10]*b.z()  # + a.m[14]*b.w(),
                 # a.m[ 3]*b.x() + a.m[ 7]*b.y() + a.m[11]*b.z() + a.m[15]*b.w()
-                #)
+                )
         elif isinstance(b,Point3D):
             # We treat the point as if its (homogeneous) 4th component were one.
             return Point3D(

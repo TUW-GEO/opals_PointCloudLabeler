@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 
-from Geometry import Point3D, Matrix4x4 #,Vector3D
+from Geometry import Point3D, Vector3D, Matrix4x4
 from OpenGL.GL import *
 import math
 
@@ -37,11 +37,11 @@ class Camera:
         self.target = Point3D()
 
         # This is the up vector for the (local) camera space
-        #self.up = Vector3D()
+        self.up = Vector3D()
 
         # This is the up vector for the (global) world space;
         # it is perpendicular to the horizontal (x,z)-plane
-        #self.ground = Vector3D(0,1,0)
+        self.ground = Vector3D(0,1,0)
 
         self.reset()
 
@@ -52,10 +52,10 @@ class Camera:
         self.target = Point3D(0,0,0)
         self.up = self.ground.returnCopy()
 
-    '''def setGroundView(self):
+    def setGroundView(self):
         dist = (self.target-self.position).length()
         self.position = self.target + Vector3D(0,0,1)*dist
-        self.up = Vector3D(0,1,0)'''
+        self.up = Vector3D(0,1,0)
 
     def setViewportDimensions( self, widthInPixels, heightInPixels ):
         self.viewportWidthInPixels = widthInPixels

@@ -10,10 +10,33 @@ import math
 from Geometry import GeometryType
 
 
+class GeometryObject(object):
+    '''
+    a trivial custom data object
+    '''
+    def __init__(self, type, coords, id = None, subids = None):
+        self.type   = type
+        self.id     = id
+        self.subids = subids
+        self.coords = coords
+        self.neigs  = None
+        #self.color  = DEFAULT_COLOR
+        self.constr = None
+        self.enabled = True
+
+
+    def has_subid(self,idx):
+        if self.subids and idx < len(self.subids):
+            return True;
+        else:
+            return False;
+
+
+
 class ClassificationTool(QtWidgets.QMainWindow):
     def __init__(self):
         super(ClassificationTool, self).__init__()
-        uic.loadUi('ClassificationTool_1.ui', self) #https://github.com/FelixMeix/classificationtool.git
+        uic.loadUi('ClassificationTool.ui', self)
         self.initUI()
         self.linestring = None
         self.odm = None
@@ -23,10 +46,10 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
     def initUI(self):
         self.LoadButton.pressed.connect(self.load_pointcloud)
-        self.LoadAxis.pressed.connect(self.get_points_in_polygon)
+        self.LoadAxis.pressed.connect(self.viewSection)
 
-        self.Next.pressed.connect(self.next_section)
-        self.Previous.pressed.connect(self.previous_section)
+        self.Next.pressed.connect(self.nextSection)
+        self.Previous.pressed.connect(self.previousSection)
         self._sumit_counter = 0
 
         self.Save.pressed.connect(self.save_file)
@@ -95,11 +118,12 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.linestring = pts
 
     def get_points_in_polygon(self):
+        self.load_axis()
         if not self.odm:
             return
-        self.load_axis()
         if not self.linestring:
             return
+
         width = float(self.width_section.text().strip())
         length = float(self.lenght_section.text().strip())
         dm = self.odm
@@ -143,16 +167,74 @@ class ClassificationTool(QtWidgets.QMainWindow):
         polygon = create_polygon(p1, p2, p3, p4)
 
         #extract the points inside of the polygon
-        result = pyDM.NumpyConverter.searchPoint(dm, polygon, layout, withCoordinates = True, noDataObj=[0, np.nan])
+        result = pyDM.NumpyConverter.searchPoint(dm, polygon, layout, withCoordinates = True)
         self.result = result
 
-    def next_section(self):
-        self._sumit_counter += 1
-        #self.plot_section(outGeo)
 
-    def previous_section(self):
-        self._sumit_counter -= 1
-        #self.plot_section(outGeo)
+    def _ParsePoint(self): #,content,linepos):  #linepos == Zeilennummer, content --> bei mir result
+        #error_line = []
+        # assert len(content)-linepos >= 1
+        #s = self.re_coords.search(content[linepos])
+        #id = None
+        #ok = True
+
+        g = None
+        coordinates = None
+        id = None
+        pts = self.result
+
+        if pts:
+            coordinates = [pts['x'], pts['y'], pts['z']]
+            id = pts['Id']
+        else:
+            return
+        g = GeometryObject(GeometryType.point,coordinates,id)
+        return g
+
+
+
+        #if s:
+            #coord = [float(s.group("coorx")), float(s.group("coory")), float(s.group("coorz"))]
+            #linepos += 1
+            #if len(content)-linepos >= 1:
+              #s = self.re_id.search(content[linepos])
+              #if s:
+                  #id = int(s.group("id"))
+                  #linepos += 1
+              #else:
+                  #if self.re_coords.search(content[linepos]):
+                    #pass
+                  #else:
+                    #ok = False
+                    #error_line.append( linepos )
+                    #linepos += 1
+            #if ok == True:
+              #g = GeometryObject(GeometryType.point,coord,id)
+        #else:
+            #error_line.append( linepos )
+            #linepos += 1
+        #return g, linepos, error_line
+
+    def viewSection(self):
+        self.get_points_in_polygon()
+        points = []
+        pts = self._ParsePoint()
+
+        if pts != None:
+            points.append(pts)
+
+        coordinates = []
+        for p in points:
+            if p.type == GeometryType.point:
+                coordinates.append(p.coords)
+
+        self.Section.dataRefesh()
+
+    def nextSection(self):
+        pass
+
+    def previousSection(self):
+        pass
 
     def save_file(self):
         pass
