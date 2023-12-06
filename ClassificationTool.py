@@ -24,12 +24,25 @@ class GeometryObject(object):
         self.constr = None
         self.enabled = True
 
-
     def has_subid(self,idx):
         if self.subids and idx < len(self.subids):
             return True;
         else:
             return False;
+
+class Pointsmodel(QtCore.QAbstractItemModel):
+
+    def __init__(self, parent = None):
+        QtCore.QAbstractItemModel.__init__(self,parent)
+        self.data = []
+        self.pointid = {}
+        self.nextpointid = 1
+
+    def getdata(self):
+        return self.data
+
+    def data(self):
+        pass
 
 
 
@@ -50,7 +63,9 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
         self.Next.pressed.connect(self.nextSection)
         self.Previous.pressed.connect(self.previousSection)
-        self._sumit_counter = 0
+
+        self.Pointsmodel = Pointsmodel() #ToDo: class für übergabe der Daten
+        self.Section.setData()
 
         self.Save.pressed.connect(self.save_file)
 
@@ -114,7 +129,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
             # loop over points
             for i in range(obj.sizePoint()):
                 pt = obj[i]
-                pts.append( [pt.x, pt.y] )
+                pts.append([pt.x, pt.y])
         self.linestring = pts
 
     def get_points_in_polygon(self):
@@ -190,8 +205,6 @@ class ClassificationTool(QtWidgets.QMainWindow):
             return
         g = GeometryObject(GeometryType.point,coordinates,id)
         return g
-
-
 
         #if s:
             #coord = [float(s.group("coorx")), float(s.group("coory")), float(s.group("coorz"))]
