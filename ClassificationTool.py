@@ -1,5 +1,5 @@
 #from osgeo import ogr
-from PyQt5 import QtCore,QtWidgets,uic
+from PyQt5 import QtCore,QtWidgets,QtGui,uic
 from PyQt5.QtGui import *
 #from OpenGL.GLUT import *
 import os
@@ -9,18 +9,21 @@ import numpy as np
 import math
 from Geometry import GeometryType
 
+#color for unclassified points
+DEFAULT_COLOR = QtGui.QColor(QtCore.Qt.white)
+
 
 class GeometryObject(object):
     '''
     a trivial custom data object
     '''
     def __init__(self, type, coords, id = None, subids = None):
-        self.type   = type
-        self.id     = id
+        self.type = type
+        self.id = id
         self.subids = subids
         self.coords = coords
-        self.neigs  = None
-        #self.color  = DEFAULT_COLOR
+        self.neigs = None
+        self.color = DEFAULT_COLOR
         self.constr = None
         self.enabled = True
 
@@ -30,20 +33,149 @@ class GeometryObject(object):
         else:
             return False;
 
-class Pointsmodel(QtCore.QAbstractItemModel):
+class TreeItem(object):
+    '''
+    a python object used to return row/column data, and keep note of
+    it's parents and/or children
+    '''
+    def __init__(self, geo, parentItem, subidx = -1):
+        self.geo = geo
+        self.subidx = subidx
+        self.parentItem = parentItem
+        self.childItems = []
 
+    def appendChild(self, item):
+        self.childItems.append(item)
+
+    def child(self, row):
+        return self.childItems[row]
+
+    def childCount(self):
+        return len(self.childItems)
+
+    def columnCount(self):
+        return 12
+
+    def setChecked(self, checked ):
+        self.geo.enabled = checked
+
+    def isChecked(self ):
+        return self.geo.enabled
+
+    def data(self):
+        if self.geo.type == GeometryType.point:
+            return QtCore.QVariant("Point")
+        else:
+            return QtCore.QVariant("unkown")
+
+        #if column >= 2 and column <= 4:
+           # if self.geo.type == GeometryType.point:
+                #return QtCore.QVariant(format_coords(self.geo.coords,column-2))
+
+    def parent(self):
+        return self.parentItem
+
+
+class Pointsmodel(QtCore.QAbstractItemModel):
     def __init__(self, parent = None):
         QtCore.QAbstractItemModel.__init__(self,parent)
         self.data = []
-        self.pointid = {}
-        self.nextpointid = 1
+        self.rootItems = []
+        self.pointIdMap = {}
+        self.updateCallback = None
+        self.nextPointId = 1
+        self.setupModelData()
+
+    def setUpdateCallback(self, callback):
+        self.updateCallback = callback
 
     def getdata(self):
         return self.data
 
-    def data(self):
-        pass
+    def data(self, index, role):
+        if not index.isValid():
+            return QtCore.QVariant()
 
+        item = index.internalPointer()
+        if role == QtCore.Qt.DisplayRole:
+            return item.data(index.column())
+        elif role == QtCore.Qt.BackgroundRole:
+            ##return QtCore.Qt.red
+            return QtGui.QColor(item.geo.color)
+
+            #if index.column() == 11:
+             #   return QtGui.QColor(item.geo.color)
+            #else:
+             #   return QtCore.QVariant()
+
+##        if role == QtCore.Qt.UserRole:
+##            if item:
+##                return item.person
+        elif role == QtCore.Qt.CheckStateRole:
+            #if index.column() == 0:
+            return int(QtCore.Qt.Checked if item.isChecked() else QtCore.Qt.Unchecked)
+            #else:
+             #   return QtCore.QVariant()  # super(treeModel, self).data(index, role)
+
+        return QtCore.QVariant()
+
+    def setData(self, index, value, role=QtCore.Qt.EditRole):
+        if index.isValid():# and index.column() == 0:
+            if role == QtCore.Qt.EditRole:
+                return False
+            if role == QtCore.Qt.CheckStateRole:
+                item = index.internalPointer()
+                if item.parent() == None:
+                    checked = (value == QtCore.Qt.Checked)
+                    item.setChecked(checked)
+                    for i in range(item.childCount()):
+                        item.child(i).setChecked(checked)
+                    #index2 = self.createIndex(index.row(), index.column())
+                    #self.dataChanged.emit(index, index2)
+                    self.updateCallback()
+                    return True
+                else:
+                    return False
+
+        return super(Pointsmodel, self).setData(index, value, role)
+
+    def setupModelData(self):
+        for geo in self.data:
+            newItem = TreeItem(geo, None)
+            self.rootItems.append(newItem)
+
+    def hasPointId(self,coords):
+        pt = tuple([coords[0],coords[1],coords[2]])
+        return (pt in self.pointIdMap)
+
+    def getPointId(self, coords, preId=None):
+        pt = tuple([coords[0], coords[1], coords[2]])
+
+        if pt in self.pointIdMap:
+            return self.pointIdMap[pt]
+        else:
+            if preId != None:
+                return preId
+            while self.nextPointId in self.pointIdMap.values():
+                self.nextPointId += 1
+            id = self.nextPointId
+            self.pointIdMap[pt] = id
+            self.nextPointId += 1
+            return id
+
+    def storePointId(self,id,coords):
+        pt = tuple([coords[0],coords[1],coords[2]])
+        for pt2, id2 in list(self.pointIdMap.items()):
+          if (id == id2 and pt != pt2) or (id != id2 and pt == pt2):
+            del self.pointIdMap[pt2]
+        self.pointIdMap[pt] = id
+
+    def getPoint(self,find_id):
+        for pt, id in self.pointIdMap.items():
+          if find_id == id:
+            geo = GeometryObject(GeometryType.point,pt,id)
+            return geo
+        return None
 
 
 class ClassificationTool(QtWidgets.QMainWindow):
@@ -54,6 +186,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.linestring = None
         self.odm = None
         self.result = None
+        #self.data = None
         self.PathToFile.setText( r"C:\Users\felix\OneDrive\Dokumente\TU Wien\Bachelorarbeit\Classificationtool\strip21.laz" )
         self.PathToAxisShp.setText( r"C:\Users\felix\OneDrive\Dokumente\TU Wien\Bachelorarbeit\Classificationtool\strip21_axis_transformed.shp")
 
@@ -65,7 +198,8 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.Previous.pressed.connect(self.previousSection)
 
         self.Pointsmodel = Pointsmodel() #ToDo: class für übergabe der Daten
-        self.Section.setData()
+        self.Section.setData(self.Pointsmodel.getdata())
+        #self.Section.setData(self.data)
 
         self.Save.pressed.connect(self.save_file)
 
@@ -201,6 +335,8 @@ class ClassificationTool(QtWidgets.QMainWindow):
         if pts:
             coordinates = [pts['x'], pts['y'], pts['z']]
             id = pts['Id']
+            #print(coordinates)
+            #print(id)
         else:
             return
         g = GeometryObject(GeometryType.point,coordinates,id)
@@ -231,8 +367,8 @@ class ClassificationTool(QtWidgets.QMainWindow):
     def viewSection(self):
         self.get_points_in_polygon()
         points = []
-        pts = self._ParsePoint()
 
+        pts = self._ParsePoint()
         if pts != None:
             points.append(pts)
 
@@ -240,6 +376,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
         for p in points:
             if p.type == GeometryType.point:
                 coordinates.append(p.coords)
+        #print(coordinates)
 
         self.Section.dataRefesh()
 
