@@ -20,24 +20,15 @@ class DrawWidget(QGLWidget):
         self.camera.reset()
         self.isPressed = False
         self.oldx = self.oldy = 0
-        self.geoList = None
+        self.ptList = None
         self.axisList = None
         self.Data = None
         self.Center = None
         self.Scale = None
-        self.WireFrame = False
-        self.PointFont = QtGui.QFont("Arial", 8)
-        self.FaceFont = QtGui.QFont("Arial", 8)
         self.AxisFont = self.PointFont
         self.FaceFont.setUnderline(True)
-        self.PointLabels = []
-        self.FaceLabels = []
         self.FontColor = QtGui.QColor(QtCore.Qt.white)
-        self.ShowPointLabels = True
-        self.ShowFaceLabels = True
-        self.widthInPixels = None
         self.heightInPixels = None
-        self.FaceTansparency = 0
         self.resetStretchData()
 
     def setOrthoView(self):
@@ -85,18 +76,8 @@ class DrawWidget(QGLWidget):
                 max[i] = v
 
     def getDataExtends(self):
-        min = [sys.float_info.max, sys.float_info.max, sys.float_info.max]
-        max = [-sys.float_info.max, -sys.float_info.max, -sys.float_info.max]
-        for obj in self.Data:
-            if obj.type == GeometryType.point:
-                self._minmax(min, max, obj.coords)
-            elif obj.type == GeometryType.segment:
-                self._minmax(min, max, obj.coords[0])
-                self._minmax(min, max, obj.coords[1])
-            elif obj.type == GeometryType.triangle:
-                self._minmax(min, max, obj.coords[0])
-                self._minmax(min, max, obj.coords[1])
-                self._minmax(min, max, obj.coords[2])
+        min = [self.Data["x"].min(), self.Data["y"].min(), self.Data["z"].min()]
+        max = [self.Data["x"].max(), self.Data["y"].max(), self.Data["z"].max()]
         return min, max
 
     def _normalize(self, coor):
@@ -137,7 +118,7 @@ class DrawWidget(QGLWidget):
         ##print "dataRefesh"
 
         if len(self.Data) == 0:
-            self.geoList = None
+            self.ptList = None
             self.PointLabels = []
             self.FaceLabels = []
             return
@@ -148,8 +129,8 @@ class DrawWidget(QGLWidget):
         ##          glDeleteLists(self.geoList,1)
         ##          self.geoList = glGenLists( 1 )
 
-        self.geoList = glGenLists(1)
-        glNewList(self.geoList, GL_COMPILE)
+        self.ptList = glGenLists(1)
+        glNewList(self.ptList, GL_COMPILE)
 
         min, max = self.getDataExtends()
 
@@ -170,78 +151,14 @@ class DrawWidget(QGLWidget):
         ##        else:
         ##          glPolygonMode( GL_FRONT_AND_BACK, GL_FILL )
 
-        for obj in self.Data:
-            if obj.enabled == False:
-                continue
-            if obj.type == GeometryType.point:
-                glColor(obj.color.redF(), obj.color.greenF(), obj.color.blueF())
-                glBegin(GL_POINTS)
-                glVertex(self._normalize(obj.coords))
-                glEnd()
-                pass
-            elif obj.type == GeometryType.segment:
-                glColor(obj.color.redF(), obj.color.greenF(), obj.color.blueF())
-                glBegin(GL_LINE_STRIP)
-                for c in obj.coords:
-                    glVertex(self._normalize(c))
-                glEnd()
-            elif obj.type == GeometryType.triangle:
-                alpha = 1 - self.FaceTansparency / 100.
-                glColor(obj.color.redF(), obj.color.greenF(), obj.color.blueF(), alpha)
-                if self.WireFrame == True:
-                    glLineStipple(2, 0xAAAA);
-                    pts = [self._normalize(obj.coords[idx]) for idx in range(3)]
-                    for idx in range(3):
-                        if obj.constr[idx] != None:
-                            glDisable(GL_LINE_STIPPLE)
-                        else:
-                            glEnable(GL_LINE_STIPPLE)
-                        glBegin(GL_LINE_STRIP)
-                        glVertex(pts[(idx - 1) % 3])
-                        glVertex(pts[(idx + 1) % 3])
-                        glEnd()
-                    glDisable(GL_LINE_STIPPLE);
-                else:
-                    glBegin(GL_TRIANGLES)
-                    for c in obj.coords:
-                        x, y, z = self._normalize(c)
-                        glVertex(x, y, z)
-                    glEnd()
+        glColor(1, 1, 1) #obj.color.redF(), obj.color.greenF(), obj.color.blueF())
+        glBegin(GL_POINTS)
+        for idx in range(self.Data["x"].shape[0]):
+            coords = [self.Data["x"][idx], self.Data["y"][idx], self.Data["z"][idx]]
+            glVertex(self._normalize(coords))
+        glEnd()
 
         glEndList()
-
-        ps = set()
-        self.PointLabels = []
-        self.FaceLabels = []
-        for obj in self.Data:
-            if obj.enabled == False:
-                continue
-            if obj.type == GeometryType.point:
-                if not obj.id in ps:
-                    ps.add(obj.id)
-                    label = str(obj.id)
-                    pt = Point3D(self._normalize(obj.coords))
-                    self.PointLabels.append([pt, label])
-            elif obj.type == GeometryType.segment:
-                for idx, id in enumerate(obj.subids):
-                    if not id in ps:
-                        ps.add(id)
-                        label = str(id)
-                        pt = Point3D(self._normalize(obj.coords[idx]))
-                        self.PointLabels.append([pt, label])
-            elif obj.type == GeometryType.triangle:
-                label = str(obj.id)
-                x = (obj.coords[0][0] + obj.coords[1][0] + obj.coords[2][0]) / 3.
-                y = (obj.coords[0][1] + obj.coords[1][1] + obj.coords[2][1]) / 3.
-                z = (obj.coords[0][2] + obj.coords[1][2] + obj.coords[2][2]) / 3.
-                pt = Point3D(self._normalize([x, y, z]))
-                self.FaceLabels.append([pt, label])
-                for idx, id in enumerate(obj.subids):
-                    if not id in ps:
-                        ps.add(id)
-                        label = str(id)
-                        pt = Point3D(self._normalize(obj.coords[idx]))
-                        self.PointLabels.append([pt, label])
 
         self.update()
 
@@ -264,22 +181,22 @@ class DrawWidget(QGLWidget):
         glEnable(GL_BLEND)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
 
-        if self.geoList:
-            glCallList(self.geoList)
+        if self.ptList:
+            glCallList(self.ptList)
 
-        if self.ShowPointLabels and len(self.PointLabels):
-            glDisable(GL_LIGHTING)
-            glDisable(GL_DEPTH_TEST)
-            glColor(self.FontColor.redF(), self.FontColor.greenF(), self.FontColor.blueF())
-            for pt, label in self.PointLabels:
-                self.renderText(pt.x(), pt.y(), pt.z(), label, self.PointFont)
-
-        if self.ShowFaceLabels and len(self.FaceLabels):
-            glDisable(GL_LIGHTING)
-            glDisable(GL_DEPTH_TEST)
-            glColor(self.FontColor.redF(), self.FontColor.greenF(), self.FontColor.blueF())
-            for pt, label in self.FaceLabels:
-                self.renderText(pt.x(), pt.y(), pt.z(), label, self.FaceFont)
+        # if self.ShowPointLabels and len(self.PointLabels):
+        #     glDisable(GL_LIGHTING)
+        #     glDisable(GL_DEPTH_TEST)
+        #     glColor(self.FontColor.redF(), self.FontColor.greenF(), self.FontColor.blueF())
+        #     for pt, label in self.PointLabels:
+        #         self.renderText(pt.x(), pt.y(), pt.z(), label, self.PointFont)
+        #
+        # if self.ShowFaceLabels and len(self.FaceLabels):
+        #     glDisable(GL_LIGHTING)
+        #     glDisable(GL_DEPTH_TEST)
+        #     glColor(self.FontColor.redF(), self.FontColor.greenF(), self.FontColor.blueF())
+        #     for pt, label in self.FaceLabels:
+        #         self.renderText(pt.x(), pt.y(), pt.z(), label, self.FaceFont)
 
         # draw axsis in corner
         glViewport(0, 0, 100, 100)

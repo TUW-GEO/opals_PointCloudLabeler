@@ -189,6 +189,8 @@ class ClassificationTool(QtWidgets.QMainWindow):
         #self.data = None
         self.PathToFile.setText( r"C:\Users\felix\OneDrive\Dokumente\TU Wien\Bachelorarbeit\Classificationtool\strip21.laz" )
         self.PathToAxisShp.setText( r"C:\Users\felix\OneDrive\Dokumente\TU Wien\Bachelorarbeit\Classificationtool\strip21_axis_transformed.shp")
+        #self.PathToFile.setText(r"C:\swdvlp64_cmake\opals\distro\demo\strip21.laz")
+        #self.PathToAxisShp.setText(r"C:\swdvlp64_cmake\opals\distro\demo\strip21_axis.shp")
 
     def initUI(self):
         self.LoadButton.pressed.connect(self.load_pointcloud)
@@ -319,65 +321,12 @@ class ClassificationTool(QtWidgets.QMainWindow):
         result = pyDM.NumpyConverter.searchPoint(dm, polygon, layout, withCoordinates = True)
         self.result = result
 
-
-    def _ParsePoint(self): #,content,linepos):  #linepos == Zeilennummer, content --> bei mir result
-        #error_line = []
-        # assert len(content)-linepos >= 1
-        #s = self.re_coords.search(content[linepos])
-        #id = None
-        #ok = True
-
-        g = None
-        coordinates = None
-        id = None
-        pts = self.result
-
-        if pts:
-            coordinates = [pts['x'], pts['y'], pts['z']]
-            id = pts['Id']
-            #print(coordinates)
-            #print(id)
-        else:
-            return
-        g = GeometryObject(GeometryType.point,coordinates,id)
-        return g
-
-        #if s:
-            #coord = [float(s.group("coorx")), float(s.group("coory")), float(s.group("coorz"))]
-            #linepos += 1
-            #if len(content)-linepos >= 1:
-              #s = self.re_id.search(content[linepos])
-              #if s:
-                  #id = int(s.group("id"))
-                  #linepos += 1
-              #else:
-                  #if self.re_coords.search(content[linepos]):
-                    #pass
-                  #else:
-                    #ok = False
-                    #error_line.append( linepos )
-                    #linepos += 1
-            #if ok == True:
-              #g = GeometryObject(GeometryType.point,coord,id)
-        #else:
-            #error_line.append( linepos )
-            #linepos += 1
-        #return g, linepos, error_line
-
     def viewSection(self):
         self.get_points_in_polygon()
-        points = []
-
-        pts = self._ParsePoint()
-        if pts != None:
-            points.append(pts)
-
-        coordinates = []
-        for p in points:
-            if p.type == GeometryType.point:
-                coordinates.append(p.coords)
-        #print(coordinates)
-
+        self.Section.setData(self.result)
+        coords1 = [ self.result["x"][0], self.result["y"][0], self.result["z"][0]]
+        coords2 = [ coords1[0]+10., coords1[1]+10., coords1[2]+10.]
+        self.Section.setStretchAxis(coords1, coords2)
         self.Section.dataRefesh()
 
     def nextSection(self):
