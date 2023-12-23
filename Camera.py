@@ -41,7 +41,7 @@ class Camera:
 
         # This is the up vector for the (global) world space;
         # it is perpendicular to the horizontal (x,z)-plane
-        self.ground = Vector3D(0,1,0)
+        self.ground = Vector3D(0,0,1)
 
         self.reset()
 
@@ -51,6 +51,12 @@ class Camera:
         self.position = Point3D(0,0,distanceFromTarget)
         self.target = Point3D(0,0,0)
         self.up = self.ground.returnCopy()
+
+    def setOrthoView(self,x,y):
+        dist = (self.target-self.position).length()
+        vec = Vector3D(x,y,1)
+        self.position = self.target + vec*dist
+        self.up = Vector3D(0,0,1) #noch probieren
 
     def setGroundView(self):
         dist = (self.target-self.position).length()

@@ -25,10 +25,12 @@ class DrawWidget(QGLWidget):
         self.Data = None
         self.Center = None
         self.Scale = None
+        #self.WireFrame = False
+        self.PointFont = QtGui.QFont("Arial", 8)
+        self.FaceFont = QtGui.QFont("Arial", 8)
         self.AxisFont = self.PointFont
         self.FaceFont.setUnderline(True)
         self.FontColor = QtGui.QColor(QtCore.Qt.white)
-        self.heightInPixels = None
         self.resetStretchData()
 
     def setOrthoView(self):
@@ -36,10 +38,16 @@ class DrawWidget(QGLWidget):
             self.camera.OrthoProjection = True
             self.update()
 
-    def setPerspectiveView(self):
-        if self.camera.OrthoProjection != False:
-            self.camera.OrthoProjection = False
-            self.update()
+    def setOrthoView(self,rotation):
+        x = rotation[0,0]
+        y = rotation[0,1]
+        self.camera.setOrthoView(x,y)
+        self.update()
+
+    #def setPerspectiveView(self):
+     #   if self.camera.OrthoProjection != False:
+      #      self.camera.OrthoProjection = False
+       #     self.update()
 
     def setGroundView(self):
         self.camera.setGroundView()
