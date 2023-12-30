@@ -1,12 +1,11 @@
-#from osgeo import ogr
+from opals import Import, Grid, Shade, pyDM
 from PyQt5 import QtCore,QtWidgets,QtGui,uic
 from PyQt5.QtGui import *
-#from OpenGL.GLUT import *
 import os
 import opals
-from opals import Import, Grid, Shade, pyDM
 import numpy as np
 import math
+import copy
 
 #color for unclassified points
 DEFAULT_COLOR = QtGui.QColor(QtCore.Qt.white)
@@ -27,9 +26,12 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.rot_camera = None
         self.width = None
         self.length = None
-        self.linestart = None
-        self.linestop = None
-        self.pos = None
+        self.begin = None #ToDO: names for begin and end
+        self.end = None
+        self.counter = 0
+        self.lineend = None
+        self.forwards = False
+        self.backwards= False
         self.PathToFile.setText( r"C:\Users\felix\OneDrive\Dokumente\TU Wien\Bachelorarbeit\Classificationtool\strip21.laz" )
         self.PathToAxisShp.setText( r"C:\Users\felix\OneDrive\Dokumente\TU Wien\Bachelorarbeit\Classificationtool\strip21_axis_transformed.shp")
         #self.PathToFile.setText(r"C:\swdvlp64_cmake\opals\distro\demo\strip21.laz")
@@ -39,8 +41,8 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.LoadButton.pressed.connect(self.load_pointcloud)
         self.LoadAxis.pressed.connect(self.viewFirstSection)
 
-        self.QPushButtonWidth.pressed.connect(self.viewFirstSection)
-        self.QPushButtonLength.pressed.connect(self.viewFirstSection)
+        self.QPushButtonWidth.pressed.connect(self.changePolygonSize)
+        self.QPushButtonLength.pressed.connect(self.changePolygonSize)
         self.Next.pressed.connect(self.nextSection)
         self.Previous.pressed.connect(self.previousSection)
 
@@ -91,7 +93,10 @@ class ClassificationTool(QtWidgets.QMainWindow):
             for i in range(obj.sizePoint()):
                 pt = obj[i]
                 pts.append([pt.x, pt.y])
-        self.linestring = pts
+        self.linestring = pts     #verwendet für zurückspringen
+        #segment = copy.deepcopy(pts)
+        self.segment = copy.deepcopy(pts) #verwendet für aktuelle position zwischen zwei punkten
+        print(len(pts))
         self.PathToAxisShp.clear()
 
     def get_points_in_polygon(self):
@@ -104,9 +109,18 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.length = float(self.lenght_section.text().strip())
 
         dm = self.odm
-        #linestring = self.linestring
-        self.linestart = self.linestring[0]
-        self.linestop = self.linestring[1]
+
+        if self.forwards == True:
+            self.begin = self.segment[self.counter]
+            self.end = self.segment[self.counter + 1]
+            self.forwards = False
+        elif self.backwards == True:
+            self.begin = self.segment[self.counter+1]
+            self.end = self.segment[self.counter]
+            self.backwards = False
+
+        #self.begin = self.linestring[self.counter]
+        #self.end = self.linestring[self.counter + 1]
 
         lf = pyDM.AddInfoLayoutFactory()
         type, inDM = lf.addColumn(dm, 'Id', True); assert  inDM == True
@@ -135,7 +149,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
             return p1, p2, p3, p4
 
-        p1, p2, p3, p4 = poly_points(self.linestart, direction(self.linestart, self.linestop), self.length, self.width)
+        p1, p2, p3, p4 = poly_points(self.begin, direction(self.begin, self.end), self.length, self.width)
         pf = pyDM.PolygonFactory()
 
         def create_polygon(p1, p2, p3, p4):
@@ -150,16 +164,8 @@ class ClassificationTool(QtWidgets.QMainWindow):
         polygon = create_polygon(p1, p2, p3, p4)
 
         #extract the points inside of the polygon
-        result = pyDM.NumpyConverter.searchPoint(dm, polygon, self.layout, withCoordinates = True)
+        result = pyDM.NumpyConverter.searchPoint(dm, polygon, self.layout, withCoordinates = True, noDataObj='min')
         self.result = result
-#
-    def direction(self,p1,p2):
-        p1 = np.array(p1).reshape(1, 2)
-        p2 = np.array(p2).reshape(1, 2)
-        p = p2 - p1
-        p = p / math.sqrt(p[0, 0]**2 + p[0, 1]**2)
-        self.direction = p
-        return p
 
     def polygon(self):
         def poly_points(start, vector, length, width):
@@ -172,7 +178,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
             self.rot_camera = rot_vector
             return p1, p2, p3, p4
 
-        p1, p2, p3, p4 = poly_points(self.linestart, self.direction, self.length, self.width)
+        p1, p2, p3, p4 = poly_points(self.begin, self.direction, self.length, self.width)
         pf = pyDM.PolygonFactory()
 
         def create_polygon(p1, p2, p3, p4):
@@ -187,12 +193,14 @@ class ClassificationTool(QtWidgets.QMainWindow):
         polygon = create_polygon(p1, p2, p3, p4)
 
         # extract the points inside of the polygon
-        result = pyDM.NumpyConverter.searchPoint(self.odm, polygon, self.layout, withCoordinates=True)
+        result = pyDM.NumpyConverter.searchPoint(self.odm, polygon, self.layout, withCoordinates=True, noDataObj=np.nan)
         self.result = result
 
     def viewFirstSection(self):
+        self.forwards = True
         self.load_axis()
         self.get_points_in_polygon()
+        #print(self.direction[0,0])
         self.Section.setData(self.result)
         coords1 = [ self.result["x"][0], self.result["y"][0], self.result["z"][0]]
         coords2 = [ coords1[0]+10., coords1[1]+10., coords1[2]+10.]
@@ -202,13 +210,10 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
         self.Section.dataRefesh()
 
-    def setOrthoView(self):
-        if self.OrthoView.isChecked() == True:
-            self.Section.setOrthoView(self.rot_camera)
+    def changePolygonSize(self):
+        self.width = float(self.width_section.text().strip())
+        self.length = float(self.lenght_section.text().strip())
 
-    def nextSection(self): #ToDO: anfrage wann nächster eintrag in linestring und neuausrichtung des polygons notwendig ist
-        for i in range(len(self.linestart)):
-            self.linestart[i] = self.linestart[i] + (self.width*self.direction[0,i])
         self.polygon()
 
         self.Section.setData(self.result)
@@ -218,8 +223,93 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
         self.Section.dataRefesh()
 
+    def setOrthoView(self):
+        if self.OrthoView.isChecked() == True:
+            self.Section.setOrthoView(self.rot_camera)
+
+    def checkLineEnd(self):
+        self.lineend = False
+        currentDirection = self.direction * self.factor
+
+        if currentDirection[0,0] > 0:
+            self.lineend = ((self.begin[0] + self.width) > self.end[0])
+
+        elif currentDirection[0,0] < 0:
+            self.lineend = ((self.begin[0] + self.width) < self.end[0])
+
+        elif currentDirection[0,0] == 0:
+            if currentDirection[0,1] > 0:
+                self.lineend = ((self.begin[1] + self.width) > self.end[1])
+            elif currentDirection[0,1] < 0:
+                self.lineend = ((self.begin[1] + self.width) < self.end[1])
+
+
+    def nextSection(self):
+        self.factor = 1
+        self.checkLineEnd()
+
+        if self.lineend == True:
+            self.forwards = True
+            self.counter += 1
+
+            if self.begin[0] < self.linestring[self.counter + 1][0] and ((self.counter + 1) == len(self.linestring) - 1):
+                QtWidgets.QMessageBox(QtWidgets.QMessageBox.Critical, "Error occured", "End of Polyline! No more points available.").exec_();
+            else:
+                self.get_points_in_polygon()
+                self.Section.setData(self.result)
+                coords1 = [self.result["x"][0], self.result["y"][0], self.result["z"][0]]
+                coords2 = [coords1[0] + 10., coords1[1] + 10., coords1[2] + 10.]
+                self.Section.setStretchAxis(coords1, coords2)
+
+                self.Section.setOrthoView(self.rot_camera)
+
+                self.Section.dataRefesh()
+
+        else:
+            for i in range(len(self.begin)):
+                self.begin[i] = self.begin[i] + (self.width*self.direction[0,i])
+            self.polygon()
+
+            self.Section.setData(self.result)
+            coords1 = [self.result["x"][0], self.result["y"][0], self.result["z"][0]]
+            coords2 = [coords1[0] + 10., coords1[1] + 10., coords1[2] + 10.]
+            self.Section.setStretchAxis(coords1, coords2)
+
+            self.Section.dataRefesh()
+
     def previousSection(self):
-        self.Section.dataRefesh()
+        self.factor = -1
+        self.end = self.linestring[self.counter]
+        self.checkLineEnd()
+
+        if self.lineend == True:
+            self.backwards = True
+            self.counter -= 1
+
+            if self.counter < 0:
+                QtWidgets.QMessageBox(QtWidgets.QMessageBox.Critical, "Error occured", "Begin of Polyline! No more points available.").exec_();
+            else:
+                self.get_points_in_polygon()
+                self.Section.setData(self.result)
+                coords1 = [self.result["x"][0], self.result["y"][0], self.result["z"][0]]
+                coords2 = [coords1[0] + 10., coords1[1] + 10., coords1[2] + 10.]
+                self.Section.setStretchAxis(coords1, coords2)
+
+                self.Section.setOrthoView(self.rot_camera)
+
+                self.Section.dataRefesh()
+
+        else:
+            for i in range(len(self.begin)):
+                self.begin[i] = self.begin[i] - (self.width*self.direction[0,i])
+            self.polygon()
+
+            self.Section.setData(self.result)
+            coords1 = [self.result["x"][0], self.result["y"][0], self.result["z"][0]]
+            coords2 = [coords1[0] + 10., coords1[1] + 10., coords1[2] + 10.]
+            self.Section.setStretchAxis(coords1, coords2)
+
+            self.Section.dataRefesh()
 
     def save_file(self):
         pass
