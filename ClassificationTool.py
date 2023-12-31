@@ -10,7 +10,15 @@ import copy
 #color for unclassified points
 DEFAULT_COLOR = QtGui.QColor(QtCore.Qt.white)
 
-#cmap = {0:[210,210,210],1:[180,180,180],2:[135,70,10],3:[185]}
+#cmap = {0:QtGui.QColor.setRgb(210,210,210,255),1:QtGui.QColor.setRgb(180,180,180,255),
+ #       2:QtGui.QColor.setRgb(135,70,10,255),3:QtGui.QColor.setRgb(210,210,210,255),
+  #      4:QtGui.QColor.setRgb(145,200,0,255),5:QtGui.QColor.setRgb(72,128,0,255),
+   #     6:QtGui.QColor.setRgb(180,20,20,255),7:QtGui.QColor.setRgb(255,255,200,255),
+    #    8:QtGui.QColor.setRgb(220,105,20,255),9:QtGui.QColor.setRgb(0,95,255,255),
+     #   10:QtGui.QColor.setRgb(100,80,60,255),11:QtGui.QColor.setRgb(70,70,70,255),
+      #  12:QtGui.QColor.setRgb(35,35,35,255),13:QtGui.QColor.setRgb(255,250,90,255),
+       # 14:QtGui.QColor.setRgb(255,220,0,255),15:QtGui.QColor.setRgb(235,200,60,255),
+        #16:QtGui.QColor.setRgb(190,160,50,255)}
 
 class ClassificationTool(QtWidgets.QMainWindow):
     def __init__(self):
@@ -22,7 +30,6 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.result = None
         self.direction = None
         self.layout = None
-        self.dir_camera = None
         self.rot_camera = None
         self.width = None
         self.length = None
@@ -31,7 +38,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.counter = 0
         self.lineend = None
         self.forwards = False
-        self.backwards= False
+        self.backwards = False
         self.PathToFile.setText( r"C:\Users\felix\OneDrive\Dokumente\TU Wien\Bachelorarbeit\Classificationtool\strip21.laz" )
         self.PathToAxisShp.setText( r"C:\Users\felix\OneDrive\Dokumente\TU Wien\Bachelorarbeit\Classificationtool\strip21_axis_transformed.shp")
         #self.PathToFile.setText(r"C:\swdvlp64_cmake\opals\distro\demo\strip21.laz")
@@ -64,7 +71,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
         #load the opals datamanager in read and write
         odm = name + '.odm'
-        self.odm = pyDM.Datamanager.load(odm, readOnly=True, threadSafety=False)  #TODO change readonly!!!
+        self.odm = pyDM.Datamanager.load(odm, readOnly=False, threadSafety=False)
 
         #create shading
         if os.path.isfile(name + '.odm') == False:
@@ -94,9 +101,8 @@ class ClassificationTool(QtWidgets.QMainWindow):
                 pt = obj[i]
                 pts.append([pt.x, pt.y])
         self.linestring = pts     #verwendet für zurückspringen
-        #segment = copy.deepcopy(pts)
         self.segment = copy.deepcopy(pts) #verwendet für aktuelle position zwischen zwei punkten
-        print(len(pts))
+        #print(len(pts))
         self.PathToAxisShp.clear()
 
     def get_points_in_polygon(self):
@@ -118,9 +124,6 @@ class ClassificationTool(QtWidgets.QMainWindow):
             self.begin = self.segment[self.counter+1]
             self.end = self.segment[self.counter]
             self.backwards = False
-
-        #self.begin = self.linestring[self.counter]
-        #self.end = self.linestring[self.counter + 1]
 
         lf = pyDM.AddInfoLayoutFactory()
         type, inDM = lf.addColumn(dm, 'Id', True); assert  inDM == True
@@ -193,14 +196,13 @@ class ClassificationTool(QtWidgets.QMainWindow):
         polygon = create_polygon(p1, p2, p3, p4)
 
         # extract the points inside of the polygon
-        result = pyDM.NumpyConverter.searchPoint(self.odm, polygon, self.layout, withCoordinates=True, noDataObj=np.nan)
+        result = pyDM.NumpyConverter.searchPoint(self.odm, polygon, self.layout, withCoordinates=True, noDataObj='min')
         self.result = result
 
     def viewFirstSection(self):
         self.forwards = True
         self.load_axis()
         self.get_points_in_polygon()
-        #print(self.direction[0,0])
         self.Section.setData(self.result)
         coords1 = [ self.result["x"][0], self.result["y"][0], self.result["z"][0]]
         coords2 = [ coords1[0]+10., coords1[1]+10., coords1[2]+10.]
@@ -247,6 +249,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
     def nextSection(self):
         self.factor = 1
         self.checkLineEnd()
+        print('cor pos',self.begin)
 
         if self.lineend == True:
             self.forwards = True
@@ -280,6 +283,8 @@ class ClassificationTool(QtWidgets.QMainWindow):
     def previousSection(self):
         self.factor = -1
         self.end = self.linestring[self.counter]
+        #print('ende',self.end)
+        #print('cor pos bevor', self.begin)
         self.checkLineEnd()
 
         if self.lineend == True:
@@ -302,6 +307,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
         else:
             for i in range(len(self.begin)):
                 self.begin[i] = self.begin[i] - (self.width*self.direction[0,i])
+            #print('curr pos', self.begin)
             self.polygon()
 
             self.Section.setData(self.result)
@@ -310,6 +316,12 @@ class ClassificationTool(QtWidgets.QMainWindow):
             self.Section.setStretchAxis(coords1, coords2)
 
             self.Section.dataRefesh()
+
+    def getPointbyclick(self,coords):
+        pass
+
+
+
 
     def save_file(self):
         pass

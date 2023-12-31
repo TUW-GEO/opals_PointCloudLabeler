@@ -54,9 +54,14 @@ class Camera:
 
     def setOrthoView(self,x,y):
         dist = (self.target-self.position).length()
-        vec = Vector3D(x,y,1)
+        if x < 0:
+            x *= -1
+            vec = Vector3D(y,x,1)
+        elif x >= 0:
+            vec = Vector3D(y, x, 1)
+
         self.position = self.target + vec*dist
-        self.up = Vector3D(0,0,1) #noch probieren
+        self.up = Vector3D(0,0,1)
 
     def setGroundView(self):
         dist = (self.target-self.position).length()

@@ -33,10 +33,10 @@ class DrawWidget(QGLWidget):
         self.FontColor = QtGui.QColor(QtCore.Qt.white)
         self.resetStretchData()
 
-    def setOrthoView(self):
-        if self.camera.OrthoProjection != True:
-            self.camera.OrthoProjection = True
-            self.update()
+    #def setOrthoView(self):
+      #  if self.camera.OrthoProjection != True:
+     #       self.camera.OrthoProjection = True
+       #     self.update()
 
     def setOrthoView(self,rotation):
         x = rotation[0,0]
@@ -142,6 +142,7 @@ class DrawWidget(QGLWidget):
 
         min, max = self.getDataExtends()
 
+
         self.Center = [(min[i] + max[i]) / 2. for i in range(3)]
 
         maxdist = 0
@@ -159,6 +160,7 @@ class DrawWidget(QGLWidget):
         ##        else:
         ##          glPolygonMode( GL_FRONT_AND_BACK, GL_FILL )
 
+        #Färbung der Punkte
         glColor(1, 1, 1) #obj.color.redF(), obj.color.greenF(), obj.color.blueF())
         glBegin(GL_POINTS)
         for idx in range(self.Data["x"].shape[0]):
@@ -168,6 +170,24 @@ class DrawWidget(QGLWidget):
 
         glEndList()
 
+        self.update()
+
+    def colorbyhight(self): #ToDO: höhen einfärbung
+        glNewList(self.ptList,GL_COMPILE)
+        min, max = self.getDataExtends()
+
+        steps = (max[2] - min[2])/255
+        r, g, b = 0, 0, 0
+
+        for idx in range(self.Data['z'].shape[0]):
+            pass
+
+
+        glColor(r,g,b)
+        min = glColor(1,0,0)
+        max = glColor(1,1,1)
+
+        glEndList()
         self.update()
 
     def paintGL(self):
