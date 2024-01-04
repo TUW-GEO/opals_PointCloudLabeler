@@ -177,16 +177,32 @@ class DrawWidget(QGLWidget):
         min, max = self.getDataExtends()
 
         steps = (max[2] - min[2])/255
-        r, g, b = 0, 0, 0
-
-        for idx in range(self.Data['z'].shape[0]):
-            pass
+        color_steps = 1/len(self.Data['z'])
+        r, g, b = 1, 0, 0
 
 
-        glColor(r,g,b)
-        min = glColor(1,0,0)
-        max = glColor(1,1,1)
+        pts_sorted = sorted(zip(self.Data['x'],self.Data['y'],self.Data['z']), key = lambda point:point[2]) #Points sorted by hight(=z)
+        hight_sorted = {'x':[point[0] for point in pts_sorted],
+                        'y':[point[1] for point in pts_sorted],
+                        'z':[point[2] for point in pts_sorted]}
 
+        glBegin(GL_POINTS)
+        counter = 1
+        for idx in range(len(hight_sorted['z'])-1):
+            if (hight_sorted['z'][idx] + counter*steps) < hight_sorted['z'][idx+1]:
+                #glBegin(GL_POINTS)
+                glColor(r,g,b)
+                #glEnd()
+                #self.update()
+            elif (hight_sorted['z'][idx] + counter*steps) >= hight_sorted['z'][idx+1]:
+                counter += 1
+                g += color_steps
+                b += color_steps
+
+       # glColor(r,g,b)
+        #min = glColor(1,0,0)
+        #max = glColor(1,1,1)
+        glEnd()
         glEndList()
         self.update()
 

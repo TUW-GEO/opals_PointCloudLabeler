@@ -7,9 +7,6 @@ import numpy as np
 import math
 import copy
 
-#color for unclassified points
-DEFAULT_COLOR = QtGui.QColor(QtCore.Qt.white)
-
 #cmap = {0:QtGui.QColor.setRgb(210,210,210,255),1:QtGui.QColor.setRgb(180,180,180,255),
  #       2:QtGui.QColor.setRgb(135,70,10,255),3:QtGui.QColor.setRgb(210,210,210,255),
   #      4:QtGui.QColor.setRgb(145,200,0,255),5:QtGui.QColor.setRgb(72,128,0,255),
@@ -52,6 +49,8 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.QPushButtonLength.pressed.connect(self.changePolygonSize)
         self.Next.pressed.connect(self.nextSection)
         self.Previous.pressed.connect(self.previousSection)
+
+        self.HightColor.pressed.connect(self.hightcolor)
 
         self.OrthoView.clicked.connect(self.setOrthoView)
 
@@ -249,7 +248,6 @@ class ClassificationTool(QtWidgets.QMainWindow):
     def nextSection(self):
         self.factor = 1
         self.checkLineEnd()
-        print('cor pos',self.begin)
 
         if self.lineend == True:
             self.forwards = True
@@ -283,8 +281,6 @@ class ClassificationTool(QtWidgets.QMainWindow):
     def previousSection(self):
         self.factor = -1
         self.end = self.linestring[self.counter]
-        #print('ende',self.end)
-        #print('cor pos bevor', self.begin)
         self.checkLineEnd()
 
         if self.lineend == True:
@@ -307,7 +303,6 @@ class ClassificationTool(QtWidgets.QMainWindow):
         else:
             for i in range(len(self.begin)):
                 self.begin[i] = self.begin[i] - (self.width*self.direction[0,i])
-            #print('curr pos', self.begin)
             self.polygon()
 
             self.Section.setData(self.result)
@@ -320,7 +315,18 @@ class ClassificationTool(QtWidgets.QMainWindow):
     def getPointbyclick(self,coords):
         pass
 
+    def PointsClassification(self):
+        classes = {'0 unclassified' : 0, '1 undefined' : 1, '2 ground' : 2,
+                   '3 low vegetation' : 3, '4 medium vegetation' : 4, '5 high vegetation' : 5,
+                   '6 building' : 6, '7 noise' : 7, '8 model key point' : 8,
+                   '9 water' : 9, '10 rail' : 10, '11 road surface' : 11,
+                   '12 bridge deck' : 12, '13 wire guard' : 13, '14 wire conductor': 14,
+                   '15 transmission tower' : 15, '16 wire connector' : 16}
+        currentClass = classes[str(self.ClassList.currentText())]
 
+
+    def hightcolor(self):
+        self.Section.colorbyhight()
 
 
     def save_file(self):
