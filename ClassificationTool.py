@@ -30,12 +30,15 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.rot_camera = None
         self.width = None
         self.length = None
-        self.begin = None #ToDO: names for begin and end
+        self.begin = None
         self.end = None
         self.counter = 0
         self.lineend = None
         self.forwards = False
         self.backwards = False
+        self.hightcolor = False
+        self.Point = False
+        self.Rectangle = False
         self.PathToFile.setText( r"C:\Users\felix\OneDrive\Dokumente\TU Wien\Bachelorarbeit\Classificationtool\strip21.laz" )
         self.PathToAxisShp.setText( r"C:\Users\felix\OneDrive\Dokumente\TU Wien\Bachelorarbeit\Classificationtool\strip21_axis_transformed.shp")
         #self.PathToFile.setText(r"C:\swdvlp64_cmake\opals\distro\demo\strip21.laz")
@@ -50,9 +53,14 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.Next.pressed.connect(self.nextSection)
         self.Previous.pressed.connect(self.previousSection)
 
-        self.HightColor.pressed.connect(self.hightcolor)
+        self.HightColor.clicked.connect(self.changecoloring)
 
         self.OrthoView.clicked.connect(self.setOrthoView)
+
+        self.PointSelection.clicked.connect(self.SelectPoint)
+        self.RectangleSelection.clicked.connect(self.SelectRectangle)
+
+        self.ClassList.currentTextChanged.connect(self.PointsClassification)
 
         self.Save.pressed.connect(self.save_file)
 
@@ -209,7 +217,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
         self.Section.setOrthoView(self.rot_camera)
 
-        self.Section.dataRefesh()
+        self.Section.dataRefresh()
 
     def changePolygonSize(self):
         self.width = float(self.width_section.text().strip())
@@ -222,7 +230,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
         coords2 = [coords1[0] + 10., coords1[1] + 10., coords1[2] + 10.]
         self.Section.setStretchAxis(coords1, coords2)
 
-        self.Section.dataRefesh()
+        self.Section.dataRefresh()
 
     def setOrthoView(self):
         if self.OrthoView.isChecked() == True:
@@ -231,6 +239,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
     def checkLineEnd(self):
         self.lineend = False
         currentDirection = self.direction * self.factor
+        #print('curr Dir:', currentDirection)
 
         if currentDirection[0,0] > 0:
             self.lineend = ((self.begin[0] + self.width) > self.end[0])
@@ -247,13 +256,21 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
     def nextSection(self):
         self.factor = 1
+        self.end = self.linestring[self.counter+1]
         self.checkLineEnd()
+
+        #print('--------------------------')
+        #print('Vor')
+        #print(self.counter)
+        #print('old pos:',self.begin)
+        #print('end:',self.end)
+        #print('--------------------------')
 
         if self.lineend == True:
             self.forwards = True
             self.counter += 1
 
-            if self.begin[0] < self.linestring[self.counter + 1][0] and ((self.counter + 1) == len(self.linestring) - 1):
+            if (self.begin[0] < self.linestring[self.counter + 1][0] and ((self.counter + 1) == (len(self.linestring) - 1))) or self.counter < 0:
                 QtWidgets.QMessageBox(QtWidgets.QMessageBox.Critical, "Error occured", "End of Polyline! No more points available.").exec_();
             else:
                 self.get_points_in_polygon()
@@ -264,11 +281,12 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
                 self.Section.setOrthoView(self.rot_camera)
 
-                self.Section.dataRefesh()
+                self.Section.dataRefresh()
 
         else:
             for i in range(len(self.begin)):
                 self.begin[i] = self.begin[i] + (self.width*self.direction[0,i])
+            #print('new pos:', self.begin)
             self.polygon()
 
             self.Section.setData(self.result)
@@ -276,16 +294,24 @@ class ClassificationTool(QtWidgets.QMainWindow):
             coords2 = [coords1[0] + 10., coords1[1] + 10., coords1[2] + 10.]
             self.Section.setStretchAxis(coords1, coords2)
 
-            self.Section.dataRefesh()
+            self.Section.dataRefresh()
 
     def previousSection(self):
         self.factor = -1
         self.end = self.linestring[self.counter]
         self.checkLineEnd()
 
+        #print('--------------------------')
+        #print('zurück')
+        #print(self.counter)
+        #print('old pos:', self.begin)
+        #print('end:', self.end)
+        #print('--------------------------')
+
         if self.lineend == True:
             self.backwards = True
             self.counter -= 1
+            #print('counter -= 1')
 
             if self.counter < 0:
                 QtWidgets.QMessageBox(QtWidgets.QMessageBox.Critical, "Error occured", "Begin of Polyline! No more points available.").exec_();
@@ -298,11 +324,12 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
                 self.Section.setOrthoView(self.rot_camera)
 
-                self.Section.dataRefesh()
+                self.Section.dataRefresh()
 
         else:
             for i in range(len(self.begin)):
                 self.begin[i] = self.begin[i] - (self.width*self.direction[0,i])
+            #print('new pos:', self.begin)
             self.polygon()
 
             self.Section.setData(self.result)
@@ -310,10 +337,8 @@ class ClassificationTool(QtWidgets.QMainWindow):
             coords2 = [coords1[0] + 10., coords1[1] + 10., coords1[2] + 10.]
             self.Section.setStretchAxis(coords1, coords2)
 
-            self.Section.dataRefesh()
+            self.Section.dataRefresh()
 
-    def getPointbyclick(self,coords):
-        pass
 
     def PointsClassification(self):
         classes = {'0 unclassified' : 0, '1 undefined' : 1, '2 ground' : 2,
@@ -322,16 +347,41 @@ class ClassificationTool(QtWidgets.QMainWindow):
                    '9 water' : 9, '10 rail' : 10, '11 road surface' : 11,
                    '12 bridge deck' : 12, '13 wire guard' : 13, '14 wire conductor': 14,
                    '15 transmission tower' : 15, '16 wire connector' : 16}
-        currentClass = classes[str(self.ClassList.currentText())]
 
+        self.currentClass = classes[str(self.ClassList.currentText())]
 
-    def hightcolor(self):
-        self.Section.colorbyhight()
+    def SelectPoint(self):
+        if self.RectangleSelection.isChecked() == True:
+            self.RectangleSelection.setChecked(False)
+            self.Section.SelectRectangle = False
 
+        if self.PointSelection.isChecked() == True:
+            self.Section.SelectPoint = True
+        elif self.PointSelection.isChecked() == False:
+            self.Section.SelectPoint = False
+
+    def SelectRectangle(self):
+        if self.PointSelection.isChecked() == True:
+            self.PointSelection.setChecked(False)
+            self.Section.SelectPoint = False
+
+        if self.RectangleSelection.isChecked() == True:
+            self.Section.SelectRectangle = True
+        elif self.RectangleSelection.isChecked() == False:
+            self.Section.SelectRectangle = False
+
+    def changecoloring(self):
+        if self.HightColor.isChecked() == True:
+            self.hightcolor = True
+            self.Section.ChangeColoring = True
+            self.Section.changeColoring()
+        elif self.HightColor.isChecked() == False:
+            self.hightcolor = False
+            self.Section.ChangeColoring = False
+            self.Section.changeColoring()
 
     def save_file(self):
         pass
-
 
 if __name__ == "__main__":
     import sys

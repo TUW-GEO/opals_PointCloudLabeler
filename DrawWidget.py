@@ -1,11 +1,12 @@
+#import PyQt5.QtCore.QByteArray
 from PyQt5 import QtCore, QtGui
+from PyQt5.QtWidgets import QApplication
 from PyQt5.QtOpenGL import *
 from OpenGL.GL import *
 from OpenGL.GLUT import *
 import sys
 import math
-#from sets import Set as set
-
+from sortedcontainers import SortedDict
 from Camera import Camera
 from Geometry import GeometryType, Point3D
 
@@ -23,31 +24,30 @@ class DrawWidget(QGLWidget):
         self.ptList = None
         self.axisList = None
         self.Data = None
+        self.PointIds = None
         self.Center = None
         self.Scale = None
-        #self.WireFrame = False
+        self.ChangeColoring = False
+        self.SelectPoint = False
+        self.SelectRectangle = False
+        self.LeftCtrlPressed = False
         self.PointFont = QtGui.QFont("Arial", 8)
         self.FaceFont = QtGui.QFont("Arial", 8)
         self.AxisFont = self.PointFont
         self.FaceFont.setUnderline(True)
         self.FontColor = QtGui.QColor(QtCore.Qt.white)
         self.resetStretchData()
+        #self.colorbyhight()
 
-    #def setOrthoView(self):
-      #  if self.camera.OrthoProjection != True:
-     #       self.camera.OrthoProjection = True
-       #     self.update()
+        #mouse click:
+        self.cicked = QtCore.pyqtSignal() #pyqtSignal()
+
 
     def setOrthoView(self,rotation):
         x = rotation[0,0]
         y = rotation[0,1]
-        self.camera.setOrthoView(x,y)
+        self.camera.setOrthoView(-y,x)
         self.update()
-
-    #def setPerspectiveView(self):
-     #   if self.camera.OrthoProjection != False:
-      #      self.camera.OrthoProjection = False
-       #     self.update()
 
     def setGroundView(self):
         self.camera.setGroundView()
@@ -66,15 +66,16 @@ class DrawWidget(QGLWidget):
         for i in range(3):
             self.StrechVecA[i] /= len
         self.StrechVecN  = [-self.StrechVecA[1], self.StrechVecA[0], 0]
-        self.dataRefesh()
+        self.dataRefresh()
 
     def setStretch(self,value):
         # set stretch factor -> self.StrechFactor
         self.StrechFactor = math.pow(10, value/5.)
-        self.dataRefesh()
+        self.dataRefresh()
 
     def setData(self, data):
         self.Data = data
+        self.PointIds = data['Id']
 
     def _minmax(self, min, max, coords):
         for i, v in enumerate(coords):
@@ -97,7 +98,6 @@ class DrawWidget(QGLWidget):
         vec = [ self.StrechRefPt[i] + a*self.StrechVecA[i] + n*self.StrechVecN[i] + dz[i] for i in range(3) ]
 
         #normalize coordinates for better viewing
-        #return [ (coor[i]-self.Center[i])*self.Scale for i in range(3) ]
         return [(vec[i] - self.Center[i]) * self.Scale for i in range(3)]
 
     def initAxis(self):
@@ -120,28 +120,19 @@ class DrawWidget(QGLWidget):
 
     def setTansparency(self, value):
         self.FaceTansparency = value
-        self.dataRefesh()
+        self.dataRefresh()
 
-    def dataRefesh(self):
-        ##print "dataRefesh"
-
+    def dataRefresh(self):
         if len(self.Data) == 0:
             self.ptList = None
             self.PointLabels = []
             self.FaceLabels = []
             return
 
-        ##        if self.geoList == None:
-        ##          self.geoList = glGenLists( 1 )
-        ##        else:
-        ##          glDeleteLists(self.geoList,1)
-        ##          self.geoList = glGenLists( 1 )
-
         self.ptList = glGenLists(1)
         glNewList(self.ptList, GL_COMPILE)
 
         min, max = self.getDataExtends()
-
 
         self.Center = [(min[i] + max[i]) / 2. for i in range(3)]
 
@@ -154,55 +145,75 @@ class DrawWidget(QGLWidget):
             self.Scale = 1.
         else:
             self.Scale = 1. / maxdist
-
-        ##        if self.WireFrame == True:
-        ##          glPolygonMode( GL_FRONT_AND_BACK, GL_LINE )
-        ##        else:
-        ##          glPolygonMode( GL_FRONT_AND_BACK, GL_FILL )
-
         #Färbung der Punkte
         glColor(1, 1, 1) #obj.color.redF(), obj.color.greenF(), obj.color.blueF())
         glBegin(GL_POINTS)
         for idx in range(self.Data["x"].shape[0]):
             coords = [self.Data["x"][idx], self.Data["y"][idx], self.Data["z"][idx]]
             glVertex(self._normalize(coords))
+
         glEnd()
 
         glEndList()
 
         self.update()
 
-    def colorbyhight(self): #ToDO: höhen einfärbung
-        glNewList(self.ptList,GL_COMPILE)
-        min, max = self.getDataExtends()
+    def changeColoring(self):
+        #Color by hight:
+        if self.ChangeColoring == True:
+            colormap = SortedDict([(0, (0, 153, 51)), (33, (153, 230, 0)), (66, (222, 222, 31)), (100, (135, 87, 18))])
 
-        steps = (max[2] - min[2])/255
-        color_steps = 1/len(self.Data['z'])
-        r, g, b = 1, 0, 0
+            glNewList(self.ptList, GL_COMPILE)
+            min, max = self.getDataExtends()
+
+            steps = 256
+            dz = (max[2] - min[2])/(steps - 1)
+            lut = []
+
+            for i in range(steps):
+                percentage = (i / steps) * 100
+                idx1 = colormap.bisect_right(percentage) - 1
+                if idx1 == len(colormap) - 1:
+                    idx1 -= 1
+                idx2 = idx1 + 1
+
+                val1 = colormap.peekitem(idx1)
+                val2 = colormap.peekitem(idx2)
+
+                f = (percentage - val1[0]) / (val2[0] - val1[0])
+                c = [(val1[1][i] + f * (val2[1][i] - val1[1][i])) / 255 for i in range(3)]
+                lut.append(c)
+
+            glBegin(GL_POINTS)
+            for i in range(len(self.Data['z'])):
+                idx = int((self.Data['z'][i] - min[2]) / (max[2] - min[2]) * 255)
+                coords = [self.Data["x"][i], self.Data["y"][i], self.Data["z"][i]]
+                glColor(lut[idx])
+                glVertex(self._normalize(coords))
+            glEnd()
+
+            glEndList()
+            self.update()
+
+        #color by classes:
+        elif self.ChangeColoring == False:
+            glNewList(self.ptList, GL_COMPILE)
+
+            glColor(1, 1, 1)  # obj.color.redF(), obj.color.greenF(), obj.color.blueF())
+            glBegin(GL_POINTS)
+            for idx in range(self.Data["x"].shape[0]):
+                coords = [self.Data["x"][idx], self.Data["y"][idx], self.Data["z"][idx]]
+                glVertex(self._normalize(coords))
+            glEnd()
+
+            glEndList()
+
+            self.update()
+
+    def ClassifySinglePoint(self):
+        glNewList(self.ptList, GL_COMPILE)
 
 
-        pts_sorted = sorted(zip(self.Data['x'],self.Data['y'],self.Data['z']), key = lambda point:point[2]) #Points sorted by hight(=z)
-        hight_sorted = {'x':[point[0] for point in pts_sorted],
-                        'y':[point[1] for point in pts_sorted],
-                        'z':[point[2] for point in pts_sorted]}
-
-        glBegin(GL_POINTS)
-        counter = 1
-        for idx in range(len(hight_sorted['z'])-1):
-            if (hight_sorted['z'][idx] + counter*steps) < hight_sorted['z'][idx+1]:
-                #glBegin(GL_POINTS)
-                glColor(r,g,b)
-                #glEnd()
-                #self.update()
-            elif (hight_sorted['z'][idx] + counter*steps) >= hight_sorted['z'][idx+1]:
-                counter += 1
-                g += color_steps
-                b += color_steps
-
-       # glColor(r,g,b)
-        #min = glColor(1,0,0)
-        #max = glColor(1,1,1)
-        glEnd()
         glEndList()
         self.update()
 
@@ -213,34 +224,21 @@ class DrawWidget(QGLWidget):
         glMatrixMode(GL_MODELVIEW);
         glLoadIdentity();
 
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT)
 
         glDepthFunc(GL_LEQUAL)
         glEnable(GL_DEPTH_TEST)
-        # glEnable( GL_CULL_FACE );
+
         glFrontFace(GL_CCW);
-        # glDisable( GL_LIGHTING );
-        # glShadeModel( GL_FLAT );
+
+        glEnable(GL_STENCIL_TEST)
+        glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE)
 
         glEnable(GL_BLEND)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
 
         if self.ptList:
             glCallList(self.ptList)
-
-        # if self.ShowPointLabels and len(self.PointLabels):
-        #     glDisable(GL_LIGHTING)
-        #     glDisable(GL_DEPTH_TEST)
-        #     glColor(self.FontColor.redF(), self.FontColor.greenF(), self.FontColor.blueF())
-        #     for pt, label in self.PointLabels:
-        #         self.renderText(pt.x(), pt.y(), pt.z(), label, self.PointFont)
-        #
-        # if self.ShowFaceLabels and len(self.FaceLabels):
-        #     glDisable(GL_LIGHTING)
-        #     glDisable(GL_DEPTH_TEST)
-        #     glColor(self.FontColor.redF(), self.FontColor.greenF(), self.FontColor.blueF())
-        #     for pt, label in self.FaceLabels:
-        #         self.renderText(pt.x(), pt.y(), pt.z(), label, self.FaceFont)
 
         # draw axsis in corner
         glViewport(0, 0, 100, 100)
@@ -275,21 +273,32 @@ class DrawWidget(QGLWidget):
     def initializeGL(self):
         glClearColor(0.0, 0.0, 0.0, 1.0)
         glClearDepth(1.0)
+        glClearStencil(0)
 
     def mouseMoveEvent(self, mouseEvent):
-        if int(mouseEvent.buttons()) != QtCore.Qt.NoButton:
-            # user is dragging
-            delta_x = mouseEvent.x() - self.oldx
-            delta_y = self.oldy - mouseEvent.y()
-            if int(mouseEvent.buttons()) & QtCore.Qt.LeftButton:
-                self.camera.orbit(self.oldx, self.oldy, mouseEvent.x(), mouseEvent.y())
-            elif int(mouseEvent.buttons()) & QtCore.Qt.RightButton:
-                self.camera.translateSceneRightAndUp(delta_x, delta_y)
-            elif int(mouseEvent.buttons()) & QtCore.Qt.MidButton:
-                self.camera.dollyCameraForward(3 * (delta_x + delta_y), False)
-            self.update()
-        self.oldx = mouseEvent.x()
-        self.oldy = mouseEvent.y()
+        if self.LeftCtrlPressed == True:
+            if int(mouseEvent.buttons()) != QtCore.Qt.NoButton:
+                # user is dragging
+                delta_x = mouseEvent.x() - self.oldx
+                delta_y = self.oldy - mouseEvent.y()
+                if int(mouseEvent.buttons()) & QtCore.Qt.LeftButton:
+                    self.camera.orbit(self.oldx, self.oldy, mouseEvent.x(), mouseEvent.y())
+                elif int(mouseEvent.buttons()) & QtCore.Qt.RightButton:
+                    self.camera.translateSceneRightAndUp(delta_x, delta_y)
+                elif int(mouseEvent.buttons()) & QtCore.Qt.MidButton:
+                    self.camera.dollyCameraForward(3 * (delta_x + delta_y), False)
+                self.update()
+            self.oldx = mouseEvent.x()
+            self.oldy = mouseEvent.y()
+
+    def mousePressEvent(self, mouseEvent):
+        if mouseEvent.button() == QtCore.Qt.LeftButton and QApplication.keyboardModifiers() == QtCore.Qt.ControlModifier:
+            self.LeftCtrlPressed = True
+        #elif mouseEvent.button() == QtCore.Qt.LeftButton and self.SelectPoint == True:
+         #   self.ClassifySinglePoint()
+
+    def mouseReleaseEvent(self, e):
+        self.LeftCtrlPressed = False
 
     def wheelEvent(self, event):
         #pt = event.delta()
@@ -311,10 +320,15 @@ class DrawWidget(QGLWidget):
 ##    def mouseDoubleClickEvent(self, mouseEvent):
 ##        print "double click"
 ##
-##    def mousePressEvent(self, e):
-##        print "mouse press"
-##        self.isPressed = True
-##
-##    def mouseReleaseEvent(self, e):
-##        print "mouse release"
-##        self.isPressed = False
+   # def mousePressEvent(self, e):
+        #if e.button() == QtCore.LeftButton:
+    #    ptcoords = (e.x()/self.Scale,e.y()/self.Scale)
+        #print("mouse coords:", (e.x()/self.Scale,e.y(),e.z()))
+        #print(self.Scale)
+     #   self.isPressed = True
+      #  return ptcoords
+
+   # def mouseReleaseEvent(self, e):
+    #    print("mouse release")
+     #   self.isPressed = False
+#

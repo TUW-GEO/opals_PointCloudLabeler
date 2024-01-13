@@ -137,6 +137,9 @@
               <height>20</height>
              </size>
             </property>
+            <property name="checkable">
+             <bool>true</bool>
+            </property>
            </widget>
           </item>
           <item row="0" column="0">
@@ -343,6 +346,9 @@
               <height>20</height>
              </size>
             </property>
+            <property name="checkable">
+             <bool>true</bool>
+            </property>
            </widget>
           </item>
           <item row="0" column="1">
@@ -416,7 +422,7 @@
            </widget>
           </item>
           <item row="1" column="6">
-           <widget class="QPushButton" name="HightColor">
+           <widget class="QToolButton" name="HightColor">
             <property name="sizePolicy">
              <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
               <horstretch>30</horstretch>
@@ -431,6 +437,9 @@
             </property>
             <property name="text">
              <string>HC</string>
+            </property>
+            <property name="checkable">
+             <bool>true</bool>
             </property>
            </widget>
           </item>
