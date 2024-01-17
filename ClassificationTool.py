@@ -347,7 +347,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
                    '12 bridge deck' : 12, '13 wire guard' : 13, '14 wire conductor': 14,
                    '15 transmission tower' : 15, '16 wire connector' : 16}
 
-        self.currentClass = classes[str(self.ClassList.currentText())]
+        self.Section.currentClass = classes[str(self.ClassList.currentText())]
 
     def SelectPoint(self):
         if self.RectangleSelection.isChecked() == True:

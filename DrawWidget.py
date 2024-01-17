@@ -41,6 +41,7 @@ class DrawWidget(QGLWidget):
         self.FaceFont.setUnderline(True)
         self.FontColor = QtGui.QColor(QtCore.Qt.white)
         self.resetStretchData()
+        self.currentClass = None
 
         self.cmap = {0:[210,210,210],1:[180,180,180],
         2:[135,70,10],3:[210,210,210],
