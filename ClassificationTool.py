@@ -7,15 +7,6 @@ import numpy as np
 import math
 import copy
 
-#cmap = {0:QtGui.QColor.setRgb(210,210,210,255),1:QtGui.QColor.setRgb(180,180,180,255),
- #       2:QtGui.QColor.setRgb(135,70,10,255),3:QtGui.QColor.setRgb(210,210,210,255),
-  #      4:QtGui.QColor.setRgb(145,200,0,255),5:QtGui.QColor.setRgb(72,128,0,255),
-   #     6:QtGui.QColor.setRgb(180,20,20,255),7:QtGui.QColor.setRgb(255,255,200,255),
-    #    8:QtGui.QColor.setRgb(220,105,20,255),9:QtGui.QColor.setRgb(0,95,255,255),
-     #   10:QtGui.QColor.setRgb(100,80,60,255),11:QtGui.QColor.setRgb(70,70,70,255),
-      #  12:QtGui.QColor.setRgb(35,35,35,255),13:QtGui.QColor.setRgb(255,250,90,255),
-       # 14:QtGui.QColor.setRgb(255,220,0,255),15:QtGui.QColor.setRgb(235,200,60,255),
-        #16:QtGui.QColor.setRgb(190,160,50,255)}
 
 class ClassificationTool(QtWidgets.QMainWindow):
     def __init__(self):
@@ -107,9 +98,8 @@ class ClassificationTool(QtWidgets.QMainWindow):
             for i in range(obj.sizePoint()):
                 pt = obj[i]
                 pts.append([pt.x, pt.y])
-        self.linestring = pts     #verwendet für zurückspringen
-        self.segment = copy.deepcopy(pts) #verwendet für aktuelle position zwischen zwei punkten
-        #print(len(pts))
+        self.linestring = pts
+        self.segment = copy.deepcopy(pts)
         self.PathToAxisShp.clear()
 
     def get_points_in_polygon(self):
@@ -232,6 +222,9 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
         self.Section.dataRefresh()
 
+        if self.HightColor.isChecked() == True:
+            self.Section.changeColoring()
+
     def setOrthoView(self):
         if self.OrthoView.isChecked() == True:
             self.Section.setOrthoView(self.rot_camera)
@@ -296,6 +289,9 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
             self.Section.dataRefresh()
 
+        if self.HightColor.isChecked() == True:
+            self.Section.changeColoring()
+
     def previousSection(self):
         self.factor = -1
         self.end = self.linestring[self.counter]
@@ -338,6 +334,9 @@ class ClassificationTool(QtWidgets.QMainWindow):
             self.Section.setStretchAxis(coords1, coords2)
 
             self.Section.dataRefresh()
+
+        if self.HightColor.isChecked() == True:
+            self.Section.changeColoring()
 
 
     def PointsClassification(self):

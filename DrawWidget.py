@@ -6,8 +6,11 @@ from OpenGL.GL import *
 from OpenGL.GLUT import *
 import sys
 import math
+import numpy as np
 from sortedcontainers import SortedDict
 from Camera import Camera
+import glm
+
 from Geometry import GeometryType, Point3D
 
 
@@ -31,13 +34,23 @@ class DrawWidget(QGLWidget):
         self.SelectPoint = False
         self.SelectRectangle = False
         self.LeftCtrlPressed = False
+        self.RightCtrlPressed = False
         self.PointFont = QtGui.QFont("Arial", 8)
         self.FaceFont = QtGui.QFont("Arial", 8)
         self.AxisFont = self.PointFont
         self.FaceFont.setUnderline(True)
         self.FontColor = QtGui.QColor(QtCore.Qt.white)
         self.resetStretchData()
-        #self.colorbyhight()
+
+        self.cmap = {0:[210,210,210],1:[180,180,180],
+        2:[135,70,10],3:[210,210,210],
+        4:[145,200,0],5:[72,128,0],
+        6:[180,20,20],7:[255,255,200],
+        8:[220,105,20],9:[0,95,255],
+        10:[100,80,60],11:[70,70,70],
+        12:[35,35,35],13:[255,250,90],
+        14:[255,220,0],15:[235,200,60],
+        16:[190,160,50]}
 
         #mouse click:
         self.cicked = QtCore.pyqtSignal() #pyqtSignal()
@@ -212,7 +225,13 @@ class DrawWidget(QGLWidget):
 
     def ClassifySinglePoint(self):
         glNewList(self.ptList, GL_COMPILE)
+        id = []
+        for i in range(len(self.Data['z'])):
+            glStencilFunc(GL_ALWAYS,i+1,-1)
+            self.Data['Id'][i]
+            id.append(self.Data['Id'][i])
 
+        #print(id[0])
 
         glEndList()
         self.update()
@@ -226,13 +245,15 @@ class DrawWidget(QGLWidget):
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT)
 
+        glEnable(GL_STENCIL_TEST)
+        #glStencilMask(255)
+        #glStencilFunc(GL_ALWAYS,1,255)
+        glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE)
+
         glDepthFunc(GL_LEQUAL)
         glEnable(GL_DEPTH_TEST)
 
         glFrontFace(GL_CCW);
-
-        glEnable(GL_STENCIL_TEST)
-        glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE)
 
         glEnable(GL_BLEND)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
@@ -273,32 +294,42 @@ class DrawWidget(QGLWidget):
     def initializeGL(self):
         glClearColor(0.0, 0.0, 0.0, 1.0)
         glClearDepth(1.0)
-        glClearStencil(0)
+        glClearStencil(1)
 
     def mouseMoveEvent(self, mouseEvent):
-        if self.LeftCtrlPressed == True:
-            if int(mouseEvent.buttons()) != QtCore.Qt.NoButton:
-                # user is dragging
-                delta_x = mouseEvent.x() - self.oldx
-                delta_y = self.oldy - mouseEvent.y()
-                if int(mouseEvent.buttons()) & QtCore.Qt.LeftButton:
-                    self.camera.orbit(self.oldx, self.oldy, mouseEvent.x(), mouseEvent.y())
-                elif int(mouseEvent.buttons()) & QtCore.Qt.RightButton:
-                    self.camera.translateSceneRightAndUp(delta_x, delta_y)
-                elif int(mouseEvent.buttons()) & QtCore.Qt.MidButton:
-                    self.camera.dollyCameraForward(3 * (delta_x + delta_y), False)
-                self.update()
-            self.oldx = mouseEvent.x()
-            self.oldy = mouseEvent.y()
+        if int(mouseEvent.buttons()) != QtCore.Qt.NoButton:
+            # user is dragging
+            delta_x = mouseEvent.x() - self.oldx
+            delta_y = self.oldy - mouseEvent.y()
+            if int(mouseEvent.buttons()) & QtCore.Qt.LeftButton and QApplication.keyboardModifiers() == QtCore.Qt.ControlModifier:
+                self.camera.orbit(self.oldx, self.oldy, mouseEvent.x(), mouseEvent.y())
+            elif int(mouseEvent.buttons()) & QtCore.Qt.RightButton:
+                self.camera.translateSceneRightAndUp(delta_x, delta_y)
+            elif int(mouseEvent.buttons()) & QtCore.Qt.MidButton:
+                self.camera.dollyCameraForward(3 * (delta_x + delta_y), False)
+            self.update()
+        self.oldx = mouseEvent.x()
+        self.oldy = mouseEvent.y()
 
     def mousePressEvent(self, mouseEvent):
-        if mouseEvent.button() == QtCore.Qt.LeftButton and QApplication.keyboardModifiers() == QtCore.Qt.ControlModifier:
-            self.LeftCtrlPressed = True
-        #elif mouseEvent.button() == QtCore.Qt.LeftButton and self.SelectPoint == True:
-         #   self.ClassifySinglePoint()
+        if mouseEvent.button() == QtCore.Qt.LeftButton:
+            if self.SelectPoint == True:
+                self.color = bytearray(4)
+                self.depth = GLfloat()
+                self.index = GLuint()
+
+                glFlush()
+                glFinish()
+                glPixelStorei(GL_UNPACK_ALIGNMENT,1)
+
+                glReadPixels(mouseEvent.x(), self.heightInPixels - mouseEvent.y() - 1, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, self.color)
+                glReadPixels(mouseEvent.x(), self.heightInPixels - mouseEvent.y() - 1, 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT, self.depth)
+                glReadPixels(mouseEvent.x(), self.heightInPixels - mouseEvent.y() - 1, 1, 1, GL_STENCIL_INDEX, GL_UNSIGNED_INT, self.index)
+
+                self.ClassifySinglePoint()
 
     def mouseReleaseEvent(self, e):
-        self.LeftCtrlPressed = False
+        self.LeftPressed = False
 
     def wheelEvent(self, event):
         #pt = event.delta()
