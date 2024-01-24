@@ -4,6 +4,7 @@ from PyQt5.QtWidgets import QApplication
 from PyQt5.QtOpenGL import *
 from OpenGL.GL import *
 from OpenGL.GLUT import *
+from OpenGL.GL.framebufferobjects import *
 import sys
 import math
 import numpy as np
@@ -25,6 +26,7 @@ class DrawWidget(QGLWidget):
         self.isPressed = False
         self.oldx = self.oldy = 0
         self.ptList = None
+        self.ptListids = None
         self.axisList = None
         self.Data = None
         self.PointIds = None
@@ -42,6 +44,7 @@ class DrawWidget(QGLWidget):
         self.FontColor = QtGui.QColor(QtCore.Qt.white)
         self.resetStretchData()
         self.currentClass = None
+        self.currentColor = 1
 
         self.cmap = {0:[210,210,210],1:[180,180,180],
         2:[135,70,10],3:[210,210,210],
@@ -52,6 +55,8 @@ class DrawWidget(QGLWidget):
         12:[35,35,35],13:[255,250,90],
         14:[255,220,0],15:[235,200,60],
         16:[190,160,50]}
+
+
 
         #mouse click:
         self.cicked = QtCore.pyqtSignal() #pyqtSignal()
@@ -89,7 +94,6 @@ class DrawWidget(QGLWidget):
 
     def setData(self, data):
         self.Data = data
-        self.PointIds = data['Id']
 
     def _minmax(self, min, max, coords):
         for i, v in enumerate(coords):
@@ -136,52 +140,24 @@ class DrawWidget(QGLWidget):
         self.FaceTansparency = value
         self.dataRefresh()
 
-    def dataRefresh(self):
-        if len(self.Data) == 0:
-            self.ptList = None
-            self.PointLabels = []
-            self.FaceLabels = []
-            return
-
-        self.ptList = glGenLists(1)
+    def createColorlist(self):
         glNewList(self.ptList, GL_COMPILE)
+        if self.currentColor == 1:
+            glBegin(GL_POINTS)
+            for idx in range(self.Data['x'].shape[0]):
+                c = [self.cmap[self.Data['Classification'][idx]][i] / 255 for i in range(3)]
+                coords = [self.Data["x"][idx], self.Data["y"][idx], self.Data["z"][idx]]
+                glColor(c)
+                glVertex(self._normalize(coords))
+            glEnd()
 
-        min, max = self.getDataExtends()
-
-        self.Center = [(min[i] + max[i]) / 2. for i in range(3)]
-
-        maxdist = 0
-        for i in range(3):
-            v = max[i] - self.Center[i]
-            if v > maxdist:
-                maxdist = v
-        if maxdist == 0:
-            self.Scale = 1.
-        else:
-            self.Scale = 1. / maxdist
-        #Färbung der Punkte
-        glColor(1, 1, 1) #obj.color.redF(), obj.color.greenF(), obj.color.blueF())
-        glBegin(GL_POINTS)
-        for idx in range(self.Data["x"].shape[0]):
-            coords = [self.Data["x"][idx], self.Data["y"][idx], self.Data["z"][idx]]
-            glVertex(self._normalize(coords))
-
-        glEnd()
-
-        glEndList()
-
-        self.update()
-
-    def changeColoring(self):
-        #Color by hight:
-        if self.ChangeColoring == True:
+        elif self.currentColor == 2:
             colormap = SortedDict([(0, (0, 153, 51)), (33, (153, 230, 0)), (66, (222, 222, 31)), (100, (135, 87, 18))])
 
-            glNewList(self.ptList, GL_COMPILE)
             min, max = self.getDataExtends()
 
             steps = 256
-            dz = (max[2] - min[2])/(steps - 1)
+            dz = (max[2] - min[2]) / (steps - 1)
             lut = []
 
             for i in range(steps):
@@ -199,6 +175,7 @@ class DrawWidget(QGLWidget):
                 lut.append(c)
 
             glBegin(GL_POINTS)
+
             for i in range(len(self.Data['z'])):
                 idx = int((self.Data['z'][i] - min[2]) / (max[2] - min[2]) * 255)
                 coords = [self.Data["x"][i], self.Data["y"][i], self.Data["z"][i]]
@@ -206,50 +183,68 @@ class DrawWidget(QGLWidget):
                 glVertex(self._normalize(coords))
             glEnd()
 
-            glEndList()
-            self.update()
+        glEndList()
 
-        #color by classes:
-        elif self.ChangeColoring == False:
-            glNewList(self.ptList, GL_COMPILE)
+    def createIdList(self):
+        glNewList(self.ptListids,GL_COMPILE)
 
-            glColor(1, 1, 1)  # obj.color.redF(), obj.color.greenF(), obj.color.blueF())
-            glBegin(GL_POINTS)
-            for idx in range(self.Data["x"].shape[0]):
-                coords = [self.Data["x"][idx], self.Data["y"][idx], self.Data["z"][idx]]
-                glVertex(self._normalize(coords))
-            glEnd()
-
-            glEndList()
-
-            self.update()
-
-    def ClassifySinglePoint(self):
-        glNewList(self.ptList, GL_COMPILE)
-        id = []
-        for i in range(len(self.Data['z'])):
-            glStencilFunc(GL_ALWAYS,i+1,-1)
-            self.Data['Id'][i]
-            id.append(self.Data['Id'][i])
-
-        #print(id[0])
+        glBegin(GL_POINTS)
+        for idx in range(self.Data["x"].shape[0]):
+            glIndexd(self.Data['Id'][idx])
+        glEnd()
 
         glEndList()
+
+    def dataRefresh(self):
+        if len(self.Data) == 0:
+            self.ptList = None
+            self.PointLabels = []
+            self.FaceLabels = []
+            return
+
+        min, max = self.getDataExtends()
+
+        self.Center = [(min[i] + max[i]) / 2. for i in range(3)]
+
+        maxdist = 0
+        for i in range(3):
+            v = max[i] - self.Center[i]
+            if v > maxdist:
+                maxdist = v
+        if maxdist == 0:
+            self.Scale = 1.
+        else:
+            self.Scale = 1. / maxdist
+
+        self.ptList = glGenLists(1)
+        self.ptListids = glGenLists(3)
+
+        self.createColorlist()
+        self.createIdList()
+
         self.update()
 
-    def paintGL(self):
+    def Picking(self):
+        self.paintGL(False)
+
+        glReadBuffer(GL_COLOR_ATTACHMENT0)
+        glPixelStorei(GL_PACK_ALIGNMENT, 1)
+        color = glReadPixels(0, 0, self.widthInPixels, self.heightInPixels, GL_RGBA, GL_UNSIGNED_BYTE)
+        depth = glReadPixels(0, 0, self.widthInPixels, self.heightInPixels, GL_DEPTH_COMPONENT, GL_FLOAT)
+
+        #c1, c2, c3, c4 = (215).to_bytes(4, 'little')
+
+
+        self.update()
+
+    def paintGL(self,renderScreen = True):
         glMatrixMode(GL_PROJECTION)
         glLoadIdentity()
         self.camera.transform()
         glMatrixMode(GL_MODELVIEW);
         glLoadIdentity();
 
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT)
-
-        glEnable(GL_STENCIL_TEST)
-        #glStencilMask(255)
-        #glStencilFunc(GL_ALWAYS,1,255)
-        glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE)
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
         glDepthFunc(GL_LEQUAL)
         glEnable(GL_DEPTH_TEST)
@@ -259,8 +254,10 @@ class DrawWidget(QGLWidget):
         glEnable(GL_BLEND)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
 
-        if self.ptList:
+        if renderScreen and self.ptList:
             glCallList(self.ptList)
+        elif self.ptListids:
+            glCallList(self.ptListids)
 
         # draw axsis in corner
         glViewport(0, 0, 100, 100)
@@ -295,7 +292,6 @@ class DrawWidget(QGLWidget):
     def initializeGL(self):
         glClearColor(0.0, 0.0, 0.0, 1.0)
         glClearDepth(1.0)
-        glClearStencil(1)
 
     def mouseMoveEvent(self, mouseEvent):
         if int(mouseEvent.buttons()) != QtCore.Qt.NoButton:
@@ -315,19 +311,25 @@ class DrawWidget(QGLWidget):
     def mousePressEvent(self, mouseEvent):
         if mouseEvent.button() == QtCore.Qt.LeftButton:
             if self.SelectPoint == True:
-                self.color = bytearray(4)
-                self.depth = GLfloat()
-                self.index = GLuint()
+                fbWidth, fbHeight = self.widthInPixels, self.heightInPixels
 
-                glFlush()
-                glFinish()
-                glPixelStorei(GL_UNPACK_ALIGNMENT,1)
+                # Setup framebuffer
+                framebuffer = glGenFramebuffers(1)
+                glBindFramebuffer(GL_FRAMEBUFFER, framebuffer)
 
-                glReadPixels(mouseEvent.x(), self.heightInPixels - mouseEvent.y() - 1, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, self.color)
-                glReadPixels(mouseEvent.x(), self.heightInPixels - mouseEvent.y() - 1, 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT, self.depth)
-                glReadPixels(mouseEvent.x(), self.heightInPixels - mouseEvent.y() - 1, 1, 1, GL_STENCIL_INDEX, GL_UNSIGNED_INT, self.index)
+                # Setup colorbuffer
+                colorbuffer = glGenRenderbuffers(1)
+                glBindRenderbuffer(GL_RENDERBUFFER, colorbuffer)
+                glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA, fbWidth, fbHeight)
+                glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, colorbuffer)
 
-                self.ClassifySinglePoint()
+                # Setup depthbuffer
+                depthbuffer = glGenRenderbuffers(1)
+                glBindRenderbuffer(GL_RENDERBUFFER, depthbuffer)
+                glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, fbWidth, fbHeight)
+                glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depthbuffer)
+
+                self.Picking()
 
     def mouseReleaseEvent(self, e):
         self.LeftPressed = False

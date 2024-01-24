@@ -113,11 +113,11 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
         dm = self.odm
 
-        if self.forwards == True:
+        if self.forwards:
             self.begin = self.segment[self.counter]
             self.end = self.segment[self.counter + 1]
             self.forwards = False
-        elif self.backwards == True:
+        elif self.backwards:
             self.begin = self.segment[self.counter+1]
             self.end = self.segment[self.counter]
             self.backwards = False
@@ -222,9 +222,6 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
         self.Section.dataRefresh()
 
-        if self.HightColor.isChecked() == True:
-            self.Section.changeColoring()
-
     def setOrthoView(self):
         if self.OrthoView.isChecked() == True:
             self.Section.setOrthoView(self.rot_camera)
@@ -289,9 +286,6 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
             self.Section.dataRefresh()
 
-        if self.HightColor.isChecked() == True:
-            self.Section.changeColoring()
-
     def previousSection(self):
         self.factor = -1
         self.end = self.linestring[self.counter]
@@ -335,10 +329,6 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
             self.Section.dataRefresh()
 
-        if self.HightColor.isChecked() == True:
-            self.Section.changeColoring()
-
-
     def PointsClassification(self):
         classes = {'0 unclassified' : 0, '1 undefined' : 1, '2 ground' : 2,
                    '3 low vegetation' : 3, '4 medium vegetation' : 4, '5 high vegetation' : 5,
@@ -350,34 +340,33 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.Section.currentClass = classes[str(self.ClassList.currentText())]
 
     def SelectPoint(self):
-        if self.RectangleSelection.isChecked() == True:
+        if self.RectangleSelection.isChecked():
             self.RectangleSelection.setChecked(False)
             self.Section.SelectRectangle = False
 
-        if self.PointSelection.isChecked() == True:
+        if self.PointSelection.isChecked():
+            self.PointsClassification()
             self.Section.SelectPoint = True
         elif self.PointSelection.isChecked() == False:
             self.Section.SelectPoint = False
 
     def SelectRectangle(self):
-        if self.PointSelection.isChecked() == True:
+        if self.PointSelection.isChecked():
             self.PointSelection.setChecked(False)
             self.Section.SelectPoint = False
 
-        if self.RectangleSelection.isChecked() == True:
+        if self.RectangleSelection.isChecked():
             self.Section.SelectRectangle = True
         elif self.RectangleSelection.isChecked() == False:
             self.Section.SelectRectangle = False
 
     def changecoloring(self):
-        if self.HightColor.isChecked() == True:
-            self.hightcolor = True
-            self.Section.ChangeColoring = True
-            self.Section.changeColoring()
+        if self.HightColor.isChecked():
+            self.Section.currentColor = 2
+            self.Section.dataRefresh()
         elif self.HightColor.isChecked() == False:
-            self.hightcolor = False
-            self.Section.ChangeColoring = False
-            self.Section.changeColoring()
+            self.Section.currentColor = 1
+            self.Section.dataRefresh()
 
     def save_file(self):
         pass
