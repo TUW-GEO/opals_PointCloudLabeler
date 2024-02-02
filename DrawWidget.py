@@ -10,9 +10,8 @@ import math
 import numpy as np
 from sortedcontainers import SortedDict
 from Camera import Camera
-import glm
+import struct
 
-from Geometry import GeometryType, Point3D
 
 
 class DrawWidget(QGLWidget):
@@ -40,12 +39,10 @@ class DrawWidget(QGLWidget):
         self.PointFont = QtGui.QFont("Arial", 8)
         self.FaceFont = QtGui.QFont("Arial", 8)
         self.AxisFont = self.PointFont
-        self.FaceFont.setUnderline(True)
         self.FontColor = QtGui.QColor(QtCore.Qt.white)
         self.resetStretchData()
         self.currentClass = None
         self.currentColor = 1
-
         self.cmap = {0:[210,210,210],1:[180,180,180],
         2:[135,70,10],3:[210,210,210],
         4:[145,200,0],5:[72,128,0],
@@ -138,6 +135,7 @@ class DrawWidget(QGLWidget):
 
     def setTansparency(self, value):
         self.FaceTansparency = value
+
         self.dataRefresh()
 
     def createColorlist(self):
@@ -187,10 +185,17 @@ class DrawWidget(QGLWidget):
 
     def createIdList(self):
         glNewList(self.ptListids,GL_COMPILE)
+        int_to_four_bytes = struct.Struct(
+            '<I').pack  # Little-endian so y1 will be least-significant byte, use '>I' for big-endian
 
         glBegin(GL_POINTS)
-        for idx in range(self.Data["x"].shape[0]):
-            glIndexd(self.Data['Id'][idx])
+        for i in range(self.Data["x"].shape[0]):
+            coords = [self.Data["x"][i], self.Data["y"][i], self.Data["z"][i]]
+
+            # Done many times (you need to mask here, because your number is >32 bits)
+            r, g, b, _ = int_to_four_bytes(i & 0xFFFFFFFF)
+            glColor3ub(r,g,b)
+            glVertex(self._normalize(coords))
         glEnd()
 
         glEndList()
@@ -227,12 +232,31 @@ class DrawWidget(QGLWidget):
     def Picking(self):
         self.paintGL(False)
 
-        glReadBuffer(GL_COLOR_ATTACHMENT0)
-        glPixelStorei(GL_PACK_ALIGNMENT, 1)
-        color = glReadPixels(0, 0, self.widthInPixels, self.heightInPixels, GL_RGBA, GL_UNSIGNED_BYTE)
+        #color = glReadPixels(0, 0, self.widthInPixels, self.heightInPixels, GL_RGBA, GL_UNSIGNED_BYTE)
+        #depth = glReadPixels(0, 0, self.widthInPixels, self.heightInPixels, GL_RGBA, GL_UNSIGNED_BYTE)
         depth = glReadPixels(0, 0, self.widthInPixels, self.heightInPixels, GL_DEPTH_COMPONENT, GL_FLOAT)
 
-        #c1, c2, c3, c4 = (215).to_bytes(4, 'little')
+        np.savetxt('buffer.csv',depth,delimiter=';', fmt='%s')
+        x = self.heightInPixels - self.mouse[0]
+        y = self.widthInPixels - self.mouse[1]
+        i =0
+
+        # depth_mask = depth < 0x7FFFFFFF
+        #
+        # rowID = [] #(row,column)
+        # for j in range(len(depth_mask)):
+        #     for i in range(len(depth_mask[j])):
+        #         if depth_mask[j][i] == True:
+        #             rowID.append((i,j))
+
+
+        #pt = self.mouse in rowID
+        #self.mouse = (416,212)
+
+        #if self.mouse in rowID:
+            #odmID = self.Data['Id'][self.mouse[0]]
+            #posID = np.where(self.Data['Id'] == odmID)[1]
+            #self.Data['Classification'][posID[0]] = self.currentClass
 
 
         self.update()
@@ -329,6 +353,10 @@ class DrawWidget(QGLWidget):
                 glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, fbWidth, fbHeight)
                 glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depthbuffer)
 
+                glViewport(0, 0, fbWidth, fbHeight)
+
+                self.mouse = (mouseEvent.x(), mouseEvent.y())
+
                 self.Picking()
 
     def mouseReleaseEvent(self, e):
@@ -353,14 +381,6 @@ class DrawWidget(QGLWidget):
 
 ##    def mouseDoubleClickEvent(self, mouseEvent):
 ##        print "double click"
-##
-   # def mousePressEvent(self, e):
-        #if e.button() == QtCore.LeftButton:
-    #    ptcoords = (e.x()/self.Scale,e.y()/self.Scale)
-        #print("mouse coords:", (e.x()/self.Scale,e.y(),e.z()))
-        #print(self.Scale)
-     #   self.isPressed = True
-      #  return ptcoords
 
    # def mouseReleaseEvent(self, e):
     #    print("mouse release")
