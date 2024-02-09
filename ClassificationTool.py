@@ -1,5 +1,5 @@
 from opals import Import, Grid, Shade, pyDM
-from PyQt5 import QtCore,QtWidgets,QtGui,uic
+from PyQt5 import QtCore,QtWidgets,QtGui,uic,Qt
 from PyQt5.QtGui import *
 import os
 import opals
@@ -56,8 +56,6 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.Save.pressed.connect(self.save_file)
 
     def load_pointcloud(self):
-        self.Elevator.clear()
-
         path = str(self.PathToFile.text()).strip()
         os.chdir(os.path.dirname(os.path.abspath(path)))
 
@@ -67,23 +65,30 @@ class ClassificationTool(QtWidgets.QMainWindow):
         filename = data.split('.')
         name = filename[0]
 
+        odm_name = name + '.odm'
+        grid_name = name + '_z.tif'
+        shd_name = name + '_shd.tif'
+
+        #import into odm if needed
+        if os.path.isfile(odm_name) == False:
+            Import.Import(inFile=data, outFile=odm_name).run()
+
         #load the opals datamanager in read and write
-        odm = name + '.odm'
-        self.odm = pyDM.Datamanager.load(odm, readOnly=False, threadSafety=False)
+        self.odm = pyDM.Datamanager.load(odm_name, readOnly=False, threadSafety=False)
 
         #create shading
-        if os.path.isfile(name + '.odm') == False:
-            Import.Import(inFile=data, outFile=name + '.odm').run()
-
-        elif os.path.isfile(name + '.tif') == False:
-            Grid.Grid(inFile=name + '.odm', outFile=name + '.tif', filter='echo[last]',
+        if os.path.isfile(grid_name) == False:
+            Grid.Grid(inFile=odm_name, outFile=grid_name, filter='echo[last]',
                   interpolation=opals.Types.GridInterpolator.movingPlanes, gridSize=0.5).run()
 
-        shd = Shade.Shade(inFile=name + '.tif')
-        shd.run()
+        if os.path.isfile(shd_name) == False:
+            Shade.Shade(inFile=grid_name, outFile=shd_name).run()
 
-        image = QPixmap(str(shd.outFile))
-        self.Elevator.setPixmap(image)
+        self.Overview.setShading(shd_name)
+        self.Overview.dataRefresh()
+
+        #image = QPixmap(str(shd.outFile))
+        #self.Elevator.setPixmap(image)
         self.PathToFile.clear()
 
     def load_axis(self):
@@ -101,6 +106,10 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.linestring = pts
         self.segment = copy.deepcopy(pts)
         self.PathToAxisShp.clear()
+
+        self.Overview.setAxis(pts)
+        self.Overview.dataRefresh()
+
 
     def get_points_in_polygon(self):
         if not self.odm:
@@ -162,6 +171,8 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
         #create the polygon
         polygon = create_polygon(p1, p2, p3, p4)
+        self.Overview.setSelectionBox(p1,p2,p3,p4)
+        self.Overview.dataRefresh()
 
         #extract the points inside of the polygon
         result = pyDM.NumpyConverter.searchPoint(dm, polygon, self.layout, withCoordinates = True, noDataObj='min')
@@ -191,6 +202,8 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
         # create the polygon
         polygon = create_polygon(p1, p2, p3, p4)
+        self.Overview.setSelectionBox(p1, p2, p3, p4)
+        self.Overview.dataRefresh()
 
         # extract the points inside of the polygon
         result = pyDM.NumpyConverter.searchPoint(self.odm, polygon, self.layout, withCoordinates=True, noDataObj='min')

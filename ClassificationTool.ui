@@ -485,7 +485,7 @@
          <enum>QLayout::SetMinAndMaxSize</enum>
         </property>
         <item>
-         <widget class="QLabel" name="Elevator">
+         <widget class="OverviewWidget" name="Overview" native="true">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Maximum" vsizetype="Maximum">
             <horstretch>0</horstretch>
@@ -497,9 +497,6 @@
             <width>400</width>
             <height>200</height>
            </size>
-          </property>
-          <property name="text">
-           <string/>
           </property>
          </widget>
         </item>
@@ -756,6 +753,12 @@
    <class>DrawWidget</class>
    <extends>QWidget</extends>
    <header>DrawWidget</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>OverviewWidget</class>
+   <extends>QWidget</extends>
+   <header>OverviewWidget</header>
    <container>1</container>
   </customwidget>
  </customwidgets>
