@@ -43,6 +43,7 @@ class DrawWidget(QGLWidget):
         self.resetStretchData()
         self.currentClass = None
         self.currentColor = 1
+        self.PointSize = 5
         self.cmap = {0:[210,210,210],1:[180,180,180],
         2:[135,70,10],3:[210,210,210],
         4:[145,200,0],5:[72,128,0],
@@ -141,6 +142,7 @@ class DrawWidget(QGLWidget):
     def createColorlist(self):
         glNewList(self.ptList, GL_COMPILE)
         if self.currentColor == 1:
+            glPointSize(self.PointSize)
             glBegin(GL_POINTS)
             for idx in range(self.Data['x'].shape[0]):
                 c = [self.cmap[self.Data['Classification'][idx]][i] / 255 for i in range(3)]
@@ -185,16 +187,13 @@ class DrawWidget(QGLWidget):
 
     def createIdList(self):
         glNewList(self.ptListids,GL_COMPILE)
-        int_to_four_bytes = struct.Struct(
-            '<I').pack  # Little-endian so y1 will be least-significant byte, use '>I' for big-endian
 
+        glPointSize(self.PointSize)
         glBegin(GL_POINTS)
         for i in range(self.Data["x"].shape[0]):
             coords = [self.Data["x"][i], self.Data["y"][i], self.Data["z"][i]]
-
-            # Done many times (you need to mask here, because your number is >32 bits)
-            r, g, b, _ = int_to_four_bytes(i & 0xFFFFFFFF)
-            glColor3ub(r,g,b)
+            r, g, b = self.Index2Color(i)
+            glColor3ub(r, g, b)
             glVertex(self._normalize(coords))
         glEnd()
 
@@ -229,17 +228,34 @@ class DrawWidget(QGLWidget):
 
         self.update()
 
+    def Index2Color(self,i):
+        r, g, b, _ = struct.Struct('<I').pack(i + 1 & 0xFFFFFFFF)
+        return r, g, b
+    def Color2Index(self,byteArray):
+        return byteArray[0] + byteArray[1]*256 + byteArray[2]*256*256 -1
+
     def Picking(self):
+        self.makeCurrent()
         self.paintGL(False)
 
-        #color = glReadPixels(0, 0, self.widthInPixels, self.heightInPixels, GL_RGBA, GL_UNSIGNED_BYTE)
-        #depth = glReadPixels(0, 0, self.widthInPixels, self.heightInPixels, GL_RGBA, GL_UNSIGNED_BYTE)
-        depth = glReadPixels(0, 0, self.widthInPixels, self.heightInPixels, GL_DEPTH_COMPONENT, GL_FLOAT)
+        glReadBuffer(GL_BACK)
 
-        np.savetxt('buffer.csv',depth,delimiter=';', fmt='%s')
-        x = self.heightInPixels - self.mouse[0]
-        y = self.widthInPixels - self.mouse[1]
-        i =0
+        depth = glReadPixels(0, 0, self.widthInPixels, self.heightInPixels, GL_RGBA, GL_FLOAT)
+
+        posColor = glReadPixels(self.mouse[0], self.heightInPixels-self.mouse[1], 1, 1, GL_RGBA, GL_UNSIGNED_BYTE)
+        idxPos = self.Color2Index(posColor)
+
+        if idxPos == -1:
+            print(f"no point found", file=sys.stderr)
+        else:
+            print(f"Point idx={idxPos}", file=sys.stderr)
+
+
+        #out = depth[:,:,0]
+        #np.savetxt('buffer.csv',out,delimiter=';', fmt='%s')
+        #x = self.heightInPixels - self.mouse[0]
+        #y = self.widthInPixels - self.mouse[1]
+        #i =0
 
         # depth_mask = depth < 0x7FFFFFFF
         #
@@ -265,45 +281,47 @@ class DrawWidget(QGLWidget):
         glMatrixMode(GL_PROJECTION)
         glLoadIdentity()
         self.camera.transform()
-        glMatrixMode(GL_MODELVIEW);
-        glLoadIdentity();
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
         glDepthFunc(GL_LEQUAL)
         glEnable(GL_DEPTH_TEST)
 
-        glFrontFace(GL_CCW);
+        glFrontFace(GL_CCW)
 
         glEnable(GL_BLEND)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
 
         if renderScreen and self.ptList:
             glCallList(self.ptList)
+
+            glMatrixMode(GL_MODELVIEW);
+            glLoadIdentity();
+
+            # draw axsis in corner
+            glViewport(0, 0, 100, 100)
+            glMatrixMode(GL_PROJECTION)
+
+            glLoadIdentity()
+            self.camera.transformAxis()
+            glMatrixMode(GL_MODELVIEW);
+            glLoadIdentity();
+
+            # glEnable( GL_DEPTH_TEST );
+            glDisable(GL_DEPTH_TEST);
+            if self.axisList == None:
+                self.initAxis()
+            glCallList(self.axisList)
+            glColor(self.FontColor.redF(), self.FontColor.greenF(), self.FontColor.blueF())
+            self.renderText(1, 0, 0, "x", self.AxisFont)
+            self.renderText(0, 1, 0, "y", self.AxisFont)
+            self.renderText(0, 0, 1, "z", self.AxisFont)
+
+            # restore old view port
+            glViewport(0, 0, self.widthInPixels, self.heightInPixels)
+
         elif self.ptListids:
             glCallList(self.ptListids)
-
-        # draw axsis in corner
-        glViewport(0, 0, 100, 100)
-        glMatrixMode(GL_PROJECTION)
-
-        glLoadIdentity()
-        self.camera.transformAxis()
-        glMatrixMode(GL_MODELVIEW);
-        glLoadIdentity();
-
-        # glEnable( GL_DEPTH_TEST );
-        glDisable(GL_DEPTH_TEST);
-        if self.axisList == None:
-            self.initAxis()
-        glCallList(self.axisList)
-        glColor(self.FontColor.redF(), self.FontColor.greenF(), self.FontColor.blueF())
-        self.renderText(1, 0, 0, "x", self.AxisFont)
-        self.renderText(0, 1, 0, "y", self.AxisFont)
-        self.renderText(0, 0, 1, "z", self.AxisFont)
-
-        # restore old view port
-        glViewport(0, 0, self.widthInPixels, self.heightInPixels)
 
         glFlush()
 
@@ -333,27 +351,29 @@ class DrawWidget(QGLWidget):
         self.oldy = mouseEvent.y()
 
     def mousePressEvent(self, mouseEvent):
+        self.oldx = mouseEvent.x()
+        self.oldy = mouseEvent.y()
         if mouseEvent.button() == QtCore.Qt.LeftButton:
             if self.SelectPoint == True:
-                fbWidth, fbHeight = self.widthInPixels, self.heightInPixels
-
-                # Setup framebuffer
-                framebuffer = glGenFramebuffers(1)
-                glBindFramebuffer(GL_FRAMEBUFFER, framebuffer)
-
-                # Setup colorbuffer
-                colorbuffer = glGenRenderbuffers(1)
-                glBindRenderbuffer(GL_RENDERBUFFER, colorbuffer)
-                glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA, fbWidth, fbHeight)
-                glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, colorbuffer)
-
-                # Setup depthbuffer
-                depthbuffer = glGenRenderbuffers(1)
-                glBindRenderbuffer(GL_RENDERBUFFER, depthbuffer)
-                glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, fbWidth, fbHeight)
-                glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depthbuffer)
-
-                glViewport(0, 0, fbWidth, fbHeight)
+                # fbWidth, fbHeight = self.widthInPixels, self.heightInPixels
+                #
+                # # Setup framebuffer
+                # framebuffer = glGenFramebuffers(1)
+                # glBindFramebuffer(GL_FRAMEBUFFER, framebuffer)
+                #
+                # # Setup colorbuffer
+                # colorbuffer = glGenRenderbuffers(1)
+                # glBindRenderbuffer(GL_RENDERBUFFER, colorbuffer)
+                # glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA, fbWidth, fbHeight)
+                # glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, colorbuffer)
+                #
+                # # Setup depthbuffer
+                # depthbuffer = glGenRenderbuffers(1)
+                # glBindRenderbuffer(GL_RENDERBUFFER, depthbuffer)
+                # glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, fbWidth, fbHeight)
+                # glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depthbuffer)
+                #
+                # glViewport(0, 0, fbWidth, fbHeight)
 
                 self.mouse = (mouseEvent.x(), mouseEvent.y())
 
