@@ -53,6 +53,8 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
         self.ClassList.currentTextChanged.connect(self.PointsClassification)
 
+        self.PointSize.valueChanged.connect(self.Section.setPointSize)
+
         self.Save.pressed.connect(self.save_file)
 
     def load_pointcloud(self):
@@ -74,7 +76,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
             Import.Import(inFile=data, outFile=odm_name).run()
 
         #load the opals datamanager in read and write
-        self.odm = pyDM.Datamanager.load(odm_name, readOnly=False, threadSafety=False)
+        self.odm = pyDM.Datamanager.load(odm_name, readOnly=False, threadSafety=False) #ToDo: wenn die files nicht vorhanden dann wird grid nicht ausgeführt
 
         #create shading
         if os.path.isfile(grid_name) == False:
@@ -87,8 +89,6 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.Overview.setShading(shd_name)
         self.Overview.dataRefresh()
 
-        #image = QPixmap(str(shd.outFile))
-        #self.Elevator.setPixmap(image)
         self.PathToFile.clear()
 
     def load_axis(self):
@@ -236,8 +236,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.Section.dataRefresh()
 
     def setOrthoView(self):
-        if self.OrthoView.isChecked() == True:
-            self.Section.setOrthoView(self.rot_camera)
+        self.Section.setOrthoView(self.rot_camera)
 
     def checkLineEnd(self):
         self.lineend = False
@@ -256,8 +255,22 @@ class ClassificationTool(QtWidgets.QMainWindow):
             elif currentDirection[0,1] < 0:
                 self.lineend = ((self.begin[1] + self.width) < self.end[1])
 
+    def changeAttributes(self):
+        setObj = {}
+        setObj['Id'] = self.result['Id']
+        setObj['GPSTime'] = self.result['GPSTime']
+        setObj['Amplitude'] = self.result['Amplitude']
+        setObj['Classification'] = self.result['Classification']
+        self.result
+        pyDM.NumpyConverter.setById(setObj, self.odm, self.layout)
+        self.odm.save()
+
+        #i=0
+
 
     def nextSection(self):
+        self.changeAttributes()
+
         self.factor = 1
         self.end = self.linestring[self.counter+1]
         self.checkLineEnd()
@@ -300,6 +313,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
             self.Section.dataRefresh()
 
     def previousSection(self):
+        self.changeAttributes()
         self.factor = -1
         self.end = self.linestring[self.counter]
         self.checkLineEnd()
@@ -348,7 +362,9 @@ class ClassificationTool(QtWidgets.QMainWindow):
                    '6 building' : 6, '7 noise' : 7, '8 model key point' : 8,
                    '9 water' : 9, '10 rail' : 10, '11 road surface' : 11,
                    '12 bridge deck' : 12, '13 wire guard' : 13, '14 wire conductor': 14,
-                   '15 transmission tower' : 15, '16 wire connector' : 16}
+                   '15 transmission tower' : 15, '16 wire connector' : 16, '40 bathymetric point (e.g. seafloor or riverbed)' : 40,
+                   '41 water surface' : 41, '42 derived water surface' : 42, '43 underwater object' : 43,
+                   '44 IHO S-57 object' : 44, '45 volume backscatter' : 45 }
 
         self.Section.currentClass = classes[str(self.ClassList.currentText())]
 
@@ -360,6 +376,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
         if self.PointSelection.isChecked():
             self.PointsClassification()
             self.Section.SelectPoint = True
+
         elif self.PointSelection.isChecked() == False:
             self.Section.SelectPoint = False
 
@@ -382,7 +399,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
             self.Section.dataRefresh()
 
     def save_file(self):
-        pass
+        self.changeAttributes()
 
 if __name__ == "__main__":
     import sys

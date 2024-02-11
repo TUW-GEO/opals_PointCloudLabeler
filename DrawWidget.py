@@ -43,22 +43,26 @@ class DrawWidget(QGLWidget):
         self.resetStretchData()
         self.currentClass = None
         self.currentColor = 1
-        self.PointSize = 5
+        self.PointSize = 1
         self.cmap = {0:[210,210,210],1:[180,180,180],
-        2:[135,70,10],3:[210,210,210],
+        2:[135,70,10],3:[185,230,120],
         4:[145,200,0],5:[72,128,0],
         6:[180,20,20],7:[255,255,200],
         8:[220,105,20],9:[0,95,255],
         10:[100,80,60],11:[70,70,70],
         12:[35,35,35],13:[255,250,90],
         14:[255,220,0],15:[235,200,60],
-        16:[190,160,50]}
-
-
+        16:[190,160,50],40:[180,180,95],
+        41:[35,0,250],42:[40,220,240],
+        43:[140,80,160],44:[90,75,170],
+        45:[60,130,130]}
 
         #mouse click:
         self.cicked = QtCore.pyqtSignal() #pyqtSignal()
 
+        #paint
+        #self.begin, self.end = QtCore.QPoint(), QtCore.QPoint()
+        #self.show()
 
     def setOrthoView(self,rotation):
         x = rotation[0,0]
@@ -134,8 +138,8 @@ class DrawWidget(QGLWidget):
         glEnd()
         glEndList()
 
-    def setTansparency(self, value):
-        self.FaceTansparency = value
+    def setPointSize(self, value):
+        self.PointSize = value
 
         self.dataRefresh()
 
@@ -231,51 +235,40 @@ class DrawWidget(QGLWidget):
     def Index2Color(self,i):
         r, g, b, _ = struct.Struct('<I').pack(i + 1 & 0xFFFFFFFF)
         return r, g, b
+
     def Color2Index(self,byteArray):
         return byteArray[0] + byteArray[1]*256 + byteArray[2]*256*256 -1
 
-    def Picking(self):
+    def Picking(self, singlePoint = True):
         self.makeCurrent()
         self.paintGL(False)
-
         glReadBuffer(GL_BACK)
 
-        depth = glReadPixels(0, 0, self.widthInPixels, self.heightInPixels, GL_RGBA, GL_FLOAT)
+        idxPt = []
 
-        posColor = glReadPixels(self.mouse[0], self.heightInPixels-self.mouse[1], 1, 1, GL_RGBA, GL_UNSIGNED_BYTE)
-        idxPos = self.Color2Index(posColor)
+        if singlePoint:
+            posColor = glReadPixels(self.mouse[0], self.heightInPixels-self.mouse[1], 1, 1, GL_RGBA, GL_UNSIGNED_BYTE)
+            idxPos = self.Color2Index(posColor)
+            if idxPos != -1:
+                idxPt.append(idxPos)
 
-        if idxPos == -1:
-            print(f"no point found", file=sys.stderr)
         else:
-            print(f"Point idx={idxPos}", file=sys.stderr)
+            width = abs(self.start[0] - self.stop[0])
+            height = abs(self.start[1] - self.stop[1])
 
+            for i in range(0,width, self.PointSize):
+                for j in range(0,height, self.PointSize):
+                    posCol = glReadPixels(self.start[0] + i, self.heightInPixels - self.start[1] - j, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE)
+                    idxPos = self.Color2Index(posCol)
+                    if idxPos != -1:
+                        idxPt.append(idxPos)
 
-        #out = depth[:,:,0]
-        #np.savetxt('buffer.csv',out,delimiter=';', fmt='%s')
-        #x = self.heightInPixels - self.mouse[0]
-        #y = self.widthInPixels - self.mouse[1]
-        #i =0
+        for pt in idxPt:
+            classArray = self.Data['Classification']
+            classArray[pt] = self.currentClass
+            self.Data['Classification'] = classArray
 
-        # depth_mask = depth < 0x7FFFFFFF
-        #
-        # rowID = [] #(row,column)
-        # for j in range(len(depth_mask)):
-        #     for i in range(len(depth_mask[j])):
-        #         if depth_mask[j][i] == True:
-        #             rowID.append((i,j))
-
-
-        #pt = self.mouse in rowID
-        #self.mouse = (416,212)
-
-        #if self.mouse in rowID:
-            #odmID = self.Data['Id'][self.mouse[0]]
-            #posID = np.where(self.Data['Id'] == odmID)[1]
-            #self.Data['Classification'][posID[0]] = self.currentClass
-
-
-        self.update()
+        self.dataRefresh()
 
     def paintGL(self,renderScreen = True):
         glMatrixMode(GL_PROJECTION)
@@ -334,6 +327,29 @@ class DrawWidget(QGLWidget):
     def initializeGL(self):
         glClearColor(0.0, 0.0, 0.0, 1.0)
         glClearDepth(1.0)
+    #
+    # def paintEvent(self,event):
+    #     if self.SelectRectangle:
+    #         painter = QtGui.QPainter(self)
+    #         col = QtCore.Qt.green
+    #         painter.setPen(QtGui.QPen(col, 2, QtCore.Qt.DotLine))
+    #         painter.drawRect(QtCore.QRect(self.begin, self.end))
+
+    def mousePressEvent(self, mouseEvent):
+        self.oldx = mouseEvent.x()
+        self.oldy = mouseEvent.y()
+        if mouseEvent.button() == QtCore.Qt.LeftButton:
+            if self.SelectPoint:
+                self.mouse = (mouseEvent.x(), mouseEvent.y())
+                self.Picking(True)
+            elif self.SelectRectangle:
+                self.start = (mouseEvent.x(), mouseEvent.y())
+
+                #paintevent
+                #self.begin = mouseEvent.pos()
+                #self.end = mouseEvent.pos()
+
+                #self.update()
 
     def mouseMoveEvent(self, mouseEvent):
         if int(mouseEvent.buttons()) != QtCore.Qt.NoButton:
@@ -350,37 +366,20 @@ class DrawWidget(QGLWidget):
         self.oldx = mouseEvent.x()
         self.oldy = mouseEvent.y()
 
-    def mousePressEvent(self, mouseEvent):
-        self.oldx = mouseEvent.x()
-        self.oldy = mouseEvent.y()
+        #paintevent
+        #self.end = mouseEvent.pos()
+        #self.update()
+
+    def mouseReleaseEvent(self, mouseEvent):
         if mouseEvent.button() == QtCore.Qt.LeftButton:
-            if self.SelectPoint == True:
-                # fbWidth, fbHeight = self.widthInPixels, self.heightInPixels
-                #
-                # # Setup framebuffer
-                # framebuffer = glGenFramebuffers(1)
-                # glBindFramebuffer(GL_FRAMEBUFFER, framebuffer)
-                #
-                # # Setup colorbuffer
-                # colorbuffer = glGenRenderbuffers(1)
-                # glBindRenderbuffer(GL_RENDERBUFFER, colorbuffer)
-                # glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA, fbWidth, fbHeight)
-                # glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, colorbuffer)
-                #
-                # # Setup depthbuffer
-                # depthbuffer = glGenRenderbuffers(1)
-                # glBindRenderbuffer(GL_RENDERBUFFER, depthbuffer)
-                # glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, fbWidth, fbHeight)
-                # glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depthbuffer)
-                #
-                # glViewport(0, 0, fbWidth, fbHeight)
+            if self.SelectRectangle:
+                self.stop = (mouseEvent.x(), mouseEvent.y())
+                self.Picking(False)
 
-                self.mouse = (mouseEvent.x(), mouseEvent.y())
-
-                self.Picking()
-
-    def mouseReleaseEvent(self, e):
-        self.LeftPressed = False
+                #paintevent
+                #self.begin = mouseEvent.pos()
+                #self.end = mouseEvent.pos()
+                #self.update()
 
     def wheelEvent(self, event):
         #pt = event.delta()
@@ -398,6 +397,8 @@ class DrawWidget(QGLWidget):
                 steps = numDegrees.y()
         self.camera.dollyCameraForward(steps, False)
         self.update()
+
+
 
 ##    def mouseDoubleClickEvent(self, mouseEvent):
 ##        print "double click"
