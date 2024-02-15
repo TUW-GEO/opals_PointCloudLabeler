@@ -1,9 +1,11 @@
 #import PyQt5.QtCore.QByteArray
+import OpenGL.GLU
 from PyQt5 import QtCore, QtGui
 from PyQt5.QtWidgets import QApplication
 from PyQt5.QtOpenGL import *
 from OpenGL.GL import *
 from OpenGL.GLUT import *
+from OpenGL.GLU import gluUnProject
 from OpenGL.GL.framebufferobjects import *
 import sys
 import math
@@ -62,6 +64,8 @@ class DrawWidget(QGLWidget):
 
         #paint
         #self.begin, self.end = QtCore.QPoint(), QtCore.QPoint()
+        self.start = None
+        self.stop = None
         #self.show()
 
     def setOrthoView(self,rotation):
@@ -313,6 +317,22 @@ class DrawWidget(QGLWidget):
             # restore old view port
             glViewport(0, 0, self.widthInPixels, self.heightInPixels)
 
+            if self.start and self.stop:
+                # draw selection box
+                # we switch to orthogonal view with 'windows coordinates'. therefore, we can directly use
+                # the mouse coordinates for drawing
+                glMatrixMode(GL_PROJECTION)
+                glLoadIdentity()
+                glOrtho(0, self.widthInPixels, self.heightInPixels, 0, -self.camera.farPlane, self.camera.farPlane)
+
+                glBegin(GL_LINE_LOOP)
+                glColor3f(0.7, 0.7, 0.7)  # color for selection rectangle
+                glVertex(self.start[0], self.start[1], 0)
+                glVertex(self.stop[0],  self.start[1], 0)
+                glVertex(self.stop[0],  self.stop[1],  0)
+                glVertex(self.start[0], self.stop[1],  0)
+                glEnd()
+
         elif self.ptListids:
             glCallList(self.ptListids)
 
@@ -356,8 +376,11 @@ class DrawWidget(QGLWidget):
             # user is dragging
             delta_x = mouseEvent.x() - self.oldx
             delta_y = self.oldy - mouseEvent.y()
-            if int(mouseEvent.buttons()) & QtCore.Qt.LeftButton and QApplication.keyboardModifiers() == QtCore.Qt.ControlModifier:
-                self.camera.orbit(self.oldx, self.oldy, mouseEvent.x(), mouseEvent.y())
+            if int(mouseEvent.buttons()) & QtCore.Qt.LeftButton:
+                if QApplication.keyboardModifiers() == QtCore.Qt.ControlModifier:
+                    self.camera.orbit(self.oldx, self.oldy, mouseEvent.x(), mouseEvent.y())
+                elif self.SelectRectangle:
+                    self.stop = (mouseEvent.x(), mouseEvent.y())
             elif int(mouseEvent.buttons()) & QtCore.Qt.RightButton:
                 self.camera.translateSceneRightAndUp(delta_x, delta_y)
             elif int(mouseEvent.buttons()) & QtCore.Qt.MidButton:
@@ -375,6 +398,10 @@ class DrawWidget(QGLWidget):
             if self.SelectRectangle:
                 self.stop = (mouseEvent.x(), mouseEvent.y())
                 self.Picking(False)
+
+                # reset selection points
+                self.start = self.stop = None
+                self.update()
 
                 #paintevent
                 #self.begin = mouseEvent.pos()
