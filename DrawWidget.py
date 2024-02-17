@@ -1,4 +1,3 @@
-#import PyQt5.QtCore.QByteArray
 import OpenGL.GLU
 from PyQt5 import QtCore, QtGui
 from PyQt5.QtWidgets import QApplication
@@ -13,6 +12,7 @@ import numpy as np
 from sortedcontainers import SortedDict
 from Camera import Camera
 import struct
+import copy
 
 
 
@@ -63,9 +63,11 @@ class DrawWidget(QGLWidget):
         self.cicked = QtCore.pyqtSignal() #pyqtSignal()
 
         #paint
-        #self.begin, self.end = QtCore.QPoint(), QtCore.QPoint()
         self.start = None
         self.stop = None
+        self.cursor = None
+        self.wheel = 0
+
         #self.show()
 
     def setOrthoView(self,rotation):
@@ -100,6 +102,7 @@ class DrawWidget(QGLWidget):
 
     def setData(self, data):
         self.Data = data
+        self.reset = copy.deepcopy(data['Classification'])
 
     def _minmax(self, min, max, coords):
         for i, v in enumerate(coords):
@@ -236,6 +239,11 @@ class DrawWidget(QGLWidget):
 
         self.update()
 
+    def Reset(self):
+        self.Data['Classification'] = self.reset
+        self.reset = copy.deepcopy(self.Data['Classification'])
+        self.dataRefresh()
+
     def Index2Color(self,i):
         r, g, b, _ = struct.Struct('<I').pack(i + 1 & 0xFFFFFFFF)
         return r, g, b
@@ -243,34 +251,53 @@ class DrawWidget(QGLWidget):
     def Color2Index(self,byteArray):
         return byteArray[0] + byteArray[1]*256 + byteArray[2]*256*256 -1
 
-    def Picking(self, singlePoint = True):
-        self.makeCurrent()
-        self.paintGL(False)
-        glReadBuffer(GL_BACK)
+    def multiPtPicking(self,widht,height,posX,posY):
+        #posX and posY are the coordinates of the top left corner
+        #of the rectangle; width and hight are the dimensions of the
+        #rectangle
+
+        Width = abs(widht)
+        Height = abs(height)
 
         idxPt = []
 
-        if singlePoint:
-            posColor = glReadPixels(self.mouse[0], self.heightInPixels-self.mouse[1], 1, 1, GL_RGBA, GL_UNSIGNED_BYTE)
-            idxPos = self.Color2Index(posColor)
-            if idxPos != -1:
-                idxPt.append(idxPos)
-
-        else:
-            width = abs(self.start[0] - self.stop[0])
-            height = abs(self.start[1] - self.stop[1])
-
-            for i in range(0,width, self.PointSize):
-                for j in range(0,height, self.PointSize):
-                    posCol = glReadPixels(self.start[0] + i, self.heightInPixels - self.start[1] - j, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE)
-                    idxPos = self.Color2Index(posCol)
-                    if idxPos != -1:
-                        idxPt.append(idxPos)
+        for x in range(0, Width, self.PointSize):
+            for y in range(0, Height, self.PointSize):
+                posCol = glReadPixels(posX + x, self.heightInPixels - posY - y, 1, 1, GL_RGBA,GL_UNSIGNED_BYTE)
+                idxPos = self.Color2Index(posCol)
+                if idxPos != -1:
+                    idxPt.append(idxPos)
 
         for pt in idxPt:
             classArray = self.Data['Classification']
             classArray[pt] = self.currentClass
             self.Data['Classification'] = classArray
+
+    def Picking(self, singlePoint = True):
+        self.makeCurrent()
+        self.paintGL(False)
+        glReadBuffer(GL_BACK)
+
+        if singlePoint:
+            if self.wheel == 0:
+                posColor = glReadPixels(self.mouse[0], self.heightInPixels-self.mouse[1], 1, 1, GL_RGBA, GL_UNSIGNED_BYTE)
+                idxPos = self.Color2Index(posColor)
+                if idxPos != -1:
+                    classArray = self.Data['Classification']
+                    classArray[idxPos] = self.currentClass
+                    self.Data['Classification'] = classArray
+
+            else:
+                width = int(abs((self.cursor[0] - self.wheel) - (self.cursor[0] + self.wheel)))
+                height = int(abs((self.cursor[1] - self.wheel) - (self.cursor[1] + self.wheel)))
+
+                self.multiPtPicking(width, height, (self.cursor[0] - self.wheel), (self.cursor[1] - self.wheel))
+
+        else:
+            width = abs(self.start[0] - self.stop[0])
+            height = abs(self.start[1] - self.stop[1])
+
+            self.multiPtPicking(width,height,self.start[0],self.start[1])
 
         self.dataRefresh()
 
@@ -318,20 +345,35 @@ class DrawWidget(QGLWidget):
             glViewport(0, 0, self.widthInPixels, self.heightInPixels)
 
             if self.start and self.stop:
-                # draw selection box
-                # we switch to orthogonal view with 'windows coordinates'. therefore, we can directly use
-                # the mouse coordinates for drawing
-                glMatrixMode(GL_PROJECTION)
-                glLoadIdentity()
-                glOrtho(0, self.widthInPixels, self.heightInPixels, 0, -self.camera.farPlane, self.camera.farPlane)
+                if self.SelectRectangle:
+                    # draw selection box
+                    # we switch to orthogonal view with 'windows coordinates'. therefore, we can directly use
+                    # the mouse coordinates for drawing
+                    glMatrixMode(GL_PROJECTION)
+                    glLoadIdentity()
+                    glOrtho(0, self.widthInPixels, self.heightInPixels, 0, -self.camera.farPlane, self.camera.farPlane)
 
-                glBegin(GL_LINE_LOOP)
-                glColor3f(0.7, 0.7, 0.7)  # color for selection rectangle
-                glVertex(self.start[0], self.start[1], 0)
-                glVertex(self.stop[0],  self.start[1], 0)
-                glVertex(self.stop[0],  self.stop[1],  0)
-                glVertex(self.start[0], self.stop[1],  0)
-                glEnd()
+                    glBegin(GL_LINE_LOOP)
+                    glColor3f(0.7, 0.7, 0.7)  # color for selection rectangle
+                    glVertex(self.start[0], self.start[1], 0)
+                    glVertex(self.stop[0],  self.start[1], 0)
+                    glVertex(self.stop[0],  self.stop[1],  0)
+                    glVertex(self.start[0], self.stop[1],  0)
+                    glEnd()
+
+            elif self.cursor:
+                if self.SelectPoint:
+                    glMatrixMode(GL_PROJECTION)
+                    glLoadIdentity()
+                    glOrtho(0, self.widthInPixels, self.heightInPixels, 0, -self.camera.farPlane, self.camera.farPlane)
+
+                    glBegin(GL_LINE_LOOP)
+                    glColor3f(0.7, 0.7, 0.7)
+                    glVertex(self.cursor[0] - self.wheel, self.cursor[1] + self.wheel, 0)
+                    glVertex(self.cursor[0] + self.wheel, self.cursor[1] + self.wheel, 0)
+                    glVertex(self.cursor[0] + self.wheel, self.cursor[1] - self.wheel, 0)
+                    glVertex(self.cursor[0] - self.wheel, self.cursor[1] - self.wheel, 0)
+                    glEnd()
 
         elif self.ptListids:
             glCallList(self.ptListids)
@@ -347,13 +389,6 @@ class DrawWidget(QGLWidget):
     def initializeGL(self):
         glClearColor(0.0, 0.0, 0.0, 1.0)
         glClearDepth(1.0)
-    #
-    # def paintEvent(self,event):
-    #     if self.SelectRectangle:
-    #         painter = QtGui.QPainter(self)
-    #         col = QtCore.Qt.green
-    #         painter.setPen(QtGui.QPen(col, 2, QtCore.Qt.DotLine))
-    #         painter.drawRect(QtCore.QRect(self.begin, self.end))
 
     def mousePressEvent(self, mouseEvent):
         self.oldx = mouseEvent.x()
@@ -365,12 +400,6 @@ class DrawWidget(QGLWidget):
             elif self.SelectRectangle:
                 self.start = (mouseEvent.x(), mouseEvent.y())
 
-                #paintevent
-                #self.begin = mouseEvent.pos()
-                #self.end = mouseEvent.pos()
-
-                #self.update()
-
     def mouseMoveEvent(self, mouseEvent):
         if int(mouseEvent.buttons()) != QtCore.Qt.NoButton:
             # user is dragging
@@ -381,17 +410,21 @@ class DrawWidget(QGLWidget):
                     self.camera.orbit(self.oldx, self.oldy, mouseEvent.x(), mouseEvent.y())
                 elif self.SelectRectangle:
                     self.stop = (mouseEvent.x(), mouseEvent.y())
+
             elif int(mouseEvent.buttons()) & QtCore.Qt.RightButton:
                 self.camera.translateSceneRightAndUp(delta_x, delta_y)
             elif int(mouseEvent.buttons()) & QtCore.Qt.MidButton:
                 self.camera.dollyCameraForward(3 * (delta_x + delta_y), False)
             self.update()
+
+        #detect mouse position without pressing any mouse button
+        elif int(mouseEvent.button()) == QtCore.Qt.NoButton:
+            if self.SelectPoint:
+                self.cursor = (mouseEvent.x(), mouseEvent.y())
+            self.update()
+
         self.oldx = mouseEvent.x()
         self.oldy = mouseEvent.y()
-
-        #paintevent
-        #self.end = mouseEvent.pos()
-        #self.update()
 
     def mouseReleaseEvent(self, mouseEvent):
         if mouseEvent.button() == QtCore.Qt.LeftButton:
@@ -403,34 +436,23 @@ class DrawWidget(QGLWidget):
                 self.start = self.stop = None
                 self.update()
 
-                #paintevent
-                #self.begin = mouseEvent.pos()
-                #self.end = mouseEvent.pos()
-                #self.update()
-
     def wheelEvent(self, event):
-        #pt = event.delta()
-        numPixels = event.pixelDelta();
-        numDegrees = event.angleDelta();
-        if numPixels.isNull() is False:
-            if abs(numPixels.x()) > abs(numPixels.y()):
-                steps = numPixels.x()
+        if not self.SelectPoint:
+            numPixels = event.pixelDelta();
+            numDegrees = event.angleDelta();
+            if numPixels.isNull() is False:
+                if abs(numPixels.x()) > abs(numPixels.y()):
+                    steps = numPixels.x()
+                else:
+                    steps = numPixels.y()
             else:
-                steps = numPixels.y()
+                if abs(numDegrees.x()) > abs(numDegrees.y()):
+                    steps = numDegrees.x()
+                else:
+                    steps = numDegrees.y()
+            self.camera.dollyCameraForward(steps, False)
+            self.update()
+
         else:
-            if abs(numDegrees.x()) > abs(numDegrees.y()):
-                steps = numDegrees.x()
-            else:
-                steps = numDegrees.y()
-        self.camera.dollyCameraForward(steps, False)
-        self.update()
-
-
-
-##    def mouseDoubleClickEvent(self, mouseEvent):
-##        print "double click"
-
-   # def mouseReleaseEvent(self, e):
-    #    print("mouse release")
-     #   self.isPressed = False
-#
+            self.wheel += (event.angleDelta().y()/120)
+            self.update()

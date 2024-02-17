@@ -13,14 +13,16 @@ class ClassificationTool(QtWidgets.QMainWindow):
         super(ClassificationTool, self).__init__()
         uic.loadUi('ClassificationTool.ui', self)
         self.initUI()
+        self.Section.setMouseTracking(True)
         self.linestring = None
         self.odm = None
         self.result = None
         self.direction = None
         self.layout = None
         self.rot_camera = None
-        self.width = None
-        self.length = None
+        self.along = None
+        self.across = None
+        self.overlap = None
         self.begin = None
         self.end = None
         self.counter = 0
@@ -30,6 +32,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.hightcolor = False
         self.Point = False
         self.Rectangle = False
+        self.firstSection = None
         self.PathToFile.setText( r"C:\Users\felix\OneDrive\Dokumente\TU Wien\Bachelorarbeit\Classificationtool\strip21.laz" )
         self.PathToAxisShp.setText( r"C:\Users\felix\OneDrive\Dokumente\TU Wien\Bachelorarbeit\Classificationtool\strip21_axis_transformed.shp")
         #self.PathToFile.setText(r"C:\swdvlp64_cmake\opals\distro\demo\strip21.laz")
@@ -39,12 +42,14 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.LoadButton.pressed.connect(self.load_pointcloud)
         self.LoadAxis.pressed.connect(self.viewFirstSection)
 
-        self.QPushButtonWidth.pressed.connect(self.changePolygonSize)
-        self.QPushButtonLength.pressed.connect(self.changePolygonSize)
+        self.QPushButtonAlong.pressed.connect(self.changePolygonSize)
+        self.QPushButtonAcross.pressed.connect(self.changePolygonSize)
+        self.QPushButtonOverlap.pressed.connect(self.overlapPolygons)
         self.Next.pressed.connect(self.nextSection)
         self.Previous.pressed.connect(self.previousSection)
 
-        self.HightColor.clicked.connect(self.changecoloring)
+        self.HightColor.clicked.connect(self.HightColoring)
+        self.ClassColor.clicked.connect(self.ClassColoring)
 
         self.OrthoView.clicked.connect(self.setOrthoView)
 
@@ -52,8 +57,11 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.RectangleSelection.clicked.connect(self.SelectRectangle)
 
         self.ClassList.currentTextChanged.connect(self.PointsClassification)
+        self.Reset.clicked.connect(self.Section.Reset)
 
         self.PointSize.valueChanged.connect(self.Section.setPointSize)
+
+        self.knnTree.setChecked(True)
 
         self.Save.pressed.connect(self.save_file)
 
@@ -117,8 +125,9 @@ class ClassificationTool(QtWidgets.QMainWindow):
         if not self.linestring:
             return
 
-        self.width = float(self.width_section.text().strip())
-        self.length = float(self.lenght_section.text().strip())
+        self.along = float(self.along_section.text().strip())
+        self.across = float(self.across_section.text().strip())
+        self.overlap = (float(self.overlap_section.text().strip()))/100
 
         dm = self.odm
 
@@ -158,7 +167,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
             return p1, p2, p3, p4
 
-        p1, p2, p3, p4 = poly_points(self.begin, direction(self.begin, self.end), self.length, self.width)
+        p1, p2, p3, p4 = poly_points(self.begin, direction(self.begin, self.end), self.across, self.along)
         pf = pyDM.PolygonFactory()
 
         def create_polygon(p1, p2, p3, p4):
@@ -189,7 +198,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
             self.rot_camera = rot_vector
             return p1, p2, p3, p4
 
-        p1, p2, p3, p4 = poly_points(self.begin, self.direction, self.length, self.width)
+        p1, p2, p3, p4 = poly_points(self.begin, self.direction, self.across, self.along)
         pf = pyDM.PolygonFactory()
 
         def create_polygon(p1, p2, p3, p4):
@@ -209,29 +218,32 @@ class ClassificationTool(QtWidgets.QMainWindow):
         result = pyDM.NumpyConverter.searchPoint(self.odm, polygon, self.layout, withCoordinates=True, noDataObj='min')
         self.result = result
 
-    def viewFirstSection(self):
-        self.forwards = True
-        self.load_axis()
-        self.get_points_in_polygon()
-        self.Section.setData(self.result)
-        coords1 = [ self.result["x"][0], self.result["y"][0], self.result["z"][0]]
-        coords2 = [ coords1[0]+10., coords1[1]+10., coords1[2]+10.]
-        self.Section.setStretchAxis(coords1, coords2)
-
-        self.Section.setOrthoView(self.rot_camera)
-
-        self.Section.dataRefresh()
-
-    def changePolygonSize(self):
-        self.width = float(self.width_section.text().strip())
-        self.length = float(self.lenght_section.text().strip())
-
-        self.polygon()
-
+    def ptsinSection(self):
         self.Section.setData(self.result)
         coords1 = [self.result["x"][0], self.result["y"][0], self.result["z"][0]]
         coords2 = [coords1[0] + 10., coords1[1] + 10., coords1[2] + 10.]
         self.Section.setStretchAxis(coords1, coords2)
+
+    def viewFirstSection(self):
+        self.forwards = True
+        self.load_axis()
+        self.get_points_in_polygon()
+        self.ptsinSection()
+
+        self.Section.setOrthoView(self.rot_camera)
+
+        self.Section.dataRefresh()
+        self.firstSection = True
+
+    def overlapPolygons(self):
+        self.overlap = float(self.overlap_section.text().strip())/100
+
+    def changePolygonSize(self):
+        self.along = float(self.along_section.text().strip())
+        self.across = float(self.across_section.text().strip())
+
+        self.polygon()
+        self.ptsinSection()
 
         self.Section.dataRefresh()
 
@@ -244,32 +256,46 @@ class ClassificationTool(QtWidgets.QMainWindow):
         #print('curr Dir:', currentDirection)
 
         if currentDirection[0,0] > 0:
-            self.lineend = ((self.begin[0] + self.width) > self.end[0])
+            self.lineend = ((self.begin[0] + self.along) > self.end[0])
 
         elif currentDirection[0,0] < 0:
-            self.lineend = ((self.begin[0] + self.width) < self.end[0])
+            self.lineend = ((self.begin[0] + self.along) < self.end[0])
 
         elif currentDirection[0,0] == 0:
             if currentDirection[0,1] > 0:
-                self.lineend = ((self.begin[1] + self.width) > self.end[1])
+                self.lineend = ((self.begin[1] + self.along) > self.end[1])
             elif currentDirection[0,1] < 0:
-                self.lineend = ((self.begin[1] + self.width) < self.end[1])
+                self.lineend = ((self.begin[1] + self.along) < self.end[1])
 
     def changeAttributes(self):
-        setObj = {}
-        setObj['Id'] = self.result['Id']
-        setObj['GPSTime'] = self.result['GPSTime']
-        setObj['Amplitude'] = self.result['Amplitude']
-        setObj['Classification'] = self.result['Classification']
-        self.result
-        pyDM.NumpyConverter.setById(setObj, self.odm, self.layout)
+        self.setObj = {}
+        self.setObj['Id'] = self.result['Id']
+        self.setObj['GPSTime'] = self.result['GPSTime']
+        self.setObj['Amplitude'] = self.result['Amplitude']
+        self.setObj['Classification'] = self.result['Classification']
+        pyDM.NumpyConverter.setById(self.setObj, self.odm, self.layout)
         self.odm.save()
 
-        #i=0
+    def knn(self):
+        kdtree = pyDM.PointIndexLeaf(pyDM.IndexType.kdtree,2,True)
 
+        for idx in range(len(self.setObj['x'])):
+            kdtree.addPoint(pyDM.Point(self.setObj['x'][idx],self.setObj['y'][idx],self.setObj['z'][idx]))
+
+        nnCount = 1
+        searchPt = pyDM.Point(self.along,self.across,0.)
+        searchMode = pyDM.SelectionMode.nearest
+        maxSearchDist = 2
+
+        pts = kdtree.searchPoint(nnCount,searchPt,maxSearchDist,searchMode)
+
+
+        i=0
 
     def nextSection(self):
         self.changeAttributes()
+        if self.knnTree.isChecked():
+            self.knn()
 
         self.factor = 1
         self.end = self.linestring[self.counter+1]
@@ -278,7 +304,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
         #print('--------------------------')
         #print('Vor')
         #print(self.counter)
-        #print('old pos:',self.begin)
+        #print('old mousePos:',self.begin)
         #print('end:',self.end)
         #print('--------------------------')
 
@@ -287,13 +313,10 @@ class ClassificationTool(QtWidgets.QMainWindow):
             self.counter += 1
 
             if (self.begin[0] < self.linestring[self.counter + 1][0] and ((self.counter + 1) == (len(self.linestring) - 1))) or self.counter < 0:
-                QtWidgets.QMessageBox(QtWidgets.QMessageBox.Critical, "Error occured", "End of Polyline! No more points available.").exec_();
+                QtWidgets.QMessageBox(QtWidgets.QMessageBox.Critical, "Error occured", "End of Polyline! No more points available.").exec_()
             else:
                 self.get_points_in_polygon()
-                self.Section.setData(self.result)
-                coords1 = [self.result["x"][0], self.result["y"][0], self.result["z"][0]]
-                coords2 = [coords1[0] + 10., coords1[1] + 10., coords1[2] + 10.]
-                self.Section.setStretchAxis(coords1, coords2)
+                self.ptsinSection()
 
                 self.Section.setOrthoView(self.rot_camera)
 
@@ -301,14 +324,10 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
         else:
             for i in range(len(self.begin)):
-                self.begin[i] = self.begin[i] + (self.width*self.direction[0,i])
-            #print('new pos:', self.begin)
+                self.begin[i] = self.begin[i] + ((self.along*(1-self.overlap))*self.direction[0,i])
+            #print('new mousePos:', self.begin)
             self.polygon()
-
-            self.Section.setData(self.result)
-            coords1 = [self.result["x"][0], self.result["y"][0], self.result["z"][0]]
-            coords2 = [coords1[0] + 10., coords1[1] + 10., coords1[2] + 10.]
-            self.Section.setStretchAxis(coords1, coords2)
+            self.ptsinSection()
 
             self.Section.dataRefresh()
 
@@ -321,7 +340,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
         #print('--------------------------')
         #print('zurück')
         #print(self.counter)
-        #print('old pos:', self.begin)
+        #print('old mousePos:', self.begin)
         #print('end:', self.end)
         #print('--------------------------')
 
@@ -331,13 +350,10 @@ class ClassificationTool(QtWidgets.QMainWindow):
             #print('counter -= 1')
 
             if self.counter < 0:
-                QtWidgets.QMessageBox(QtWidgets.QMessageBox.Critical, "Error occured", "Begin of Polyline! No more points available.").exec_();
+                QtWidgets.QMessageBox(QtWidgets.QMessageBox.Critical, "Error occured", "Begin of Polyline! No more points available.").exec_()
             else:
                 self.get_points_in_polygon()
-                self.Section.setData(self.result)
-                coords1 = [self.result["x"][0], self.result["y"][0], self.result["z"][0]]
-                coords2 = [coords1[0] + 10., coords1[1] + 10., coords1[2] + 10.]
-                self.Section.setStretchAxis(coords1, coords2)
+                self.ptsinSection()
 
                 self.Section.setOrthoView(self.rot_camera)
 
@@ -345,14 +361,11 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
         else:
             for i in range(len(self.begin)):
-                self.begin[i] = self.begin[i] - (self.width*self.direction[0,i])
-            #print('new pos:', self.begin)
+                self.begin[i] = self.begin[i] - (self.along*self.direction[0,i])
+            #print('new mousePos:', self.begin)
             self.polygon()
 
-            self.Section.setData(self.result)
-            coords1 = [self.result["x"][0], self.result["y"][0], self.result["z"][0]]
-            coords2 = [coords1[0] + 10., coords1[1] + 10., coords1[2] + 10.]
-            self.Section.setStretchAxis(coords1, coords2)
+            self.ptsinSection()
 
             self.Section.dataRefresh()
 
@@ -390,12 +403,21 @@ class ClassificationTool(QtWidgets.QMainWindow):
         elif self.RectangleSelection.isChecked() == False:
             self.Section.SelectRectangle = False
 
-    def changecoloring(self):
+    def ClassColoring(self):
+        if self.firstSection:
+            if self.HightColor.isChecked():
+                self.HightColor.setChecked(False)
+
+            if self.ClassColor.isChecked():
+                self.Section.currentColor = 1
+                self.Section.dataRefresh()
+
+    def HightColoring(self):
+        if self.ClassColor.isChecked():
+            self.ClassColor.setChecked(False)
+
         if self.HightColor.isChecked():
             self.Section.currentColor = 2
-            self.Section.dataRefresh()
-        elif self.HightColor.isChecked() == False:
-            self.Section.currentColor = 1
             self.Section.dataRefresh()
 
     def save_file(self):
@@ -407,8 +429,3 @@ if __name__ == "__main__":
     win = ClassificationTool()
     win.show()
     sys.exit(app.exec_())
-
-
-#C:\Users\felix\OneDrive\Dokumente\TU Wien\Bachelorarbeit\Classificationtool\strip21.laz
-#C:\Users\felix\OneDrive\Dokumente\TU Wien\Bachelorarbeit\Classificationtool\strip21_axis.shp
-#axisFile = name + '_axis.shp'
