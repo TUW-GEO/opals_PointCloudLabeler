@@ -61,7 +61,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
         self.PointSize.valueChanged.connect(self.Section.setPointSize)
 
-        self.knnTree.setChecked(True)
+        self.knnTree.setChecked(False)
 
         self.Save.pressed.connect(self.save_file)
 
@@ -97,7 +97,8 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.Overview.setShading(shd_name)
         self.Overview.dataRefresh()
 
-        self.PathToFile.clear()
+        #self.PathToFile.clear()
+        self.PathToFile.setEnabled(False)
 
     def load_axis(self):
         axis = str(self.PathToAxisShp.text()).strip()
@@ -113,7 +114,8 @@ class ClassificationTool(QtWidgets.QMainWindow):
                 pts.append([pt.x, pt.y])
         self.linestring = pts
         self.segment = copy.deepcopy(pts)
-        self.PathToAxisShp.clear()
+        #self.PathToAxisShp.clear()
+        self.PathToAxisShp.setEnabled(False)
 
         self.Overview.setAxis(pts)
         self.Overview.dataRefresh()
@@ -218,7 +220,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
         result = pyDM.NumpyConverter.searchPoint(self.odm, polygon, self.layout, withCoordinates=True, noDataObj='min')
         self.result = result
 
-    def ptsinSection(self):
+    def ptsInSection(self):
         self.Section.setData(self.result)
         coords1 = [self.result["x"][0], self.result["y"][0], self.result["z"][0]]
         coords2 = [coords1[0] + 10., coords1[1] + 10., coords1[2] + 10.]
@@ -228,7 +230,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.forwards = True
         self.load_axis()
         self.get_points_in_polygon()
-        self.ptsinSection()
+        self.ptsInSection()
 
         self.Section.setOrthoView(self.rot_camera)
 
@@ -243,7 +245,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.across = float(self.across_section.text().strip())
 
         self.polygon()
-        self.ptsinSection()
+        self.ptsInSection()
 
         self.Section.dataRefresh()
 
@@ -279,23 +281,35 @@ class ClassificationTool(QtWidgets.QMainWindow):
     def knn(self):
         kdtree = pyDM.PointIndexLeaf(pyDM.IndexType.kdtree,2,True)
 
-        for idx in range(len(self.setObj['x'])):
-            kdtree.addPoint(pyDM.Point(self.setObj['x'][idx],self.setObj['y'][idx],self.setObj['z'][idx]))
+        for idx in range(len(self.knnSection['x'])):
+            kdtree.addPoint(pyDM.Point(self.knnSection['x'][idx],self.knnSection['y'][idx],self.knnSection['z'][idx]))
 
-        nnCount = 1
-        searchPt = pyDM.Point(self.along,self.across,0.)
-        searchMode = pyDM.SelectionMode.nearest
-        maxSearchDist = 2
+        knnPts = []
 
-        pts = kdtree.searchPoint(nnCount,searchPt,maxSearchDist,searchMode)
+        for idx in range(len(self.result['x'])):
+            nnCount = 1
+            searchPt = pyDM.Point(self.result['x'][idx],self.result['y'][idx],0.)
+            searchMode = pyDM.SelectionMode.nearest
+            maxSearchDist = 2
 
+            pts = kdtree.searchPoint(nnCount,searchPt,maxSearchDist,searchMode)
+            knnPts.append(pts)
 
-        i=0
+        for idx in range(len(self.result['x'])):
+            if knnPts[idx] != []:
+                pt = np.where(self.knnSection['x'] == (knnPts[idx][0].x))
+                k = self.knnSection['Classification'][pt[0][0]]
+                self.result['Classification'][idx] = k
+
+        self.result = self.result
 
     def nextSection(self):
+        if self.PathToFile.isEnabled() and self.PathToAxisShp.isEnabled():
+            self.PathToFile.setEnabled(False)
+            self.PathToAxisShp.setEnabled(False)
+
         self.changeAttributes()
-        if self.knnTree.isChecked():
-            self.knn()
+        self.knnSection = copy.deepcopy(self.result)
 
         self.factor = 1
         self.end = self.linestring[self.counter+1]
@@ -316,7 +330,11 @@ class ClassificationTool(QtWidgets.QMainWindow):
                 QtWidgets.QMessageBox(QtWidgets.QMessageBox.Critical, "Error occured", "End of Polyline! No more points available.").exec_()
             else:
                 self.get_points_in_polygon()
-                self.ptsinSection()
+
+                if self.knnTree.isChecked():
+                    self.knn()
+
+                self.ptsInSection()
 
                 self.Section.setOrthoView(self.rot_camera)
 
@@ -327,7 +345,11 @@ class ClassificationTool(QtWidgets.QMainWindow):
                 self.begin[i] = self.begin[i] + ((self.along*(1-self.overlap))*self.direction[0,i])
             #print('new mousePos:', self.begin)
             self.polygon()
-            self.ptsinSection()
+
+            if self.knnTree.isChecked():
+                self.knn()
+
+            self.ptsInSection()
 
             self.Section.dataRefresh()
 
@@ -353,7 +375,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
                 QtWidgets.QMessageBox(QtWidgets.QMessageBox.Critical, "Error occured", "Begin of Polyline! No more points available.").exec_()
             else:
                 self.get_points_in_polygon()
-                self.ptsinSection()
+                self.ptsInSection()
 
                 self.Section.setOrthoView(self.rot_camera)
 
@@ -365,7 +387,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
             #print('new mousePos:', self.begin)
             self.polygon()
 
-            self.ptsinSection()
+            self.ptsInSection()
 
             self.Section.dataRefresh()
 
@@ -422,6 +444,9 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
     def save_file(self):
         self.changeAttributes()
+        self.Section.deleteReset()
+        self.PathToFile.setEnabled(True)
+        self.PathToAxisShp.setEnabled(True)
 
 if __name__ == "__main__":
     import sys

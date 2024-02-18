@@ -147,7 +147,6 @@ class DrawWidget(QGLWidget):
 
     def setPointSize(self, value):
         self.PointSize = value
-
         self.dataRefresh()
 
     def createColorlist(self):
@@ -213,8 +212,6 @@ class DrawWidget(QGLWidget):
     def dataRefresh(self):
         if len(self.Data) == 0:
             self.ptList = None
-            self.PointLabels = []
-            self.FaceLabels = []
             return
 
         min, max = self.getDataExtends()
@@ -243,6 +240,9 @@ class DrawWidget(QGLWidget):
         self.Data['Classification'] = self.reset
         self.reset = copy.deepcopy(self.Data['Classification'])
         self.dataRefresh()
+
+    def deleteReset(self):
+        self.reset = self.Data['Classification']
 
     def Index2Color(self,i):
         r, g, b, _ = struct.Struct('<I').pack(i + 1 & 0xFFFFFFFF)
@@ -280,12 +280,7 @@ class DrawWidget(QGLWidget):
 
         if singlePoint:
             if self.wheel == 0:
-                posColor = glReadPixels(self.mouse[0], self.heightInPixels-self.mouse[1], 1, 1, GL_RGBA, GL_UNSIGNED_BYTE)
-                idxPos = self.Color2Index(posColor)
-                if idxPos != -1:
-                    classArray = self.Data['Classification']
-                    classArray[idxPos] = self.currentClass
-                    self.Data['Classification'] = classArray
+                self.multiPtPicking(1, 1, self.mouse[0], self.mouse[1])
 
             else:
                 width = int(abs((self.cursor[0] - self.wheel) - (self.cursor[0] + self.wheel)))
@@ -405,6 +400,7 @@ class DrawWidget(QGLWidget):
             # user is dragging
             delta_x = mouseEvent.x() - self.oldx
             delta_y = self.oldy - mouseEvent.y()
+
             if int(mouseEvent.buttons()) & QtCore.Qt.LeftButton:
                 if QApplication.keyboardModifiers() == QtCore.Qt.ControlModifier:
                     self.camera.orbit(self.oldx, self.oldy, mouseEvent.x(), mouseEvent.y())
@@ -413,6 +409,7 @@ class DrawWidget(QGLWidget):
 
             elif int(mouseEvent.buttons()) & QtCore.Qt.RightButton:
                 self.camera.translateSceneRightAndUp(delta_x, delta_y)
+
             elif int(mouseEvent.buttons()) & QtCore.Qt.MidButton:
                 self.camera.dollyCameraForward(3 * (delta_x + delta_y), False)
             self.update()
@@ -421,7 +418,11 @@ class DrawWidget(QGLWidget):
         elif int(mouseEvent.button()) == QtCore.Qt.NoButton:
             if self.SelectPoint:
                 self.cursor = (mouseEvent.x(), mouseEvent.y())
+            else:
+                self.wheel = 0
             self.update()
+
+
 
         self.oldx = mouseEvent.x()
         self.oldy = mouseEvent.y()
