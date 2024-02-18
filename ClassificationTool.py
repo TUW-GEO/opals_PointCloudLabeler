@@ -295,12 +295,11 @@ class ClassificationTool(QtWidgets.QMainWindow):
             pts = kdtree.searchPoint(nnCount,searchPt,maxSearchDist,searchMode)
             knnPts.append(pts)
 
-        for idx in range(len(self.result['x'])):
-            if knnPts[idx] != []:
-                pt = np.where(self.knnSection['x'] == (knnPts[idx][0].x))
+            if pts != []:
+                pt = np.where(self.knnSection['x'] == (pts[0].x))
                 k = self.knnSection['Classification'][pt[0][0]]
                 self.result['Classification'][idx] = k
-
+                
         self.result = self.result
 
     def nextSection(self):
