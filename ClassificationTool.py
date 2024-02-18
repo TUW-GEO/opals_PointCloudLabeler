@@ -191,10 +191,10 @@ class ClassificationTool(QtWidgets.QMainWindow):
         result = pyDM.NumpyConverter.searchPoint(dm, polygon, self.layout, withCoordinates = True, noDataObj='min')
         self.result = result
 
-        self.ptsLoad = len(result['x'])
+        self.ptsLoad = len(self.result['x'])
         self.ptsClass = 0
 
-        for i in range(len(result['x'])):
+        for i in range(len(self.result['x'])):
             if result['Classification'][i] != 0:
                 self.ptsClass += 1
 
@@ -229,11 +229,11 @@ class ClassificationTool(QtWidgets.QMainWindow):
         result = pyDM.NumpyConverter.searchPoint(self.odm, polygon, self.layout, withCoordinates=True, noDataObj='min')
         self.result = result
 
-        self.ptsLoad = len(result['x'])
+        self.ptsLoad = len(self.result['x'])
 
         self.ptsClass = 0
 
-        for i in range(len(result['x'])):
+        for i in range(len(self.result['x'])):
             if result['Classification'][i] != 0:
                 self.ptsClass += 1
 
@@ -262,6 +262,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.polygon()
         self.ptsInSection()
         self.Section.dataRefresh()
+        self.showMessages()
 
     def setOrthoView(self):
         self.Section.setOrthoView(self.rot_camera)
