@@ -1,5 +1,5 @@
 from opals import Import, Grid, Shade, pyDM
-from PyQt5 import QtCore,QtWidgets,QtGui,uic,Qt
+from PyQt5 import QtWidgets,uic
 from PyQt5.QtGui import *
 import os
 import opals
@@ -63,6 +63,9 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
         self.knnTree.setChecked(False)
 
+        self.model = QStandardItemModel()
+        self.StatusMessages.setModel(self.model)
+
         self.Save.pressed.connect(self.save_file)
 
     def load_pointcloud(self):
@@ -97,7 +100,6 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.Overview.setShading(shd_name)
         self.Overview.dataRefresh()
 
-        #self.PathToFile.clear()
         self.PathToFile.setEnabled(False)
 
     def load_axis(self):
@@ -114,7 +116,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
                 pts.append([pt.x, pt.y])
         self.linestring = pts
         self.segment = copy.deepcopy(pts)
-        #self.PathToAxisShp.clear()
+
         self.PathToAxisShp.setEnabled(False)
 
         self.Overview.setAxis(pts)
@@ -189,6 +191,13 @@ class ClassificationTool(QtWidgets.QMainWindow):
         result = pyDM.NumpyConverter.searchPoint(dm, polygon, self.layout, withCoordinates = True, noDataObj='min')
         self.result = result
 
+        self.ptsLoad = len(result['x'])
+        self.ptsClass = 0
+
+        for i in range(len(result['x'])):
+            if result['Classification'][i] != 0:
+                self.ptsClass += 1
+
     def polygon(self):
         def poly_points(start, vector, length, width):
             start_point = np.array(start).reshape(1, 2)
@@ -220,6 +229,14 @@ class ClassificationTool(QtWidgets.QMainWindow):
         result = pyDM.NumpyConverter.searchPoint(self.odm, polygon, self.layout, withCoordinates=True, noDataObj='min')
         self.result = result
 
+        self.ptsLoad = len(result['x'])
+
+        self.ptsClass = 0
+
+        for i in range(len(result['x'])):
+            if result['Classification'][i] != 0:
+                self.ptsClass += 1
+
     def ptsInSection(self):
         self.Section.setData(self.result)
         coords1 = [self.result["x"][0], self.result["y"][0], self.result["z"][0]]
@@ -231,11 +248,10 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.load_axis()
         self.get_points_in_polygon()
         self.ptsInSection()
-
         self.Section.setOrthoView(self.rot_camera)
-
         self.Section.dataRefresh()
         self.firstSection = True
+        self.showMessages()
 
     def overlapPolygons(self):
         self.overlap = float(self.overlap_section.text().strip())/100
@@ -243,10 +259,8 @@ class ClassificationTool(QtWidgets.QMainWindow):
     def changePolygonSize(self):
         self.along = float(self.along_section.text().strip())
         self.across = float(self.across_section.text().strip())
-
         self.polygon()
         self.ptsInSection()
-
         self.Section.dataRefresh()
 
     def setOrthoView(self):
@@ -279,11 +293,14 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.odm.save()
 
     def knn(self):
+        comp = copy.deepcopy(self.result)
+
         kdtree = pyDM.PointIndexLeaf(pyDM.IndexType.kdtree,2,True)
 
         for idx in range(len(self.knnSection['x'])):
             kdtree.addPoint(pyDM.Point(self.knnSection['x'][idx],self.knnSection['y'][idx],self.knnSection['z'][idx]))
 
+        self.knnPts = 0
         knnPts = []
 
         for idx in range(len(self.result['x'])):
@@ -299,7 +316,10 @@ class ClassificationTool(QtWidgets.QMainWindow):
                 pt = np.where(self.knnSection['x'] == (pts[0].x))
                 k = self.knnSection['Classification'][pt[0][0]]
                 self.result['Classification'][idx] = k
-                
+
+            if comp['Classification'][idx] != self.result['Classification'][idx]:
+                self.knnPts += 1
+
         self.result = self.result
 
     def nextSection(self):
@@ -307,9 +327,10 @@ class ClassificationTool(QtWidgets.QMainWindow):
             self.PathToFile.setEnabled(False)
             self.PathToAxisShp.setEnabled(False)
 
-        self.changeAttributes()
-        self.knnSection = copy.deepcopy(self.result)
+        if self.knnTree.isChecked():
+            self.knnSection = copy.deepcopy(self.result)
 
+        self.changeAttributes()
         self.factor = 1
         self.end = self.linestring[self.counter+1]
         self.checkLineEnd()
@@ -329,14 +350,13 @@ class ClassificationTool(QtWidgets.QMainWindow):
                 QtWidgets.QMessageBox(QtWidgets.QMessageBox.Critical, "Error occured", "End of Polyline! No more points available.").exec_()
             else:
                 self.get_points_in_polygon()
+                self.ptsInSection()
 
                 if self.knnTree.isChecked():
                     self.knn()
 
-                self.ptsInSection()
 
                 self.Section.setOrthoView(self.rot_camera)
-
                 self.Section.dataRefresh()
 
         else:
@@ -344,13 +364,15 @@ class ClassificationTool(QtWidgets.QMainWindow):
                 self.begin[i] = self.begin[i] + ((self.along*(1-self.overlap))*self.direction[0,i])
             #print('new mousePos:', self.begin)
             self.polygon()
+            self.ptsInSection()
 
             if self.knnTree.isChecked():
                 self.knn()
 
-            self.ptsInSection()
 
             self.Section.dataRefresh()
+
+        self.showMessages()
 
     def previousSection(self):
         self.changeAttributes()
@@ -375,9 +397,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
             else:
                 self.get_points_in_polygon()
                 self.ptsInSection()
-
                 self.Section.setOrthoView(self.rot_camera)
-
                 self.Section.dataRefresh()
 
         else:
@@ -385,10 +405,10 @@ class ClassificationTool(QtWidgets.QMainWindow):
                 self.begin[i] = self.begin[i] - (self.along*self.direction[0,i])
             #print('new mousePos:', self.begin)
             self.polygon()
-
             self.ptsInSection()
-
             self.Section.dataRefresh()
+
+        self.showMessages()
 
     def PointsClassification(self):
         classes = {'0 unclassified' : 0, '1 undefined' : 1, '2 ground' : 2,
@@ -440,6 +460,15 @@ class ClassificationTool(QtWidgets.QMainWindow):
         if self.HightColor.isChecked():
             self.Section.currentColor = 2
             self.Section.dataRefresh()
+
+    def showMessages(self):
+        self.model.clear()
+
+        self.model.appendRow(QStandardItem(r'{} Punkte wurden aus dem ODM geladen.'.format(self.ptsLoad)))
+        self.model.appendRow(QStandardItem(r'{} Punkte sind einer Klasse zugeordnet.'.format(self.ptsClass)))
+
+        if self.knnTree.isChecked():
+            self.model.appendRow(QStandardItem(r'{} Punkte wurden mittels kNN einer neuen Klasse zugeordnet.'.format(self.knnPts)))
 
     def save_file(self):
         self.changeAttributes()

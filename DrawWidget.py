@@ -1,14 +1,9 @@
-import OpenGL.GLU
 from PyQt5 import QtCore, QtGui
 from PyQt5.QtWidgets import QApplication
 from PyQt5.QtOpenGL import *
 from OpenGL.GL import *
-from OpenGL.GLUT import *
-from OpenGL.GLU import gluUnProject
 from OpenGL.GL.framebufferobjects import *
-import sys
 import math
-import numpy as np
 from sortedcontainers import SortedDict
 from Camera import Camera
 import struct
@@ -67,8 +62,6 @@ class DrawWidget(QGLWidget):
         self.stop = None
         self.cursor = None
         self.wheel = 0
-
-        #self.show()
 
     def setOrthoView(self,rotation):
         x = rotation[0,0]
@@ -421,8 +414,6 @@ class DrawWidget(QGLWidget):
             else:
                 self.wheel = 0
             self.update()
-
-
 
         self.oldx = mouseEvent.x()
         self.oldy = mouseEvent.y()
