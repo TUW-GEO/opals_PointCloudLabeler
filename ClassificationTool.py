@@ -33,6 +33,10 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.Point = False
         self.Rectangle = False
         self.firstSection = None
+        self.ptsLoad = 0
+        self.ptsClass = 0
+        self.ptsNoClass = 0
+        self.knnPts = 0
         self.PathToFile.setText( r"C:\Users\felix\OneDrive\Dokumente\TU Wien\Bachelorarbeit\Classificationtool\strip21.laz" )
         self.PathToAxisShp.setText( r"C:\Users\felix\OneDrive\Dokumente\TU Wien\Bachelorarbeit\Classificationtool\strip21_axis_transformed.shp")
         #self.PathToFile.setText(r"C:\swdvlp64_cmake\opals\distro\demo\strip21.laz")
@@ -192,11 +196,8 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.result = result
 
         self.ptsLoad = len(self.result['x'])
-        self.ptsClass = 0
-
-        for i in range(len(self.result['x'])):
-            if result['Classification'][i] != 0:
-                self.ptsClass += 1
+        self.ptsClass = sum(self.result['Classification'] > 0)
+        self.ptsNoClass = sum(self.result['Classification'] == 0)
 
     def polygon(self):
         def poly_points(start, vector, length, width):
@@ -231,11 +232,8 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
         self.ptsLoad = len(self.result['x'])
 
-        self.ptsClass = 0
-
-        for i in range(len(self.result['x'])):
-            if result['Classification'][i] != 0:
-                self.ptsClass += 1
+        self.ptsClass = sum(self.result['Classification'] > 0)
+        self.ptsNoClass = sum(self.result['Classification'] == 0)
 
     def ptsInSection(self):
         self.Section.setData(self.result)
@@ -465,11 +463,12 @@ class ClassificationTool(QtWidgets.QMainWindow):
     def showMessages(self):
         self.model.clear()
 
-        self.model.appendRow(QStandardItem(r'{} Punkte wurden aus dem ODM geladen.'.format(self.ptsLoad)))
-        self.model.appendRow(QStandardItem(r'{} Punkte sind einer Klasse zugeordnet.'.format(self.ptsClass)))
+        self.model.appendRow(QStandardItem(r'Loaded: {} Points'.format(self.ptsLoad)))
+        self.model.appendRow(QStandardItem(r'Classified: {} Points'.format(self.ptsClass)))
+        self.model.appendRow(QStandardItem(r'Unclassified: {} Points'.format(self.ptsNoClass)))
 
         if self.knnTree.isChecked():
-            self.model.appendRow(QStandardItem(r'{} Punkte wurden mittels kNN einer neuen Klasse zugeordnet.'.format(self.knnPts)))
+            self.model.appendRow(QStandardItem(r'kNN classified: {} Points'.format(self.knnPts)))
 
     def save_file(self):
         self.changeAttributes()
