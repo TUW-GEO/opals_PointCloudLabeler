@@ -26,7 +26,7 @@ class OverviewWidget(QSvgWidget):
         self.shd_filename = filename
         ds = gdal.Open(self.shd_filename, gdal.GA_ReadOnly)
         self.shd_geotrafo = ds.GetGeoTransform()
-        self.shd_rasterSize = (ds.RasterXSize, ds.RasterYSize)
+        self.shd_rasterSize = (600,400)#(ds.RasterXSize, ds.RasterYSize)
         self.shd_bbox = [self.pixel2coords(0,0), self.pixel2coords(ds.RasterXSize, ds.RasterYSize)]
         del ds
 

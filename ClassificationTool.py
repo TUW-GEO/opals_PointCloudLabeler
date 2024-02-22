@@ -153,6 +153,8 @@ class ClassificationTool(QtWidgets.QMainWindow):
         type, inDM = lf.addColumn(dm, 'GPSTime', True); assert inDM == True
         type, inDM = lf.addColumn(dm, 'Amplitude', True); assert inDM == True
         type, inDM = lf.addColumn(dm, 'Classification', True); assert inDM == True
+        #add atribute for knn
+        lf.addColumn(dm,'_manuallyClassified',True,pyDM.ColumnType.bool_)
         self.layout = lf.getLayout()
 
         def direction(p1, p2):
@@ -192,12 +194,15 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.Overview.dataRefresh()
 
         #extract the points inside of the polygon
-        result = pyDM.NumpyConverter.searchPoint(dm, polygon, self.layout, withCoordinates = True, noDataObj='min')
+        result = pyDM.NumpyConverter.searchPoint(dm, polygon, self.layout, withCoordinates = True, noDataObj=np.nan)
         self.result = result
+
+        self.result['_manuallyClassified'] = self.result['Classification'] != 0
 
         self.ptsLoad = len(self.result['x'])
         self.ptsClass = sum(self.result['Classification'] > 0)
         self.ptsNoClass = sum(self.result['Classification'] == 0)
+
 
     def polygon(self):
         def poly_points(start, vector, length, width):
@@ -227,11 +232,12 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.Overview.dataRefresh()
 
         # extract the points inside of the polygon
-        result = pyDM.NumpyConverter.searchPoint(self.odm, polygon, self.layout, withCoordinates=True, noDataObj='min')
+        result = pyDM.NumpyConverter.searchPoint(self.odm, polygon, self.layout, withCoordinates=True, noDataObj=np.nan)
         self.result = result
 
-        self.ptsLoad = len(self.result['x'])
+        self.result['_manuallyClassified'] = self.result['Classification'] != 0
 
+        self.ptsLoad = len(self.result['x'])
         self.ptsClass = sum(self.result['Classification'] > 0)
         self.ptsNoClass = sum(self.result['Classification'] == 0)
 
@@ -288,6 +294,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.setObj['GPSTime'] = self.result['GPSTime']
         self.setObj['Amplitude'] = self.result['Amplitude']
         self.setObj['Classification'] = self.result['Classification']
+        self.setObj['_manuallyClassified'] = self.result['_manuallyClassified']
         pyDM.NumpyConverter.setById(self.setObj, self.odm, self.layout)
         self.odm.save()
 
@@ -299,26 +306,28 @@ class ClassificationTool(QtWidgets.QMainWindow):
         for idx in range(len(self.knnSection['x'])):
             kdtree.addPoint(pyDM.Point(self.knnSection['x'][idx],self.knnSection['y'][idx],self.knnSection['z'][idx]))
 
-        self.knnPts = 0
-        knnPts = []
+        #knnPts = []
 
         for idx in range(len(self.result['x'])):
-            nnCount = 1
-            searchPt = pyDM.Point(self.result['x'][idx],self.result['y'][idx],0.)
-            searchMode = pyDM.SelectionMode.nearest
-            maxSearchDist = 2
+            if not self.result['_manuallyClassified'][idx]:
+                nnCount = 1
+                searchPt = pyDM.Point(self.result['x'][idx],self.result['y'][idx],0.)
+                searchMode = pyDM.SelectionMode.nearest
+                maxSearchDist = 2
 
-            pts = kdtree.searchPoint(nnCount,searchPt,maxSearchDist,searchMode)
-            knnPts.append(pts)
+                pts = kdtree.searchPoint(nnCount,searchPt,maxSearchDist,searchMode)
+                #knnPts.append(pts)
 
-            if pts != []:
-                pt = np.where(self.knnSection['x'] == (pts[0].x))
-                k = self.knnSection['Classification'][pt[0][0]]
-                self.result['Classification'][idx] = k
+                if pts != []:
+                    pt = np.where(self.knnSection['x'] == (pts[0].x))
+                    k = self.knnSection['Classification'][pt[0][0]]
+                    self.result['Classification'][idx] = k
 
-            if comp['Classification'][idx] != self.result['Classification'][idx]:
-                self.knnPts += 1
-
+        self.knnPts = sum(comp['Classification'] != self.result['Classification'])
+        self.model.removeRow(1)
+        self.model.removeRow(2)
+        self.ptsNoClass = sum(self.result['Classification'] > 0)
+        self.ptsNoClass = sum(self.result['Classification'] == 0)
         self.result = self.result
 
     def nextSection(self):
@@ -401,7 +410,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
         else:
             for i in range(len(self.begin)):
-                self.begin[i] = self.begin[i] - (self.along*self.direction[0,i])
+                self.begin[i] = self.begin[i] - ((self.along * (1 - self.overlap)) * self.direction[0, i])
             #print('new mousePos:', self.begin)
             self.polygon()
             self.ptsInSection()
@@ -468,7 +477,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.model.appendRow(QStandardItem(r'Unclassified: {} Points'.format(self.ptsNoClass)))
 
         if self.knnTree.isChecked():
-            self.model.appendRow(QStandardItem(r'kNN classified: {} Points'.format(self.knnPts)))
+            self.model.appendRow(QStandardItem(r'Class predicted: {} Points'.format(self.knnPts)))
 
     def save_file(self):
         self.changeAttributes()

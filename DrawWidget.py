@@ -282,8 +282,8 @@ class DrawWidget(QGLWidget):
                 self.multiPtPicking(width, height, (self.cursor[0] - self.wheel), (self.cursor[1] - self.wheel))
 
         else:
-            width = abs(self.start[0] - self.stop[0])
-            height = abs(self.start[1] - self.stop[1])
+            width = int(abs(self.start[0] - self.stop[0]))
+            height = int(abs(self.start[1] - self.stop[1]))
 
             self.multiPtPicking(width,height,self.start[0],self.start[1])
 
