@@ -154,7 +154,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
         type, inDM = lf.addColumn(dm, 'Amplitude', True); assert inDM == True
         type, inDM = lf.addColumn(dm, 'Classification', True); assert inDM == True
         #add atribute for knn
-        lf.addColumn(dm,'_manuallyClassified',True,pyDM.ColumnType.bool_)
+        type, inDM = lf.addColumn(dm,'_manuallyClassified',True,pyDM.ColumnType.bool_); assert  inDM == True
         self.layout = lf.getLayout()
 
         def direction(p1, p2):
@@ -306,8 +306,6 @@ class ClassificationTool(QtWidgets.QMainWindow):
         for idx in range(len(self.knnSection['x'])):
             kdtree.addPoint(pyDM.Point(self.knnSection['x'][idx],self.knnSection['y'][idx],self.knnSection['z'][idx]))
 
-        #knnPts = []
-
         for idx in range(len(self.result['x'])):
             if not self.result['_manuallyClassified'][idx]:
                 nnCount = 1
@@ -316,7 +314,6 @@ class ClassificationTool(QtWidgets.QMainWindow):
                 maxSearchDist = 2
 
                 pts = kdtree.searchPoint(nnCount,searchPt,maxSearchDist,searchMode)
-                #knnPts.append(pts)
 
                 if pts != []:
                     pt = np.where(self.knnSection['x'] == (pts[0].x))

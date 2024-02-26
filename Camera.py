@@ -59,11 +59,6 @@ class Camera:
         self.position = self.target + vec*dist
         self.up = Vector3D(0,0,1)
 
-    #def setGroundView(self):
-     #   dist = (self.target-self.position).length()
-      #  self.position = self.target + Vector3D(0,0,1)*dist
-       # self.up = Vector3D(0,1,0)
-
     def setViewportDimensions( self, widthInPixels, heightInPixels ):
         self.viewportWidthInPixels = widthInPixels
         self.viewportHeightInPixels = heightInPixels

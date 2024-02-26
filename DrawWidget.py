@@ -155,6 +155,7 @@ class DrawWidget(QGLWidget):
             glEnd()
 
         elif self.currentColor == 2:
+            glPointSize(self.PointSize)
             colormap = SortedDict([(0, (0, 153, 51)), (33, (153, 230, 0)), (66, (222, 222, 31)), (100, (135, 87, 18))])
 
             min, max = self.getDataExtends()
@@ -248,6 +249,9 @@ class DrawWidget(QGLWidget):
         #posX and posY are the coordinates of the top left corner
         #of the rectangle; width and hight are the dimensions of the
         #rectangle
+
+        if self.currentClass == 0:
+            return
 
         Width = abs(widht)
         Height = abs(height)
@@ -429,7 +433,8 @@ class DrawWidget(QGLWidget):
                 self.update()
 
     def wheelEvent(self, event):
-        if not self.SelectPoint:
+        #if not self.SelectPoint:
+        if QApplication.keyboardModifiers() == QtCore.Qt.ControlModifier:
             numPixels = event.pixelDelta();
             numDegrees = event.angleDelta();
             if numPixels.isNull() is False:
