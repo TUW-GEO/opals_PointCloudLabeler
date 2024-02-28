@@ -37,10 +37,14 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.ptsClass = 0
         self.ptsNoClass = 0
         self.knnPts = 0
-        self.PathToFile.setText( r"C:\Users\felix\OneDrive\Dokumente\TU Wien\Bachelorarbeit\Classificationtool\strip21.laz" )
-        self.PathToAxisShp.setText( r"C:\Users\felix\OneDrive\Dokumente\TU Wien\Bachelorarbeit\Classificationtool\strip21_axis_transformed.shp")
+        #self.PathToFile.setText( r"C:\Users\felix\OneDrive\Dokumente\TU Wien\Bachelorarbeit\Classificationtool\strip21.laz" )
+        #self.PathToAxisShp.setText( r"C:\Users\felix\OneDrive\Dokumente\TU Wien\Bachelorarbeit\Classificationtool\strip21_axis_transformed.shp")
         #self.PathToFile.setText(r"C:\swdvlp64_cmake\opals\distro\demo\strip21.laz")
         #self.PathToAxisShp.setText(r"C:\swdvlp64_cmake\opals\distro\demo\strip21_axis.shp")
+
+        #Test data
+        self.PathToFile.setText(r"C:\Users\felix\OneDrive\Dokumente\TU Wien\Bachelorarbeit\Classificationtool\Test_Data\Fluss_110736_0_loos_528600_533980_Klassifiziert.las")
+        self.PathToAxisShp.setText(r"C:\Users\felix\OneDrive\Dokumente\TU Wien\Bachelorarbeit\Classificationtool\Test_Data\Fluss_110736_0_loos_528600_533980_Klassifiziert_axis.shp")
 
     def initUI(self):
         self.LoadButton.pressed.connect(self.load_pointcloud)
@@ -90,8 +94,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
         if os.path.isfile(odm_name) == False:
             Import.Import(inFile=data, outFile=odm_name).run()
 
-        #load the opals datamanager in read and write
-        self.odm = pyDM.Datamanager.load(odm_name, readOnly=False, threadSafety=False) #ToDo: wenn die files nicht vorhanden dann wird grid nicht ausgeführt
+
 
         #create shading
         if os.path.isfile(grid_name) == False:
@@ -100,6 +103,9 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
         if os.path.isfile(shd_name) == False:
             Shade.Shade(inFile=grid_name, outFile=shd_name).run()
+
+        # load the opals datamanager in read and write
+        self.odm = pyDM.Datamanager.load(odm_name, readOnly=False, threadSafety=False)
 
         self.Overview.setShading(shd_name)
         self.Overview.dataRefresh()
@@ -118,7 +124,8 @@ class ClassificationTool(QtWidgets.QMainWindow):
             for i in range(obj.sizePoint()):
                 pt = obj[i]
                 pts.append([pt.x, pt.y])
-        self.linestring = pts
+        #self.segment = pts.copy()
+        self.linestring = pts.copy()
         self.segment = copy.deepcopy(pts)
 
         self.PathToAxisShp.setEnabled(False)
@@ -146,7 +153,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
         elif self.backwards:
             self.begin = self.segment[self.counter+1]
             self.end = self.segment[self.counter]
-            self.backwards = False
+            #self.backwards = False
 
         lf = pyDM.AddInfoLayoutFactory()
         type, inDM = lf.addColumn(dm, 'Id', True); assert  inDM == True
@@ -154,7 +161,8 @@ class ClassificationTool(QtWidgets.QMainWindow):
         type, inDM = lf.addColumn(dm, 'Amplitude', True); assert inDM == True
         type, inDM = lf.addColumn(dm, 'Classification', True); assert inDM == True
         #add atribute for knn
-        type, inDM = lf.addColumn(dm,'_manuallyClassified',True,pyDM.ColumnType.bool_); assert  inDM == True
+        #type, inDM = lf.addColumn(dm,'_manuallyClassified',True,pyDM.ColumnType.bool_); assert  inDM == True
+        lf.addColumn(pyDM.ColumnType.bool_, '_manuallyClassified')
         self.layout = lf.getLayout()
 
         def direction(p1, p2):
@@ -177,8 +185,17 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
             return p1, p2, p3, p4
 
-        p1, p2, p3, p4 = poly_points(self.begin, direction(self.begin, self.end), self.across, self.along)
-        pf = pyDM.PolygonFactory()
+        if self.backwards:
+            self.backwards = False
+            #begin = np.array(self.begin).reshape(1, 2)
+            #end = np.array(self.end).reshape(1, 2)
+            begin = np.array(self.linestring[self.counter+1]).reshape(1,2)
+            end = np.array(self.linestring[self.counter]).reshape(1,2)
+            p1, p2, p3, p4 = poly_points(self.begin, direction(-end, -begin), self.across, self.along)
+            pf = pyDM.PolygonFactory()
+        else:
+            p1, p2, p3, p4 = poly_points(self.begin, direction(self.begin, self.end), self.across, self.along)
+            pf = pyDM.PolygonFactory()
 
         def create_polygon(p1, p2, p3, p4):
             pf.addPoint(p1[0, 0], p1[0, 1])
@@ -273,20 +290,19 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
     def checkLineEnd(self):
         self.lineend = False
-        currentDirection = self.direction * self.factor
-        #print('curr Dir:', currentDirection)
+        print('curr Dir:', self.currentDirection)
 
-        if currentDirection[0,0] > 0:
+        if self.currentDirection[0,0] > 0:
             self.lineend = ((self.begin[0] + self.along) > self.end[0])
 
-        elif currentDirection[0,0] < 0:
-            self.lineend = ((self.begin[0] + self.along) < self.end[0])
+        elif self.currentDirection[0,0] < 0:
+            self.lineend = ((self.begin[0] - self.along) < self.end[0])
 
-        elif currentDirection[0,0] == 0:
-            if currentDirection[0,1] > 0:
+        elif self.currentDirection[0,0] == 0:
+            if self.currentDirection[0,1] > 0:
                 self.lineend = ((self.begin[1] + self.along) > self.end[1])
-            elif currentDirection[0,1] < 0:
-                self.lineend = ((self.begin[1] + self.along) < self.end[1])
+            elif self.currentDirection[0,1] < 0:
+                self.lineend = ((self.begin[1] - self.along) < self.end[1])
 
     def changeAttributes(self):
         self.setObj = {}
@@ -328,6 +344,8 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.result = self.result
 
     def nextSection(self):
+        self.forwards = True
+
         if self.PathToFile.isEnabled() and self.PathToAxisShp.isEnabled():
             self.PathToFile.setEnabled(False)
             self.PathToAxisShp.setEnabled(False)
@@ -338,20 +356,23 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.changeAttributes()
         self.factor = 1
         self.end = self.linestring[self.counter+1]
+        self.currentDirection = self.direction
         self.checkLineEnd()
 
-        #print('--------------------------')
-        #print('Vor')
-        #print(self.counter)
-        #print('old mousePos:',self.begin)
-        #print('end:',self.end)
-        #print('--------------------------')
+        print('--------------------------')
+        print(self.linestring)
+        print(self.segment)
+        print('Vor')
+        print(self.counter)
+        print('old mousePos:',self.begin)
+        print('end:',self.end)
+        print('--------------------------')
 
         if self.lineend == True:
             self.forwards = True
             self.counter += 1
 
-            if (self.begin[0] < self.linestring[self.counter + 1][0] and ((self.counter + 1) == (len(self.linestring) - 1))) or self.counter < 0:
+            if self.counter == (len(self.linestring)-1) or self.counter < 0:
                 QtWidgets.QMessageBox(QtWidgets.QMessageBox.Critical, "Error occured", "End of Polyline! No more points available.").exec_()
             else:
                 self.get_points_in_polygon()
@@ -366,8 +387,8 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
         else:
             for i in range(len(self.begin)):
-                self.begin[i] = self.begin[i] + ((self.along*(1-self.overlap))*self.direction[0,i])
-            #print('new mousePos:', self.begin)
+                self.begin[i] = self.begin[i] + ((self.along*(1-self.overlap))*self.currentDirection[0,i])
+            print('new mousePos:', self.begin)
             self.polygon()
             self.ptsInSection()
 
@@ -380,17 +401,24 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.showMessages()
 
     def previousSection(self):
+        if self.forwards:
+            self.currentDirection = self.direction * -1
+        else:
+            self.currentDirection = self.direction
+        self.forwards = False
+        self.backwards = True
         self.changeAttributes()
         self.factor = -1
         self.end = self.linestring[self.counter]
         self.checkLineEnd()
 
-        #print('--------------------------')
-        #print('zurück')
-        #print(self.counter)
-        #print('old mousePos:', self.begin)
-        #print('end:', self.end)
-        #print('--------------------------')
+        print('--------------------------')
+        print(self.linestring)
+        print('zurück')
+        print(self.counter)
+        print('old mousePos:', self.begin)
+        print('end:', self.end)
+        print('--------------------------')
 
         if self.lineend == True:
             self.backwards = True
@@ -407,8 +435,8 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
         else:
             for i in range(len(self.begin)):
-                self.begin[i] = self.begin[i] - ((self.along * (1 - self.overlap)) * self.direction[0, i])
-            #print('new mousePos:', self.begin)
+                self.begin[i] = self.begin[i] + ((self.along * (1 - self.overlap)) * self.currentDirection[0, i])
+            print('new mousePos:', self.begin)
             self.polygon()
             self.ptsInSection()
             self.Section.dataRefresh()

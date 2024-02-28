@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>1377</width>
-    <height>897</height>
+    <height>997</height>
    </rect>
   </property>
   <property name="font">
@@ -194,6 +194,9 @@
             </property>
             <property name="insertPolicy">
              <enum>QComboBox::InsertAtBottom</enum>
+            </property>
+            <property name="sizeAdjustPolicy">
+             <enum>QComboBox::AdjustToContentsOnFirstShow</enum>
             </property>
             <item>
              <property name="text">
@@ -514,7 +517,7 @@
              </font>
             </property>
             <property name="text">
-             <string>2</string>
+             <string>5</string>
             </property>
            </widget>
           </item>
@@ -896,9 +899,6 @@
          </widget>
         </item>
         <item>
-         <layout class="QVBoxLayout" name="verticalLayout_6"/>
-        </item>
-        <item>
          <widget class="OverviewWidget" name="Overview" native="true">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
@@ -936,7 +936,7 @@
             <property name="sizeHint" stdset="0">
              <size>
               <width>20</width>
-              <height>300</height>
+              <height>200</height>
              </size>
             </property>
            </spacer>

@@ -38,7 +38,7 @@ class DrawWidget(QGLWidget):
         self.AxisFont = self.PointFont
         self.FontColor = QtGui.QColor(QtCore.Qt.white)
         self.resetStretchData()
-        self.currentClass = None
+        self.currentClass = 0
         self.currentColor = 1
         self.PointSize = 1
         self.cmap = {0:[210,210,210],1:[180,180,180],
@@ -250,8 +250,8 @@ class DrawWidget(QGLWidget):
         #of the rectangle; width and hight are the dimensions of the
         #rectangle
 
-        if self.currentClass == 0:
-            return
+        #if self.currentClass == 0:
+         #   return
 
         Width = abs(widht)
         Height = abs(height)
