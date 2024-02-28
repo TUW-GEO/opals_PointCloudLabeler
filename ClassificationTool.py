@@ -147,13 +147,13 @@ class ClassificationTool(QtWidgets.QMainWindow):
         dm = self.odm
 
         if self.forwards:
-            self.begin = self.segment[self.counter]
-            self.end = self.segment[self.counter + 1]
+            self.begin = self.segment[self.counter].copy()
+            self.end = self.segment[self.counter + 1].copy()
             self.forwards = False
         elif self.backwards:
-            self.begin = self.segment[self.counter+1]
-            self.end = self.segment[self.counter]
-            #self.backwards = False
+            self.begin = self.segment[self.counter+1].copy()
+            self.end = self.segment[self.counter].copy()
+            self.backwards = False
 
         lf = pyDM.AddInfoLayoutFactory()
         type, inDM = lf.addColumn(dm, 'Id', True); assert  inDM == True
@@ -185,17 +185,17 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
             return p1, p2, p3, p4
 
-        if self.backwards:
-            self.backwards = False
-            #begin = np.array(self.begin).reshape(1, 2)
-            #end = np.array(self.end).reshape(1, 2)
-            begin = np.array(self.linestring[self.counter+1]).reshape(1,2)
-            end = np.array(self.linestring[self.counter]).reshape(1,2)
-            p1, p2, p3, p4 = poly_points(self.begin, direction(-end, -begin), self.across, self.along)
-            pf = pyDM.PolygonFactory()
-        else:
-            p1, p2, p3, p4 = poly_points(self.begin, direction(self.begin, self.end), self.across, self.along)
-            pf = pyDM.PolygonFactory()
+        # if self.backwards:
+        #     self.backwards = False
+        #     #begin = np.array(self.begin).reshape(1, 2)
+        #     #end = np.array(self.end).reshape(1, 2)
+        #     #begin = np.array(self.linestring[self.counter+1]).reshape(1,2)
+        #     #end = np.array(self.linestring[self.counter]).reshape(1,2)
+        #     p1, p2, p3, p4 = poly_points(self.begin, direction(self.begin, self.end), self.across, self.along)
+        #     pf = pyDM.PolygonFactory()
+       # else:
+        p1, p2, p3, p4 = poly_points(self.begin, direction(self.begin, self.end), self.across, self.along)
+        pf = pyDM.PolygonFactory()
 
         def create_polygon(p1, p2, p3, p4):
             pf.addPoint(p1[0, 0], p1[0, 1])
@@ -344,6 +344,13 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.result = self.result
 
     def nextSection(self):
+        if self.backwards:
+            self.currentDirection = self.direction * -1
+            self.direction = self.currentDirection
+        else:
+            self.currentDirection = self.direction
+
+        self.backwards = False
         self.forwards = True
 
         if self.PathToFile.isEnabled() and self.PathToAxisShp.isEnabled():
@@ -354,9 +361,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
             self.knnSection = copy.deepcopy(self.result)
 
         self.changeAttributes()
-        self.factor = 1
-        self.end = self.linestring[self.counter+1]
-        self.currentDirection = self.direction
+        self.end = self.segment[self.counter+1].copy()
         self.checkLineEnd()
 
         print('--------------------------')
@@ -395,7 +400,6 @@ class ClassificationTool(QtWidgets.QMainWindow):
             if self.knnTree.isChecked():
                 self.knn()
 
-
             self.Section.dataRefresh()
 
         self.showMessages()
@@ -403,12 +407,10 @@ class ClassificationTool(QtWidgets.QMainWindow):
     def previousSection(self):
         if self.forwards:
             self.currentDirection = self.direction * -1
-        else:
-            self.currentDirection = self.direction
+
         self.forwards = False
         self.backwards = True
         self.changeAttributes()
-        self.factor = -1
         self.end = self.linestring[self.counter]
         self.checkLineEnd()
 
@@ -423,7 +425,6 @@ class ClassificationTool(QtWidgets.QMainWindow):
         if self.lineend == True:
             self.backwards = True
             self.counter -= 1
-            #print('counter -= 1')
 
             if self.counter < 0:
                 QtWidgets.QMessageBox(QtWidgets.QMessageBox.Critical, "Error occured", "Begin of Polyline! No more points available.").exec_()
