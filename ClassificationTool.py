@@ -94,8 +94,6 @@ class ClassificationTool(QtWidgets.QMainWindow):
         if os.path.isfile(odm_name) == False:
             Import.Import(inFile=data, outFile=odm_name).run()
 
-
-
         #create shading
         if os.path.isfile(grid_name) == False:
             Grid.Grid(inFile=odm_name, outFile=grid_name, filter='echo[last]',
@@ -124,7 +122,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
             for i in range(obj.sizePoint()):
                 pt = obj[i]
                 pts.append([pt.x, pt.y])
-        #self.segment = pts.copy()
+
         self.linestring = pts.copy()
         self.segment = copy.deepcopy(pts)
 
@@ -185,15 +183,6 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
             return p1, p2, p3, p4
 
-        # if self.backwards:
-        #     self.backwards = False
-        #     #begin = np.array(self.begin).reshape(1, 2)
-        #     #end = np.array(self.end).reshape(1, 2)
-        #     #begin = np.array(self.linestring[self.counter+1]).reshape(1,2)
-        #     #end = np.array(self.linestring[self.counter]).reshape(1,2)
-        #     p1, p2, p3, p4 = poly_points(self.begin, direction(self.begin, self.end), self.across, self.along)
-        #     pf = pyDM.PolygonFactory()
-       # else:
         p1, p2, p3, p4 = poly_points(self.begin, direction(self.begin, self.end), self.across, self.along)
         pf = pyDM.PolygonFactory()
 
@@ -290,7 +279,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
     def checkLineEnd(self):
         self.lineend = False
-        print('curr Dir:', self.currentDirection)
+        #print('curr Dir:', self.currentDirection)
 
         if self.currentDirection[0,0] > 0:
             self.lineend = ((self.begin[0] + self.along) > self.end[0])
@@ -364,14 +353,14 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.end = self.segment[self.counter+1].copy()
         self.checkLineEnd()
 
-        print('--------------------------')
-        print(self.linestring)
-        print(self.segment)
-        print('Vor')
-        print(self.counter)
-        print('old mousePos:',self.begin)
-        print('end:',self.end)
-        print('--------------------------')
+        # print('--------------------------')
+        # print(self.linestring)
+        # print(self.segment)
+        # print('Vor')
+        # print(self.counter)
+        # print('old mousePos:',self.begin)
+        # print('end:',self.end)
+        # print('--------------------------')
 
         if self.lineend == True:
             self.forwards = True
@@ -386,14 +375,13 @@ class ClassificationTool(QtWidgets.QMainWindow):
                 if self.knnTree.isChecked():
                     self.knn()
 
-
                 self.Section.setOrthoView(self.rot_camera)
                 self.Section.dataRefresh()
 
         else:
             for i in range(len(self.begin)):
                 self.begin[i] = self.begin[i] + ((self.along*(1-self.overlap))*self.currentDirection[0,i])
-            print('new mousePos:', self.begin)
+            #print('new mousePos:', self.begin)
             self.polygon()
             self.ptsInSection()
 
@@ -414,13 +402,13 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.end = self.linestring[self.counter]
         self.checkLineEnd()
 
-        print('--------------------------')
-        print(self.linestring)
-        print('zurück')
-        print(self.counter)
-        print('old mousePos:', self.begin)
-        print('end:', self.end)
-        print('--------------------------')
+        # print('--------------------------')
+        # print(self.linestring)
+        # print('zurück')
+        # print(self.counter)
+        # print('old mousePos:', self.begin)
+        # print('end:', self.end)
+        # print('--------------------------')
 
         if self.lineend == True:
             self.backwards = True
@@ -437,7 +425,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
         else:
             for i in range(len(self.begin)):
                 self.begin[i] = self.begin[i] + ((self.along * (1 - self.overlap)) * self.currentDirection[0, i])
-            print('new mousePos:', self.begin)
+            #print('new mousePos:', self.begin)
             self.polygon()
             self.ptsInSection()
             self.Section.dataRefresh()
