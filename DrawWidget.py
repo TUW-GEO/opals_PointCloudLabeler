@@ -148,7 +148,10 @@ class DrawWidget(QGLWidget):
             glPointSize(self.PointSize)
             glBegin(GL_POINTS)
             for idx in range(self.Data['x'].shape[0]):
-                c = [self.cmap[self.Data['Classification'][idx]][i] / 255 for i in range(3)]
+                if self.Data['Classification'][idx] not in self.cmap:
+                    c = [self.cmap[1][i] / 255 for i in range(3)]
+                else:
+                    c = [self.cmap[self.Data['Classification'][idx]][i] / 255 for i in range(3)]
                 coords = [self.Data["x"][idx], self.Data["y"][idx], self.Data["z"][idx]]
                 glColor(c)
                 glVertex(self._normalize(coords))
