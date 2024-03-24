@@ -1,5 +1,4 @@
-import Info
-from opals import Import, Grid, Shade, pyDM
+from opals import Import, Grid, Shade, pyDM, Info
 from PyQt5 import QtWidgets,uic
 from PyQt5.QtGui import *
 import os
@@ -141,7 +140,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.knnTree.setChecked(False)
 
         self.model = QStandardItemModel()
-        #self.model.set
+
         self.StatusMessages.setModel(self.model)
 
         self.Save.pressed.connect(self.save_file)
