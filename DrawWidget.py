@@ -4,10 +4,12 @@ from PyQt5.QtOpenGL import *
 from OpenGL.GL import *
 from OpenGL.GL.framebufferobjects import *
 import math
+import numpy as np
 from sortedcontainers import SortedDict
 from Camera import Camera
 import struct
 import copy
+import ClassificationTool as ct
 
 
 
@@ -148,10 +150,16 @@ class DrawWidget(QGLWidget):
             glPointSize(self.PointSize)
             glBegin(GL_POINTS)
             for idx in range(self.Data['x'].shape[0]):
-                if self.Data['Classification'][idx] not in self.cmap:
-                    c = [self.cmap[1][i] / 255 for i in range(3)]
+                if self.Data['Classification'][idx] not in ct.COMBO_BOX_ELEMENTS:
+
+                    def randomColor():
+                        return [np.random.random() for i in range(3)]
+                    c = randomColor()
+                    ct.COMBO_BOX_ELEMENTS[self.Data['Classification'][idx]] = ['undefined',[int(c[i]*255) for i in range(3)]] #ToDO: Dict erweitern
+                    i=0
                 else:
-                    c = [self.cmap[self.Data['Classification'][idx]][i] / 255 for i in range(3)]
+                    c = [ct.COMBO_BOX_ELEMENTS[self.Data['Classification'][idx]][1][i] / 255 for i in range(3)]
+
                 coords = [self.Data["x"][idx], self.Data["y"][idx], self.Data["z"][idx]]
                 glColor(c)
                 glVertex(self._normalize(coords))

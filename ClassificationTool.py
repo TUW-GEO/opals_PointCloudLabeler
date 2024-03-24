@@ -1,3 +1,4 @@
+import Info
 from opals import Import, Grid, Shade, pyDM
 from PyQt5 import QtWidgets,uic
 from PyQt5.QtGui import *
@@ -6,7 +7,59 @@ import opals
 import numpy as np
 import math
 import copy
+from sortedcontainers import SortedDict
 
+COMBO_BOX_ELEMENTS = {0: ['0 unclassified', [210, 210, 210]], 1: ['1 undefined', [180, 180, 180]],
+                           2: ['2 ground', [135, 70, 10]], 3: ['3 low vegetation', [185, 230, 120]],
+                           4: ['4 medium vegetation', [145, 200, 0]], 5: ['5 high vegetation', [72, 128, 0]],
+                           6: ['6 building', [180, 20, 20]], 7: ['7 noise', [255, 255, 200]],
+                           8: ['8 model key point', [220, 105, 20]], 9: ['9 water', [0, 95, 255]],
+                           10: ['10 rail', [100, 80, 60]], 11: ['11 road surface', [70, 70, 70]],
+                           12: ['12 bridge deck', [35, 35, 35]], 13: ['13 wire guard', [255, 250, 90]],
+                           14: ['14 wire conductor', [255, 220, 0]],
+                           15: ['15 transmission tower', [235, 200, 60]],
+                           16: ['16 wire connector', [190, 160, 50]],
+                           40: ['40 bathymetric point (e.g. seafloor or riverbed)', [180, 180, 95]],
+                           41: ['41 water surface', [35, 0, 250]],
+                           42: ['42 derived water surface', [40, 220, 240]],
+                           43: ['43 underwater object', [140, 80, 160]],
+                           44: ['44 IHO S-57 object', [90, 75, 170]],
+                           45: ['45 volume backscatter', [60, 130, 130]]}
+
+
+class MovingPolygon():
+    def __init__(self, linestring, pos):
+        self.linestring = linestring
+        self.pos = pos
+        self.sortedLinestring()
+
+    def project_point_to_line(self, point, line_start, line_end):
+        line_length_sq = (line_end[0] - line_start[0]) ** 2 + (line_end[1] - line_start[1]) ** 2
+        if line_length_sq == 0:
+            return line_start  # Der Startpunkt und der Endpunkt sind identisch
+        t = ((point[0] - line_start[0]) * (line_end[0] - line_start[0]) +
+             (point[1] - line_start[1]) * (line_end[1] - line_start[1])) / line_length_sq
+        t = max(0, min(1, t))  # Begrenze t auf den Bereich [0, 1]
+        projection = [line_start[0] + t * (line_end[0] - line_start[0]),
+                      line_start[1] + t * (line_end[1] - line_start[1])]
+        return projection
+
+    def sortedLinestring(self):
+        distances = SortedDict()
+
+        for i in range(len(self.linestring) - 1):
+            point1 = self.linestring[i]
+            point2 = self.linestring[i + 1]
+            projection = self.project_point_to_line(self.pos, point1, point2)
+            distance_sq = (projection[0] - self.pos[0]) ** 2 + (projection[1] - self.pos[1]) ** 2
+            distances[distance_sq] = [point1, point2]
+
+        self.line = distances
+
+    def checkPosition(self):
+        index = self.line.bisect_left(0)
+        closest_points = self.line.peekitem(index)[1]
+        return closest_points
 
 class ClassificationTool(QtWidgets.QMainWindow):
     def __init__(self):
@@ -19,6 +72,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.result = None
         self.direction = None
         self.layout = None
+        self.layout2 = None
         self.rot_camera = None
         self.along = None
         self.across = None
@@ -37,6 +91,8 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.ptsClass = 0
         self.ptsNoClass = 0
         self.knnPts = 0
+        self.manuallyClassified = '_manuallyClassified'
+
         #self.PathToFile.setText( r"C:\Users\felix\OneDrive\Dokumente\TU Wien\Bachelorarbeit\Classificationtool\strip21.laz" )
         #self.PathToAxisShp.setText( r"C:\Users\felix\OneDrive\Dokumente\TU Wien\Bachelorarbeit\Classificationtool\strip21_axis_transformed.shp")
         #self.PathToFile.setText(r"C:\swdvlp64_cmake\opals\distro\demo\strip21.laz")
@@ -46,7 +102,20 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.PathToFile.setText(r"C:\Users\felix\OneDrive\Dokumente\TU Wien\Bachelorarbeit\Classificationtool\Test_Data\Fluss_110736_0_loos_528600_533980_Klassifiziert.las")
         self.PathToAxisShp.setText(r"C:\Users\felix\OneDrive\Dokumente\TU Wien\Bachelorarbeit\Classificationtool\Test_Data\Fluss_110736_0_loos_528600_533980_Klassifiziert_axis.shp")
 
+        #self.PathToFile.setText(r"C:\Users\felix\Documents\Test_Data\Fluss_110736_0_loos_528600_533980_Klassifiziert.las")
+        #self.PathToAxisShp.setText(r"C:\Users\felix\Documents\Test_Data\Fluss_110736_0_loos_528600_533980_Klassifiziert_axis.shp")
+
+
     def initUI(self):
+        #Build ComboBox:
+        #self.COMBO_BOX_ELEMENTS  = COMBO_BOX_ELEMENTS
+
+        for key, val in COMBO_BOX_ELEMENTS.items():
+            pixmap = QPixmap(100,100)
+            pixmap.fill((QColor(val[1][0],val[1][1],val[1][2])))
+            icon = QIcon(pixmap)
+            self.ClassList.addItem(icon,val[0],QColor(val[1][0],val[1][1],val[1][2]))
+
         self.LoadButton.pressed.connect(self.load_pointcloud)
         self.LoadAxis.pressed.connect(self.viewFirstSection)
 
@@ -72,6 +141,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.knnTree.setChecked(False)
 
         self.model = QStandardItemModel()
+        #self.model.set
         self.StatusMessages.setModel(self.model)
 
         self.Save.pressed.connect(self.save_file)
@@ -93,6 +163,17 @@ class ClassificationTool(QtWidgets.QMainWindow):
         #import into odm if needed
         if os.path.isfile(odm_name) == False:
             Import.Import(inFile=data, outFile=odm_name).run()
+
+        #Check if odm is in tiling modus
+        inf = Info.Info(inFile=odm_name)
+        inf.run()
+        idx_stat = inf.statistic.getIndices()
+
+        for i in idx_stat:
+            node = i.getCountNode()
+
+        if node == 0:
+            Import.Import(inFile=data, tilePointCount=50000, outFile=odm_name).run()
 
         #create shading
         if os.path.isfile(grid_name) == False:
@@ -131,84 +212,12 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.Overview.setAxis(pts)
         self.Overview.dataRefresh()
 
-
-    def get_points_in_polygon(self):
-        if not self.odm:
-            return
-        if not self.linestring:
-            return
-
-        self.along = float(self.along_section.text().strip())
-        self.across = float(self.across_section.text().strip())
-        self.overlap = (float(self.overlap_section.text().strip()))/100
-
-        dm = self.odm
-
-        if self.forwards:
-            self.begin = self.segment[self.counter].copy()
-            self.end = self.segment[self.counter + 1].copy()
-            self.forwards = False
-        elif self.backwards:
-            self.begin = self.segment[self.counter+1].copy()
-            self.end = self.segment[self.counter].copy()
-            self.backwards = False
-
-        lf = pyDM.AddInfoLayoutFactory()
-        type, inDM = lf.addColumn(dm, 'Id', True); assert  inDM == True
-        type, inDM = lf.addColumn(dm, 'GPSTime', True); assert inDM == True
-        type, inDM = lf.addColumn(dm, 'Amplitude', True); assert inDM == True
-        type, inDM = lf.addColumn(dm, 'Classification', True); assert inDM == True
-        #add atribute for knn
-        #type, inDM = lf.addColumn(dm,'_manuallyClassified',True,pyDM.ColumnType.bool_); assert  inDM == True
-        lf.addColumn(pyDM.ColumnType.bool_, '_manuallyClassified')
-        self.layout = lf.getLayout()
-
-        def direction(p1, p2):
-            p1 = np.array(p1).reshape(1, 2)
-            p2 = np.array(p2).reshape(1, 2)
-            p = p2 - p1
-            p = p / math.sqrt(p[0, 0]**2 + p[0, 1]**2)
-            self.direction = p
-            return p
-
-        def poly_points(start, vector, length, width):
-            start_point = np.array(start).reshape(1, 2)
-            rot_vector = np.array([-vector[0, 1], vector[0, 0]]).reshape(1, 2)
-            p1 = start_point + (rot_vector * length / 2)
-            p2 = start_point + (-rot_vector * length / 2)
-            p3 = p2 + (width * vector)
-            p4 = p1 + (width * vector)
-
-            self.rot_camera = rot_vector
-
-            return p1, p2, p3, p4
-
-        p1, p2, p3, p4 = poly_points(self.begin, direction(self.begin, self.end), self.across, self.along)
-        pf = pyDM.PolygonFactory()
-
-        def create_polygon(p1, p2, p3, p4):
-            pf.addPoint(p1[0, 0], p1[0, 1])
-            pf.addPoint(p2[0, 0], p2[0, 1])
-            pf.addPoint(p3[0, 0], p3[0, 1])
-            pf.addPoint(p4[0, 0], p4[0, 1])
-            pf.closePart()
-            return pf.getPolygon()
-
-        #create the polygon
-        polygon = create_polygon(p1, p2, p3, p4)
-        self.Overview.setSelectionBox(p1,p2,p3,p4)
-        self.Overview.dataRefresh()
-
-        #extract the points inside of the polygon
-        result = pyDM.NumpyConverter.searchPoint(dm, polygon, self.layout, withCoordinates = True, noDataObj=np.nan)
-        self.result = result
-
-        self.result['_manuallyClassified'] = self.result['Classification'] != 0
-
-        self.ptsLoad = len(self.result['x'])
-        self.ptsClass = sum(self.result['Classification'] > 0)
-        self.ptsNoClass = sum(self.result['Classification'] == 0)
-
+    def Direction(self, p1, p2):
+        p1 = np.array(p1).reshape(1, 2)
+        p2 = np.array(p2).reshape(1, 2)
+        p = p2 - p1
+        p = p / math.sqrt(p[0, 0] ** 2 + p[0, 1] ** 2)
+        self.direction = p
 
     def polygon(self):
         def poly_points(start, vector, length, width):
@@ -238,14 +247,46 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.Overview.dataRefresh()
 
         # extract the points inside of the polygon
-        result = pyDM.NumpyConverter.searchPoint(self.odm, polygon, self.layout, withCoordinates=True, noDataObj=np.nan)
+        result = pyDM.NumpyConverter.searchPoint(self.odm, polygon, self.layout2, withCoordinates=True, noDataObj=np.nan)
         self.result = result
 
-        self.result['_manuallyClassified'] = self.result['Classification'] != 0
+        self.checkClassification = result['Classification'].copy()
+        self.result[self.manuallyClassified] = self.result['Classification'] != 0
 
         self.ptsLoad = len(self.result['x'])
         self.ptsClass = sum(self.result['Classification'] > 0)
         self.ptsNoClass = sum(self.result['Classification'] == 0)
+
+    def createPolygon(self):
+        if not self.odm:
+            return
+        if not self.linestring:
+            return
+
+        self.along = float(self.along_section.text().strip())
+        self.across = float(self.across_section.text().strip())
+        self.overlap = (float(self.overlap_section.text().strip()))/100
+
+        dm = self.odm
+
+        lf = pyDM.AddInfoLayoutFactory()
+        type, inDM = lf.addColumn(dm, 'Id', True); assert  inDM == True
+        type, inDM = lf.addColumn(dm, 'GPSTime', True); assert inDM == True
+        type, inDM = lf.addColumn(dm, 'Amplitude', True); assert inDM == True
+        type, inDM = lf.addColumn(dm, 'Classification', True); assert inDM == True
+        type, inDM = lf.addColumn(dm,self.manuallyClassified,True,pyDM.ColumnType.bool_) #add atribute for knn
+
+        self.layout = lf.getLayout()
+
+        lf2 = pyDM.AddInfoLayoutFactory()
+        type, inDM = lf2.addColumn(dm, 'Id', True);assert inDM == True
+        type, inDM = lf2.addColumn(dm, 'Classification', True); assert inDM == True
+        type, inDM = lf2.addColumn(dm, self.manuallyClassified, True, pyDM.ColumnType.bool_)  # add atribute for knn
+
+        self.layout2 = lf2.getLayout()
+
+        self.Direction(self.begin, self.end)
+        self.polygon()
 
     def ptsInSection(self):
         self.Section.setData(self.result)
@@ -254,9 +295,10 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.Section.setStretchAxis(coords1, coords2)
 
     def viewFirstSection(self):
-        self.forwards = True
         self.load_axis()
-        self.get_points_in_polygon()
+        checkPos = MovingPolygon(self.segment, self.linestring[0]).checkPosition()
+        self.begin, self.end = checkPos[0], checkPos[1]
+        self.createPolygon()
         self.ptsInSection()
         self.Section.setOrthoView(self.rot_camera)
         self.Section.dataRefresh()
@@ -277,31 +319,14 @@ class ClassificationTool(QtWidgets.QMainWindow):
     def setOrthoView(self):
         self.Section.setOrthoView(self.rot_camera)
 
-    def checkLineEnd(self):
-        self.lineend = False
-        #print('curr Dir:', self.currentDirection)
-
-        if self.currentDirection[0,0] > 0:
-            self.lineend = ((self.begin[0] + self.along) > self.end[0])
-
-        elif self.currentDirection[0,0] < 0:
-            self.lineend = ((self.begin[0] - self.along) < self.end[0])
-
-        elif self.currentDirection[0,0] == 0:
-            if self.currentDirection[0,1] > 0:
-                self.lineend = ((self.begin[1] + self.along) > self.end[1])
-            elif self.currentDirection[0,1] < 0:
-                self.lineend = ((self.begin[1] - self.along) < self.end[1])
-
     def changeAttributes(self):
-        self.setObj = {}
-        self.setObj['Id'] = self.result['Id']
-        self.setObj['GPSTime'] = self.result['GPSTime']
-        self.setObj['Amplitude'] = self.result['Amplitude']
-        self.setObj['Classification'] = self.result['Classification']
-        self.setObj['_manuallyClassified'] = self.result['_manuallyClassified']
-        pyDM.NumpyConverter.setById(self.setObj, self.odm, self.layout)
-        self.odm.save()
+        if np.array_equal(self.result['Classification'],self.checkClassification):
+            self.setObj = {}
+            self.setObj['Id'] = self.result['Id']
+            self.setObj['Classification'] = self.result['Classification']
+            self.setObj[self.manuallyClassified] = self.result[self.manuallyClassified]
+            pyDM.NumpyConverter.setById(self.setObj, self.odm, self.layout2)
+            self.odm.save()
 
     def knn(self):
         comp = copy.deepcopy(self.result)
@@ -312,7 +337,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
             kdtree.addPoint(pyDM.Point(self.knnSection['x'][idx],self.knnSection['y'][idx],self.knnSection['z'][idx]))
 
         for idx in range(len(self.result['x'])):
-            if not self.result['_manuallyClassified'][idx]:
+            if not self.result[self.manuallyClassified][idx]:
                 nnCount = 1
                 searchPt = pyDM.Point(self.result['x'][idx],self.result['y'][idx],0.)
                 searchMode = pyDM.SelectionMode.nearest
@@ -333,116 +358,57 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.result = self.result
 
     def nextSection(self):
-        if self.backwards:
-            self.currentDirection = self.direction * -1
-            self.direction = self.currentDirection
-        else:
-            self.currentDirection = self.direction
+        pos = [0,0]
 
-        self.backwards = False
-        self.forwards = True
+        for i in range(len(self.begin)):
+            pos[i] = self.begin[i] + ((self.along * (1 - self.overlap)) * self.direction[0, i])
 
-        if self.PathToFile.isEnabled() and self.PathToAxisShp.isEnabled():
-            self.PathToFile.setEnabled(False)
-            self.PathToAxisShp.setEnabled(False)
+        checkPos = MovingPolygon(self.linestring,pos).checkPosition()
+
+        #if self.counter == (len(self.linestring) - 1) or self.counter < 0:
+         #   QtWidgets.QMessageBox(QtWidgets.QMessageBox.Critical, "Error occured", "End of Polyline! No more points available.").exec_()
+
+        #else:
+        self.Direction(checkPos[0], checkPos[1])
+
+        for i in range(len(self.begin)):
+            self.begin[i] = self.begin[i] + ((self.along * (1 - self.overlap)) * self.direction[0, i])
+
+        self.polygon()
+        self.ptsInSection()
 
         if self.knnTree.isChecked():
-            self.knnSection = copy.deepcopy(self.result)
+            self.knn()
 
-        self.changeAttributes()
-        self.end = self.segment[self.counter+1].copy()
-        self.checkLineEnd()
-
-        # print('--------------------------')
-        # print(self.linestring)
-        # print(self.segment)
-        # print('Vor')
-        # print(self.counter)
-        # print('old mousePos:',self.begin)
-        # print('end:',self.end)
-        # print('--------------------------')
-
-        if self.lineend == True:
-            self.forwards = True
-            self.counter += 1
-
-            if self.counter == (len(self.linestring)-1) or self.counter < 0:
-                QtWidgets.QMessageBox(QtWidgets.QMessageBox.Critical, "Error occured", "End of Polyline! No more points available.").exec_()
-            else:
-                self.get_points_in_polygon()
-                self.ptsInSection()
-
-                if self.knnTree.isChecked():
-                    self.knn()
-
-                self.Section.setOrthoView(self.rot_camera)
-                self.Section.dataRefresh()
-
-        else:
-            for i in range(len(self.begin)):
-                self.begin[i] = self.begin[i] + ((self.along*(1-self.overlap))*self.currentDirection[0,i])
-            #print('new mousePos:', self.begin)
-            self.polygon()
-            self.ptsInSection()
-
-            if self.knnTree.isChecked():
-                self.knn()
-
-            self.Section.dataRefresh()
-
+        self.Section.dataRefresh()
         self.showMessages()
 
     def previousSection(self):
-        if self.forwards:
-            self.currentDirection = self.direction * -1
+        pos = [0, 0]
 
-        self.forwards = False
-        self.backwards = True
-        self.changeAttributes()
-        self.end = self.linestring[self.counter]
-        self.checkLineEnd()
+        for i in range(len(self.begin)):
+            pos[i] = self.begin[i] - ((self.along * (1 - self.overlap)) * self.direction[0, i])
 
-        # print('--------------------------')
-        # print(self.linestring)
-        # print('zurück')
-        # print(self.counter)
-        # print('old mousePos:', self.begin)
-        # print('end:', self.end)
-        # print('--------------------------')
+        checkPos = MovingPolygon(self.linestring, pos).checkPosition()
 
-        if self.lineend == True:
-            self.backwards = True
-            self.counter -= 1
+        #if self.counter == (len(self.linestring) - 1) or self.counter < 0:
+         #   QtWidgets.QMessageBox(QtWidgets.QMessageBox.Critical, "Error occured", "Begin of Polyline! No more points available.").exec_()
 
-            if self.counter < 0:
-                QtWidgets.QMessageBox(QtWidgets.QMessageBox.Critical, "Error occured", "Begin of Polyline! No more points available.").exec_()
-            else:
-                self.get_points_in_polygon()
-                self.ptsInSection()
-                self.Section.setOrthoView(self.rot_camera)
-                self.Section.dataRefresh()
+        #else:
+        self.Direction(checkPos[0], checkPos[1])
 
-        else:
-            for i in range(len(self.begin)):
-                self.begin[i] = self.begin[i] + ((self.along * (1 - self.overlap)) * self.currentDirection[0, i])
-            #print('new mousePos:', self.begin)
-            self.polygon()
-            self.ptsInSection()
-            self.Section.dataRefresh()
+        for i in range(len(self.begin)):
+            self.begin[i] = self.begin[i] - ((self.along * (1 - self.overlap)) * self.direction[0, i])
 
+        self.polygon()
+        self.ptsInSection()
+        self.Section.dataRefresh()
         self.showMessages()
 
     def PointsClassification(self):
-        classes = {'0 unclassified' : 0, '1 undefined' : 1, '2 ground' : 2,
-                   '3 low vegetation' : 3, '4 medium vegetation' : 4, '5 high vegetation' : 5,
-                   '6 building' : 6, '7 noise' : 7, '8 model key point' : 8,
-                   '9 water' : 9, '10 rail' : 10, '11 road surface' : 11,
-                   '12 bridge deck' : 12, '13 wire guard' : 13, '14 wire conductor': 14,
-                   '15 transmission tower' : 15, '16 wire connector' : 16, '40 bathymetric point (e.g. seafloor or riverbed)' : 40,
-                   '41 water surface' : 41, '42 derived water surface' : 42, '43 underwater object' : 43,
-                   '44 IHO S-57 object' : 44, '45 volume backscatter' : 45 }
-
-        self.Section.currentClass = classes[str(self.ClassList.currentText())]
+        for key, value in COMBO_BOX_ELEMENTS.items():
+            if value[0] == str(self.ClassList.currentText()):
+                self.Section.currentClass = key
 
     def SelectPoint(self):
         if self.RectangleSelection.isChecked():

@@ -189,8 +189,11 @@
               <pointsize>9</pointsize>
              </font>
             </property>
+            <property name="toolTip">
+             <string>Selection of classes</string>
+            </property>
             <property name="currentText">
-             <string>0 unclassified</string>
+             <string/>
             </property>
             <property name="insertPolicy">
              <enum>QComboBox::InsertAtBottom</enum>
@@ -198,121 +201,6 @@
             <property name="sizeAdjustPolicy">
              <enum>QComboBox::AdjustToContentsOnFirstShow</enum>
             </property>
-            <item>
-             <property name="text">
-              <string>0 unclassified</string>
-             </property>
-            </item>
-            <item>
-             <property name="text">
-              <string>1 undefined</string>
-             </property>
-            </item>
-            <item>
-             <property name="text">
-              <string>2 ground</string>
-             </property>
-            </item>
-            <item>
-             <property name="text">
-              <string>3 low vegetation</string>
-             </property>
-            </item>
-            <item>
-             <property name="text">
-              <string>4 medium vegetation</string>
-             </property>
-            </item>
-            <item>
-             <property name="text">
-              <string>5 high vegetation</string>
-             </property>
-            </item>
-            <item>
-             <property name="text">
-              <string>6 building</string>
-             </property>
-            </item>
-            <item>
-             <property name="text">
-              <string>7 noise</string>
-             </property>
-            </item>
-            <item>
-             <property name="text">
-              <string>8 model key point</string>
-             </property>
-            </item>
-            <item>
-             <property name="text">
-              <string>9 water</string>
-             </property>
-            </item>
-            <item>
-             <property name="text">
-              <string>10 rail</string>
-             </property>
-            </item>
-            <item>
-             <property name="text">
-              <string>11 road surface</string>
-             </property>
-            </item>
-            <item>
-             <property name="text">
-              <string>12 bridge deck</string>
-             </property>
-            </item>
-            <item>
-             <property name="text">
-              <string>13 wire guard</string>
-             </property>
-            </item>
-            <item>
-             <property name="text">
-              <string>14 wire conductor</string>
-             </property>
-            </item>
-            <item>
-             <property name="text">
-              <string>15 transmission tower</string>
-             </property>
-            </item>
-            <item>
-             <property name="text">
-              <string>16 wire connector</string>
-             </property>
-            </item>
-            <item>
-             <property name="text">
-              <string>40 bathymetric point (e.g. seafloor or riverbed)</string>
-             </property>
-            </item>
-            <item>
-             <property name="text">
-              <string>41 water surface</string>
-             </property>
-            </item>
-            <item>
-             <property name="text">
-              <string>42 derived water surface</string>
-             </property>
-            </item>
-            <item>
-             <property name="text">
-              <string>43 underwater object</string>
-             </property>
-            </item>
-            <item>
-             <property name="text">
-              <string>44 IHO S-57 object</string>
-             </property>
-            </item>
-            <item>
-             <property name="text">
-              <string>45 volume backscatter</string>
-             </property>
-            </item>
            </widget>
           </item>
           <item row="2" column="1">
@@ -329,6 +217,9 @@
               <height>30</height>
              </size>
             </property>
+            <property name="toolTip">
+             <string>Next Section</string>
+            </property>
             <property name="text">
              <string>...</string>
             </property>
@@ -344,6 +235,9 @@
               <width>30</width>
               <height>30</height>
              </size>
+            </property>
+            <property name="toolTip">
+             <string>Dynamic point selection</string>
             </property>
             <property name="text">
              <string>...</string>
@@ -370,6 +264,9 @@
               <width>30</width>
               <height>30</height>
              </size>
+            </property>
+            <property name="toolTip">
+             <string>marking points</string>
             </property>
             <property name="text">
              <string>...</string>
@@ -483,6 +380,9 @@
               <height>30</height>
              </size>
             </property>
+            <property name="toolTip">
+             <string>Previous Section</string>
+            </property>
             <property name="text">
              <string>...</string>
             </property>
@@ -540,6 +440,9 @@
               <pointsize>8</pointsize>
              </font>
             </property>
+            <property name="toolTip">
+             <string>Overlap of the next polygon</string>
+            </property>
             <property name="text">
              <string>Overlap (%)</string>
             </property>
@@ -570,6 +473,9 @@
               <pointsize>8</pointsize>
              </font>
             </property>
+            <property name="toolTip">
+             <string>Transverse extension of the polygon </string>
+            </property>
             <property name="text">
              <string>Across</string>
             </property>
@@ -599,6 +505,9 @@
              <font>
               <pointsize>8</pointsize>
              </font>
+            </property>
+            <property name="toolTip">
+             <string>Extension of the polygon lengthwise</string>
             </property>
             <property name="text">
              <string>Along</string>
@@ -687,6 +596,9 @@
               <pointsize>9</pointsize>
              </font>
             </property>
+            <property name="toolTip">
+             <string>colorise the points according to their classes</string>
+            </property>
             <property name="text">
              <string>CC</string>
             </property>
@@ -717,6 +629,21 @@
               <pointsize>9</pointsize>
              </font>
             </property>
+            <property name="mouseTracking">
+             <bool>true</bool>
+            </property>
+            <property name="focusPolicy">
+             <enum>Qt::WheelFocus</enum>
+            </property>
+            <property name="toolTip">
+             <string>colorise the points according to their relative hight inside the section</string>
+            </property>
+            <property name="toolTipDuration">
+             <number>-1</number>
+            </property>
+            <property name="whatsThis">
+             <string/>
+            </property>
             <property name="text">
              <string>HC</string>
             </property>
@@ -744,6 +671,9 @@
               <width>30</width>
               <height>30</height>
              </size>
+            </property>
+            <property name="toolTip">
+             <string>aligns the polygon orthogonally to the axis again</string>
             </property>
             <property name="text">
              <string/>
@@ -785,6 +715,9 @@
               <width>16777215</width>
               <height>16777215</height>
              </size>
+            </property>
+            <property name="toolTip">
+             <string>Change the pointsize</string>
             </property>
             <property name="minimum">
              <number>1</number>
@@ -1145,11 +1078,17 @@
               <family>MS Shell Dlg 2</family>
              </font>
             </property>
+            <property name="autoFillBackground">
+             <bool>false</bool>
+            </property>
             <property name="editTriggers">
-             <set>QAbstractItemView::CurrentChanged|QAbstractItemView::EditKeyPressed</set>
+             <set>QAbstractItemView::NoEditTriggers</set>
             </property>
             <property name="showDropIndicator" stdset="0">
              <bool>false</bool>
+            </property>
+            <property name="selectionMode">
+             <enum>QAbstractItemView::NoSelection</enum>
             </property>
            </widget>
           </item>
