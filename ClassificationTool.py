@@ -60,6 +60,7 @@ class MovingPolygon():
         closest_points = self.line.peekitem(index)[1]
         return closest_points
 
+
 class ClassificationTool(QtWidgets.QMainWindow):
     def __init__(self):
         super(ClassificationTool, self).__init__()
@@ -109,11 +110,12 @@ class ClassificationTool(QtWidgets.QMainWindow):
         #Build ComboBox:
         #self.COMBO_BOX_ELEMENTS  = COMBO_BOX_ELEMENTS
 
-        for key, val in COMBO_BOX_ELEMENTS.items():
-            pixmap = QPixmap(100,100)
-            pixmap.fill((QColor(val[1][0],val[1][1],val[1][2])))
-            icon = QIcon(pixmap)
-            self.ClassList.addItem(icon,val[0],QColor(val[1][0],val[1][1],val[1][2]))
+        self.createCombobox(initialBuild=True)
+        #for key, val in COMBO_BOX_ELEMENTS.items():
+         #   pixmap = QPixmap(100,100)
+          #  pixmap.fill((QColor(val[1][0],val[1][1],val[1][2])))
+           # icon = QIcon(pixmap)
+            #self.ClassList.addItem(icon,val[0],QColor(val[1][0],val[1][1],val[1][2]))
 
         self.LoadButton.pressed.connect(self.load_pointcloud)
         self.LoadAxis.pressed.connect(self.viewFirstSection)
@@ -144,6 +146,25 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.StatusMessages.setModel(self.model)
 
         self.Save.pressed.connect(self.save_file)
+
+    def createCombobox(self,initialBuild=False):
+        if initialBuild:
+            for key, val in COMBO_BOX_ELEMENTS.items():
+                pixmap = QPixmap(100, 100)
+                pixmap.fill((QColor(val[1][0], val[1][1], val[1][2])))
+                icon = QIcon(pixmap)
+                self.ClassList.addItem(icon, val[0], QColor(val[1][0], val[1][1], val[1][2]))
+
+            self.allitems = [self.ClassList.itemText(i) for i in range(self.ClassList.count())]
+
+        else:
+            for key, val in COMBO_BOX_ELEMENTS.items():
+                if val[0] not in self.allitems:
+                    pixmap = QPixmap(100, 100)
+                    pixmap.fill((QColor(val[1][0], val[1][1], val[1][2])))
+                    icon = QIcon(pixmap)
+                    self.ClassList.addItem(icon, val[0], QColor(val[1][0], val[1][1], val[1][2]))
+
 
     def load_pointcloud(self):
         path = str(self.PathToFile.text()).strip()
@@ -381,6 +402,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
         self.Section.dataRefresh()
         self.showMessages()
+        self.createCombobox(initialBuild=False)
 
     def previousSection(self):
         pos = [0, 0]
@@ -403,6 +425,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.ptsInSection()
         self.Section.dataRefresh()
         self.showMessages()
+        self.createCombobox(initialBuild=False)
 
     def PointsClassification(self):
         for key, value in COMBO_BOX_ELEMENTS.items():
