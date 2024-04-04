@@ -9,8 +9,6 @@ from sortedcontainers import SortedDict
 from Camera import Camera
 import struct
 import copy
-import ClassificationTool as ct
-
 
 
 class DrawWidget(QGLWidget):
@@ -43,18 +41,7 @@ class DrawWidget(QGLWidget):
         self.currentClass = 0
         self.currentColor = 1
         self.PointSize = 1
-        self.cmap = {0:[210,210,210],1:[180,180,180],
-        2:[135,70,10],3:[185,230,120],
-        4:[145,200,0],5:[72,128,0],
-        6:[180,20,20],7:[255,255,200],
-        8:[220,105,20],9:[0,95,255],
-        10:[100,80,60],11:[70,70,70],
-        12:[35,35,35],13:[255,250,90],
-        14:[255,220,0],15:[235,200,60],
-        16:[190,160,50],40:[180,180,95],
-        41:[35,0,250],42:[40,220,240],
-        43:[140,80,160],44:[90,75,170],
-        45:[60,130,130]}
+        self.classificationData = None
 
         #mouse click:
         self.cicked = QtCore.pyqtSignal() #pyqtSignal()
@@ -64,6 +51,9 @@ class DrawWidget(QGLWidget):
         self.stop = None
         self.cursor = None
         self.wheel = 0
+
+    def setClassifcationData(self, classificationData):
+        self.classificationData = classificationData
 
     def setOrthoView(self,rotation):
         x = rotation[0,0]
@@ -150,15 +140,9 @@ class DrawWidget(QGLWidget):
             glPointSize(self.PointSize)
             glBegin(GL_POINTS)
             for idx in range(self.Data['x'].shape[0]):
-                if self.Data['Classification'][idx] not in ct.COMBO_BOX_ELEMENTS:
-
-                    def randomColor():
-                        return [np.random.random() for i in range(3)]
-                    c = randomColor()
-                    ct.COMBO_BOX_ELEMENTS[self.Data['Classification'][idx]] = ['undefined',[int(c[i]*255) for i in range(3)]] #ToDO: Dict erweitern
-                    i=0
-                else:
-                    c = [ct.COMBO_BOX_ELEMENTS[self.Data['Classification'][idx]][1][i] / 255 for i in range(3)]
+                classId = self.Data['Classification'][idx]
+                assert( classId in self.classificationData )   # must be always the case
+                c = [self.classificationData[classId][1][i] / 255 for i in range(3)]
 
                 coords = [self.Data["x"][idx], self.Data["y"][idx], self.Data["z"][idx]]
                 glColor(c)

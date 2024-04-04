@@ -1,3 +1,4 @@
+import numpy
 from opals import Import, Grid, Shade, pyDM, Info
 from PyQt5 import QtWidgets,uic
 from PyQt5.QtGui import *
@@ -8,22 +9,30 @@ import math
 import copy
 from sortedcontainers import SortedDict
 
-COMBO_BOX_ELEMENTS = {0: ['0 unclassified', [210, 210, 210]], 1: ['1 undefined', [180, 180, 180]],
-                           2: ['2 ground', [135, 70, 10]], 3: ['3 low vegetation', [185, 230, 120]],
-                           4: ['4 medium vegetation', [145, 200, 0]], 5: ['5 high vegetation', [72, 128, 0]],
-                           6: ['6 building', [180, 20, 20]], 7: ['7 noise', [255, 255, 200]],
-                           8: ['8 model key point', [220, 105, 20]], 9: ['9 water', [0, 95, 255]],
-                           10: ['10 rail', [100, 80, 60]], 11: ['11 road surface', [70, 70, 70]],
-                           12: ['12 bridge deck', [35, 35, 35]], 13: ['13 wire guard', [255, 250, 90]],
-                           14: ['14 wire conductor', [255, 220, 0]],
-                           15: ['15 transmission tower', [235, 200, 60]],
-                           16: ['16 wire connector', [190, 160, 50]],
-                           40: ['40 bathymetric point (e.g. seafloor or riverbed)', [180, 180, 95]],
-                           41: ['41 water surface', [35, 0, 250]],
-                           42: ['42 derived water surface', [40, 220, 240]],
-                           43: ['43 underwater object', [140, 80, 160]],
-                           44: ['44 IHO S-57 object', [90, 75, 170]],
-                           45: ['45 volume backscatter', [60, 130, 130]]}
+# predefined classication dictionary, mapping class ids to class lables and colors
+CLASSIFICATION_DATA = {0: ['0 unclassified', [210, 210, 210]],
+                       1: ['1 undefined', [180, 180, 180]],
+                       2: ['2 ground', [135, 70, 10]],
+                       3: ['3 low vegetation', [185, 230, 120]],
+                       4: ['4 medium vegetation', [145, 200, 0]],
+                       5: ['5 high vegetation', [72, 128, 0]],
+                       6: ['6 building', [180, 20, 20]],
+                       7: ['7 noise', [255, 255, 200]],
+                       8: ['8 model key point', [220, 105, 20]],
+                       9: ['9 water', [0, 95, 255]],
+                       10: ['10 rail', [100, 80, 60]],
+                       11: ['11 road surface', [70, 70, 70]],
+                       12: ['12 bridge deck', [35, 35, 35]],
+                       13: ['13 wire guard', [255, 250, 90]],
+                       14: ['14 wire conductor', [255, 220, 0]],
+                       15: ['15 transmission tower', [235, 200, 60]],
+                       16: ['16 wire connector', [190, 160, 50]],
+                       40: ['40 bathymetric point (e.g. seafloor or riverbed)', [180, 180, 95]],
+                       41: ['41 water surface', [35, 0, 250]],
+                       42: ['42 derived water surface', [40, 220, 240]],
+                       43: ['43 underwater object', [140, 80, 160]],
+                       44: ['44 IHO S-57 object', [90, 75, 170]],
+                       45: ['45 volume backscatter', [60, 130, 130]]}
 
 
 class MovingPolygon():
@@ -64,7 +73,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
     def __init__(self):
         super(ClassificationTool, self).__init__()
         uic.loadUi('ClassificationTool.ui', self)
-        self.initUI()
+
         self.Section.setMouseTracking(True)
         self.linestring = None
         self.odm = None
@@ -91,6 +100,9 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.ptsNoClass = 0
         self.knnPts = 0
         self.manuallyClassified = '_manuallyClassified'
+        self.classificationData = CLASSIFICATION_DATA
+        self.classHisto = {}  # class histogram of the current section
+
 
         #self.PathToFile.setText( r"C:\Users\felix\OneDrive\Dokumente\TU Wien\Bachelorarbeit\Classificationtool\strip21.laz" )
         #self.PathToAxisShp.setText( r"C:\Users\felix\OneDrive\Dokumente\TU Wien\Bachelorarbeit\Classificationtool\strip21_axis_transformed.shp")
@@ -101,19 +113,37 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.PathToFile.setText(r"C:\Users\felix\OneDrive\Dokumente\TU Wien\Bachelorarbeit\Classificationtool\Test_Data\Fluss_110736_0_loos_528600_533980_Klassifiziert.las")
         self.PathToAxisShp.setText(r"C:\Users\felix\OneDrive\Dokumente\TU Wien\Bachelorarbeit\Classificationtool\Test_Data\Fluss_110736_0_loos_528600_533980_Klassifiziert_axis.shp")
 
+        # Test data jo
+        #self.PathToFile.setText(r"C:\projects\bugs\felix_pydm_290224\Fluss_110736_0_loos_528600_533980_Klassifiziert.las")
+        #self.PathToFile.setText(r"C:\projects\bugs\felix_pydm_290224\test.odm")
+        #self.PathToAxisShp.setText(r"C:\projects\bugs\felix_pydm_290224\Fluss_110736_0_loos_528600_533980_Klassifiziert_axis.shp")
+
         #self.PathToFile.setText(r"C:\Users\felix\Documents\Test_Data\Fluss_110736_0_loos_528600_533980_Klassifiziert.las")
         #self.PathToAxisShp.setText(r"C:\Users\felix\Documents\Test_Data\Fluss_110736_0_loos_528600_533980_Klassifiziert_axis.shp")
 
+        self.initUI()
 
-    def initUI(self):
-        #Build ComboBox:
-        #self.COMBO_BOX_ELEMENTS  = COMBO_BOX_ELEMENTS
 
-        for key, val in COMBO_BOX_ELEMENTS.items():
+    def refeshClassComboBox(self):
+        #first remove all entries from combo box
+        currSelection = self.ClassList.currentText()
+
+        self.ClassList.clear()
+
+        #now fill combo box
+        for key, val in self.classificationData.items():
             pixmap = QPixmap(100,100)
             pixmap.fill((QColor(val[1][0],val[1][1],val[1][2])))
             icon = QIcon(pixmap)
             self.ClassList.addItem(icon,val[0],QColor(val[1][0],val[1][1],val[1][2]))
+
+        # restore current selection if necessary
+        if currSelection != "":
+            self.ClassList.setCurrentText(currSelection)
+
+    def initUI(self):
+        #Build ComboBox:
+        self.refeshClassComboBox()
 
         self.LoadButton.pressed.connect(self.load_pointcloud)
         self.LoadAxis.pressed.connect(self.viewFirstSection)
@@ -145,15 +175,19 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
         self.Save.pressed.connect(self.save_file)
 
+        self.Section.setClassifcationData(self.classificationData)
+
     def load_pointcloud(self):
         path = str(self.PathToFile.text()).strip()
         os.chdir(os.path.dirname(os.path.abspath(path)))
 
-        # get the filname
-        data = path.split('\\')
-        data = data[len(data) - 1]
-        filename = data.split('.')
-        name = filename[0]
+        # get the filname (jo, os.path funktionalität verwennden)
+        #data = path.split('\\')
+        #data = data[len(data) - 1]
+        #filename = data.split('.')
+        #name = filename[0]
+        _, data = os.path.split(path)
+        name, _ = os.path.splitext(data)
 
         odm_name = name + '.odm'
         grid_name = name + '_z.tif'
@@ -163,16 +197,17 @@ class ClassificationTool(QtWidgets.QMainWindow):
         if os.path.isfile(odm_name) == False:
             Import.Import(inFile=data, outFile=odm_name).run()
 
-        #Check if odm is in tiling modus
+        #Check if odm is in tiling modus (jo: spielt das eine rolle, ob der odm im tiling mode ist? sollte jedenfalls nicht sein)
         inf = Info.Info(inFile=odm_name)
         inf.run()
-        idx_stat = inf.statistic.getIndices()
+        idx_stat = inf.statistic[0].getIndices()
 
         for i in idx_stat:
             node = i.getCountNode()
 
-        if node == 0:
-            Import.Import(inFile=data, tilePointCount=50000, outFile=odm_name).run()
+        #if node == 0:
+        #    # jo: spielt das eine rolle, ob der odm im tiling mode ist? sollte nicht der fall sein
+        #    Import.Import(inFile=data, tilePointCount=50000, outFile=odm_name).run()
 
         #create shading
         if os.path.isfile(grid_name) == False:
@@ -192,8 +227,10 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
     def load_axis(self):
         axis = str(self.PathToAxisShp.text()).strip()
-        data = axis.split('\\')
-        file = data[len(data)-1]
+        #data = axis.split('\\')
+        #file = data[len(data)-1]
+        # jo, warum nicht einfach absoluten pfad verwenden? gegebenfalls os.path funktionalität verwennden
+        _, file = os.path.split(axis)
         imp = pyDM.Import.create(file, pyDM.DataFormat.auto)
 
         pts = []
@@ -253,8 +290,28 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.result[self.manuallyClassified] = self.result['Classification'] != 0
 
         self.ptsLoad = len(self.result['x'])
-        self.ptsClass = sum(self.result['Classification'] > 0)
-        self.ptsNoClass = sum(self.result['Classification'] == 0)
+        # build histogram of class ids
+        classes, counts = numpy.unique(self.result['Classification'], return_counts=True)
+        self.classHisto = {}
+        for cl, cn in zip(classes, counts):
+            self.classHisto[cl] = cn
+        self.ptsNoClass = 0 if 0 not in self.classHisto else self.classHisto[0]
+        self.ptsClass = self.ptsLoad - self.ptsNoClass
+
+        # add new classes to self.classificationData if needed
+        classesAdded = False
+        for classId in self.classHisto:
+            if classId in self.classificationData:
+                continue
+            c = [np.random.random() for i in range(3)]
+            self.classificationData[classId] = [f'{classId} undefined class_{classId}',[int(c[i]*255) for i in range(3)]]
+            classesAdded = True
+
+        # update class selection combo box if needed
+        if classesAdded:
+            self.refeshClassComboBox()
+
+
 
     def createPolygon(self):
         if not self.odm:
@@ -319,7 +376,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.Section.setOrthoView(self.rot_camera)
 
     def changeAttributes(self):
-        if np.array_equal(self.result['Classification'],self.checkClassification):
+        if np.array_equal(self.result['Classification'],self.checkClassification) == False:
             self.setObj = {}
             self.setObj['Id'] = self.result['Id']
             self.setObj['Classification'] = self.result['Classification']
@@ -405,7 +462,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.showMessages()
 
     def PointsClassification(self):
-        for key, value in COMBO_BOX_ELEMENTS.items():
+        for key, value in self.classificationData.items():
             if value[0] == str(self.ClassList.currentText()):
                 self.Section.currentClass = key
 
@@ -454,6 +511,8 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.model.appendRow(QStandardItem(r'Loaded: {} Points'.format(self.ptsLoad)))
         self.model.appendRow(QStandardItem(r'Classified: {} Points'.format(self.ptsClass)))
         self.model.appendRow(QStandardItem(r'Unclassified: {} Points'.format(self.ptsNoClass)))
+        self.model.appendRow(QStandardItem(r'Class histogram: {}'.format(self.classHisto)))
+
 
         if self.knnTree.isChecked():
             self.model.appendRow(QStandardItem(r'Class predicted: {} Points'.format(self.knnPts)))
