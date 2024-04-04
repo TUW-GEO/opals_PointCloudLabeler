@@ -253,12 +253,15 @@ class DrawWidget(QGLWidget):
 
         idxPt = []
 
-        for x in range(0, Width, self.PointSize):
-            for y in range(0, Height, self.PointSize):
-                posCol = glReadPixels(posX + x, self.heightInPixels - posY - y, 1, 1, GL_RGBA,GL_UNSIGNED_BYTE)
-                idxPos = self.Color2Index(posCol)
-                if idxPos != -1:
-                    idxPt.append(idxPos)
+        posBuffer = glReadPixels(posX, self.heightInPixels - posY - Height, Width, Height, GL_RGBA, GL_UNSIGNED_BYTE)
+        posColArr = np.frombuffer(posBuffer, dtype=np.uint8)
+        posColArr_idx0 = posColArr[0::4]    # take every 4 byte starting from 0 index
+        posColArr_idx1 = posColArr[1::4]    # take every 4 byte starting from 1 index
+        posColArr_idx2 = posColArr[2::4]    # take every 4 byte starting from 2 index
+        # convert split col array into single id array
+        posIds = posColArr_idx0.astype(int) + posColArr_idx1*256 + posColArr_idx2*256*256 - 1
+        # convert to list and ignore empty ids (-1)
+        idxPt = posIds[posIds>=0].tolist()
 
         for pt in idxPt:
             classArray = self.Data['Classification']
@@ -281,10 +284,12 @@ class DrawWidget(QGLWidget):
                 self.multiPtPicking(width, height, (self.cursor[0] - self.wheel), (self.cursor[1] - self.wheel))
 
         else:
+            minx = min(self.start[0], self.stop[0])
+            miny = min(self.start[1], self.stop[1])
             width = int(abs(self.start[0] - self.stop[0]))
             height = int(abs(self.start[1] - self.stop[1]))
 
-            self.multiPtPicking(width,height,self.start[0],self.start[1])
+            self.multiPtPicking(width,height,minx,miny)
 
         self.dataRefresh()
 
