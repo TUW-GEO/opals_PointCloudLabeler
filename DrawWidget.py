@@ -1,7 +1,6 @@
 from PyQt5 import QtCore, QtGui
 from PyQt5.QtWidgets import QApplication
 from PyQt5.QtOpenGL import *
-from PyQt5.QtGui import *
 from OpenGL.GL import *
 from OpenGL.GL.framebufferobjects import *
 import math
@@ -10,8 +9,6 @@ from sortedcontainers import SortedDict
 from Camera import Camera
 import struct
 import copy
-import ClassificationTool as ct
-
 
 
 class DrawWidget(QGLWidget):
@@ -44,6 +41,7 @@ class DrawWidget(QGLWidget):
         self.currentClass = 0
         self.currentColor = 1
         self.PointSize = 1
+        self.classificationData = None
 
         #mouse click:
         self.cicked = QtCore.pyqtSignal() #pyqtSignal()
@@ -53,6 +51,9 @@ class DrawWidget(QGLWidget):
         self.stop = None
         self.cursor = None
         self.wheel = 0
+
+    def setClassifcationData(self, classificationData):
+        self.classificationData = classificationData
 
     def setOrthoView(self,rotation):
         x = rotation[0,0]
@@ -139,14 +140,9 @@ class DrawWidget(QGLWidget):
             glPointSize(self.PointSize)
             glBegin(GL_POINTS)
             for idx in range(self.Data['x'].shape[0]):
-                if self.Data['Classification'][idx] not in ct.COMBO_BOX_ELEMENTS:
-
-                    def randomColor():
-                        return [np.random.random() for i in range(3)]
-                    c = randomColor()
-                    ct.COMBO_BOX_ELEMENTS[self.Data['Classification'][idx]] = ['undefined',[int(c[i]*255) for i in range(3)]] #ToDO: Dict erweitern
-                else:
-                    c = [ct.COMBO_BOX_ELEMENTS[self.Data['Classification'][idx]][1][i] / 255 for i in range(3)]
+                classId = self.Data['Classification'][idx]
+                assert( classId in self.classificationData )   # must be always the case
+                c = [self.classificationData[classId][1][i] / 255 for i in range(3)]
 
                 coords = [self.Data["x"][idx], self.Data["y"][idx], self.Data["z"][idx]]
                 glColor(c)
