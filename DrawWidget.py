@@ -260,8 +260,8 @@ class DrawWidget(QGLWidget):
         posColArr_idx2 = posColArr[2::4]    # take every 4 byte starting from 2 index
         # convert split col array into single id array
         posIds = posColArr_idx0.astype(int) + posColArr_idx1*256 + posColArr_idx2*256*256 - 1
-        # convert to list and ignore empty ids (-1)
-        idxPt = posIds[posIds>=0].tolist()
+        # ignore empty ids (-1), make ids unique and convert it to a list
+        idxPt = np.unique(posIds[posIds>=0]).tolist()
 
         for pt in idxPt:
             classArray = self.Data['Classification']
