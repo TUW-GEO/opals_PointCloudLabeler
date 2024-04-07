@@ -237,14 +237,14 @@
              </size>
             </property>
             <property name="toolTip">
-             <string>Dynamic point selection</string>
+             <string>dynamic point labelling</string>
             </property>
             <property name="text">
              <string>...</string>
             </property>
             <property name="icon">
              <iconset>
-              <normaloff>Graphics/Zeiger.png</normaloff>Graphics/Zeiger.png</iconset>
+              <normaloff>Graphics/Pinsel.png</normaloff>Graphics/Pinsel.png</iconset>
             </property>
             <property name="iconSize">
              <size>
@@ -266,7 +266,7 @@
              </size>
             </property>
             <property name="toolTip">
-             <string>marking points</string>
+             <string>rectangle selection labelling</string>
             </property>
             <property name="text">
              <string>...</string>

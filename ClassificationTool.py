@@ -36,38 +36,40 @@ CLASSIFICATION_DATA = {0: ['0 unclassified', [210, 210, 210]],
 
 
 class MovingPolygon():
-    def __init__(self, linestring, pos):
+    def __init__(self,linestring,pos):
         self.linestring = linestring
         self.pos = pos
-        self.sortedLinestring()
+        self.current_length = 0
+        self.total_stationing = 0
 
-    def project_point_to_line(self, point, line_start, line_end):
-        line_length_sq = (line_end[0] - line_start[0]) ** 2 + (line_end[1] - line_start[1]) ** 2
-        if line_length_sq == 0:
-            return line_start  # Der Startpunkt und der Endpunkt sind identisch
-        t = ((point[0] - line_start[0]) * (line_end[0] - line_start[0]) +
-             (point[1] - line_start[1]) * (line_end[1] - line_start[1])) / line_length_sq
-        t = max(0, min(1, t))  # Begrenze t auf den Bereich [0, 1]
-        projection = [line_start[0] + t * (line_end[0] - line_start[0]),
-                      line_start[1] + t * (line_end[1] - line_start[1])]
-        return projection
+    def segment_length(self, point1, point2):
+        return ((point1[0] - point2[0]) ** 2 + (point1[1] - point2[1]) ** 2) ** 0.5
 
-    def sortedLinestring(self):
-        distances = SortedDict()
-
+    def get_stationing_at_point(self,point):
+        self.total_stationing = 0
         for i in range(len(self.linestring) - 1):
-            point1 = self.linestring[i]
-            point2 = self.linestring[i + 1]
-            projection = self.project_point_to_line(self.pos, point1, point2)
-            distance_sq = (projection[0] - self.pos[0]) ** 2 + (projection[1] - self.pos[1]) ** 2
-            distances[distance_sq] = [point1, point2]
-
-        self.line = distances
+            length = self.segment_length(self.linestring[i], self.linestring[i + 1])
+            segment_vector = [self.linestring[i + 1][0] - self.linestring[i][0], self.linestring[i + 1][1] - self.linestring[i][1]]
+            pos_vector = [point[0] - self.linestring[i][0], point[1] - self.linestring[i][1]]
+            dot_product = pos_vector[0] * segment_vector[0] + pos_vector[1] * segment_vector[1]
+            if dot_product <= 0:
+                return self.total_stationing
+            self.total_stationing += length
+        return self.total_stationing
 
     def checkPosition(self):
-        index = self.line.bisect_left(0)
-        closest_points = self.line.peekitem(index)[1]
-        return closest_points
+        stationings = SortedDict()
+        self.total_stationing = 0
+
+        for i in range(len(self.linestring) - 1):
+            length = self.segment_length(self.linestring[i], self.linestring[i + 1])
+            self.total_stationing += length
+            stationings[self.total_stationing] = (self.linestring[i], self.linestring[i + 1])
+
+        index = stationings.bisect_left(self.get_stationing_at_point(self.pos))
+
+        segment_start, segment_end = stationings.peekitem(index)[1]
+        return(segment_start,segment_end)
 
 class ClassificationTool(QtWidgets.QMainWindow):
     def __init__(self):
@@ -200,7 +202,8 @@ class ClassificationTool(QtWidgets.QMainWindow):
         #Check if odm is in tiling modus (jo: spielt das eine rolle, ob der odm im tiling mode ist? sollte jedenfalls nicht sein)
         inf = Info.Info(inFile=odm_name)
         inf.run()
-        idx_stat = inf.statistic[0].getIndices()
+        #idx_stat = inf.statistic[0].getIndices()
+        idx_stat = inf.statistic.getIndices()
 
         for i in idx_stat:
             node = i.getCountNode()
@@ -392,6 +395,9 @@ class ClassificationTool(QtWidgets.QMainWindow):
         for idx in range(len(self.knnSection['x'])):
             kdtree.addPoint(pyDM.Point(self.knnSection['x'][idx],self.knnSection['y'][idx],self.knnSection['z'][idx]))
 
+        #for idx in range(len(self.setObj['x'])):
+         #   kdtree.addPoint(pyDM.Point(self.setObj['x'][idx], self.setObj['y'][idx], self.setObj['z'][idx]))
+
         for idx in range(len(self.result['x'])):
             if not self.result[self.manuallyClassified][idx]:
                 nnCount = 1
@@ -415,6 +421,8 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
     def nextSection(self):
         pos = [0,0]
+        self.changeAttributes()
+        self.knnSection = copy.deepcopy(self.result)
 
         for i in range(len(self.begin)):
             pos[i] = self.begin[i] + ((self.along * (1 - self.overlap)) * self.direction[0, i])
@@ -423,24 +431,25 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
         #if self.counter == (len(self.linestring) - 1) or self.counter < 0:
          #   QtWidgets.QMessageBox(QtWidgets.QMessageBox.Critical, "Error occured", "End of Polyline! No more points available.").exec_()
-
         #else:
+
         self.Direction(checkPos[0], checkPos[1])
 
         for i in range(len(self.begin)):
             self.begin[i] = self.begin[i] + ((self.along * (1 - self.overlap)) * self.direction[0, i])
 
         self.polygon()
-        self.ptsInSection()
 
         if self.knnTree.isChecked():
             self.knn()
 
+        self.ptsInSection()
         self.Section.dataRefresh()
         self.showMessages()
 
     def previousSection(self):
         pos = [0, 0]
+        self.changeAttributes()
 
         for i in range(len(self.begin)):
             pos[i] = self.begin[i] - ((self.along * (1 - self.overlap)) * self.direction[0, i])

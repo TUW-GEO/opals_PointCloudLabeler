@@ -49,7 +49,7 @@ class DrawWidget(QGLWidget):
         #paint
         self.start = None
         self.stop = None
-        self.cursor = None
+        self.mouse = None
         self.wheel = 0
 
     def setClassifcationData(self, classificationData):
@@ -245,9 +245,6 @@ class DrawWidget(QGLWidget):
         #of the rectangle; width and hight are the dimensions of the
         #rectangle
 
-        #if self.currentClass == 0:
-         #   return
-
         Width = abs(widht)
         Height = abs(height)
 
@@ -278,10 +275,11 @@ class DrawWidget(QGLWidget):
                 self.multiPtPicking(1, 1, self.mouse[0], self.mouse[1])
 
             else:
-                width = int(abs((self.cursor[0] - self.wheel) - (self.cursor[0] + self.wheel)))
-                height = int(abs((self.cursor[1] - self.wheel) - (self.cursor[1] + self.wheel)))
+                width = int(abs((self.mouse[0] - self.wheel) - (self.mouse[0] + self.wheel)))
+                height = int(abs((self.mouse[1] - self.wheel) - (self.mouse[1] + self.wheel)))
 
-                self.multiPtPicking(width, height, (self.cursor[0] - self.wheel), (self.cursor[1] - self.wheel))
+                self.multiPtPicking(width, height, (self.mouse[0] - self.wheel), (self.mouse[1] - self.wheel))
+
 
         else:
             minx = min(self.start[0], self.stop[0])
@@ -353,7 +351,7 @@ class DrawWidget(QGLWidget):
                     glVertex(self.start[0], self.stop[1],  0)
                     glEnd()
 
-            elif self.cursor:
+            elif self.mouse:
                 if self.SelectPoint:
                     glMatrixMode(GL_PROJECTION)
                     glLoadIdentity()
@@ -361,10 +359,10 @@ class DrawWidget(QGLWidget):
 
                     glBegin(GL_LINE_LOOP)
                     glColor3f(0.7, 0.7, 0.7)
-                    glVertex(self.cursor[0] - self.wheel, self.cursor[1] + self.wheel, 0)
-                    glVertex(self.cursor[0] + self.wheel, self.cursor[1] + self.wheel, 0)
-                    glVertex(self.cursor[0] + self.wheel, self.cursor[1] - self.wheel, 0)
-                    glVertex(self.cursor[0] - self.wheel, self.cursor[1] - self.wheel, 0)
+                    glVertex(self.mouse[0] - self.wheel, self.mouse[1] + self.wheel, 0)
+                    glVertex(self.mouse[0] + self.wheel, self.mouse[1] + self.wheel, 0)
+                    glVertex(self.mouse[0] + self.wheel, self.mouse[1] - self.wheel, 0)
+                    glVertex(self.mouse[0] - self.wheel, self.mouse[1] - self.wheel, 0)
                     glEnd()
 
         elif self.ptListids:
@@ -403,6 +401,9 @@ class DrawWidget(QGLWidget):
                     self.camera.orbit(self.oldx, self.oldy, mouseEvent.x(), mouseEvent.y())
                 elif self.SelectRectangle:
                     self.stop = (mouseEvent.x(), mouseEvent.y())
+                elif self.SelectPoint:
+                    self.mouse = (mouseEvent.x(), mouseEvent.y())
+                    self.Picking(True)
 
             elif int(mouseEvent.buttons()) & QtCore.Qt.RightButton:
                 self.camera.translateSceneRightAndUp(delta_x, delta_y)
@@ -414,7 +415,7 @@ class DrawWidget(QGLWidget):
         #detect mouse position without pressing any mouse button
         elif int(mouseEvent.button()) == QtCore.Qt.NoButton:
             if self.SelectPoint:
-                self.cursor = (mouseEvent.x(), mouseEvent.y())
+                self.mouse = (mouseEvent.x(), mouseEvent.y())
             else:
                 self.wheel = 0
             self.update()
@@ -431,6 +432,9 @@ class DrawWidget(QGLWidget):
                 # reset selection points
                 self.start = self.stop = None
                 self.update()
+
+            elif self.SelectPoint:
+                self.mouse = None
 
     def wheelEvent(self, event):
         #if not self.SelectPoint:
