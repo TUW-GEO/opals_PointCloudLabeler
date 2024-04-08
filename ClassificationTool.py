@@ -212,10 +212,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
                 pt = obj[i]
                 pts.append([pt.x, pt.y])
 
-        #self.linestring = pts.copy()
-        #self.segment = copy.deepcopy(pts)
-        #self.station_axis = StationPolyline2D(pts.copy())
-
+        # maximal extrapolation distance at start and end of axis
         extrapolation_distance = float(self.along_section.text().strip())*5
 
         self.station_axis = StationPolyline2D(pts)
@@ -227,13 +224,6 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
         self.Overview.setAxis(pts)
         self.Overview.dataRefresh()
-
-    #def Direction(self, p1, p2):
-    #    p1 = np.array(p1).reshape(1, 2)
-    #    p2 = np.array(p2).reshape(1, 2)
-    #    p = p2 - p1
-    #    p = p / math.sqrt(p[0, 0] ** 2 + p[0, 1] ** 2)
-    #    self.direction = p
 
     def polygon(self):
         def poly_points(start, vector, length, width):
