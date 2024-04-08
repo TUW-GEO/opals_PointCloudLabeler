@@ -97,9 +97,12 @@ class DrawWidget(QGLWidget):
                 max[i] = v
 
     def getDataExtends(self):
-        min = [self.Data["x"].min(), self.Data["y"].min(), self.Data["z"].min()]
-        max = [self.Data["x"].max(), self.Data["y"].max(), self.Data["z"].max()]
-        return min, max
+        if len(self.Data["x"]) == 0:
+            return [0.,0.,0.], [0.,0.,0.]
+        else:
+            min = [self.Data["x"].min(), self.Data["y"].min(), self.Data["z"].min()]
+            max = [self.Data["x"].max(), self.Data["y"].max(), self.Data["z"].max()]
+            return min, max
 
     def _normalize(self, coor):
         #transform coordinates based on strech axis

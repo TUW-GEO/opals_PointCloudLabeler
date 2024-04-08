@@ -8,6 +8,7 @@ import numpy as np
 import math
 import copy
 from sortedcontainers import SortedDict
+from StationUtilities import StationPolyline2D
 
 # predefined classication dictionary, mapping class ids to class lables and colors
 CLASSIFICATION_DATA = {0: ['0 unclassified', [210, 210, 210]],
@@ -35,49 +36,16 @@ CLASSIFICATION_DATA = {0: ['0 unclassified', [210, 210, 210]],
                        45: ['45 volume backscatter', [60, 130, 130]]}
 
 
-class MovingPolygon():
-    def __init__(self,linestring,pos):
-        self.linestring = linestring
-        self.pos = pos
-        self.current_length = 0
-        self.total_stationing = 0
-
-    def segment_length(self, point1, point2):
-        return ((point1[0] - point2[0]) ** 2 + (point1[1] - point2[1]) ** 2) ** 0.5
-
-    def get_stationing_at_point(self,point):
-        self.total_stationing = 0
-        for i in range(len(self.linestring) - 1):
-            length = self.segment_length(self.linestring[i], self.linestring[i + 1])
-            segment_vector = [self.linestring[i + 1][0] - self.linestring[i][0], self.linestring[i + 1][1] - self.linestring[i][1]]
-            pos_vector = [point[0] - self.linestring[i][0], point[1] - self.linestring[i][1]]
-            dot_product = pos_vector[0] * segment_vector[0] + pos_vector[1] * segment_vector[1]
-            if dot_product <= 0:
-                return self.total_stationing
-            self.total_stationing += length
-        return self.total_stationing
-
-    def checkPosition(self):
-        stationings = SortedDict()
-        self.total_stationing = 0
-
-        for i in range(len(self.linestring) - 1):
-            length = self.segment_length(self.linestring[i], self.linestring[i + 1])
-            self.total_stationing += length
-            stationings[self.total_stationing] = (self.linestring[i], self.linestring[i + 1])
-
-        index = stationings.bisect_left(self.get_stationing_at_point(self.pos))
-
-        segment_start, segment_end = stationings.peekitem(index)[1]
-        return(segment_start,segment_end)
-
 class ClassificationTool(QtWidgets.QMainWindow):
     def __init__(self):
         super(ClassificationTool, self).__init__()
         uic.loadUi('ClassificationTool.ui', self)
 
         self.Section.setMouseTracking(True)
-        self.linestring = None
+        self.station_axis = None
+        self.current_station = None
+        self.min_station = None
+        self.max_station = None
         self.odm = None
         self.result = None
         self.direction = None
@@ -88,7 +56,6 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.across = None
         self.overlap = None
         self.begin = None
-        self.end = None
         self.counter = 0
         self.lineend = None
         self.forwards = False
@@ -117,7 +84,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
         # Test data jo
         #self.PathToFile.setText(r"C:\projects\bugs\felix_pydm_290224\Fluss_110736_0_loos_528600_533980_Klassifiziert.las")
-        #self.PathToFile.setText(r"C:\projects\bugs\felix_pydm_290224\test.odm")
+        #self.PathToFile.setText(r"C:\projects\bugs\felix_pydm_290224\test2.odm")
         #self.PathToAxisShp.setText(r"C:\projects\bugs\felix_pydm_290224\Fluss_110736_0_loos_528600_533980_Klassifiziert_axis.shp")
 
         #self.PathToFile.setText(r"C:\Users\felix\Documents\Test_Data\Fluss_110736_0_loos_528600_533980_Klassifiziert.las")
@@ -202,8 +169,10 @@ class ClassificationTool(QtWidgets.QMainWindow):
         #Check if odm is in tiling modus (jo: spielt das eine rolle, ob der odm im tiling mode ist? sollte jedenfalls nicht sein)
         inf = Info.Info(inFile=odm_name)
         inf.run()
-        #idx_stat = inf.statistic[0].getIndices()
-        idx_stat = inf.statistic.getIndices()
+        if isinstance(inf.statistic,list):
+            idx_stat = inf.statistic[0].getIndices()
+        else:
+            idx_stat = inf.statistic.getIndices()
 
         for i in idx_stat:
             node = i.getCountNode()
@@ -243,25 +212,34 @@ class ClassificationTool(QtWidgets.QMainWindow):
                 pt = obj[i]
                 pts.append([pt.x, pt.y])
 
-        self.linestring = pts.copy()
-        self.segment = copy.deepcopy(pts)
+        #self.linestring = pts.copy()
+        #self.segment = copy.deepcopy(pts)
+        #self.station_axis = StationPolyline2D(pts.copy())
+
+        extrapolation_distance = float(self.along_section.text().strip())*5
+
+        self.station_axis = StationPolyline2D(pts)
+        self.current_station = 0
+        self.min_station = self.station_axis.min_station()-extrapolation_distance   # min allowed station value
+        self.max_station = self.station_axis.max_station()+extrapolation_distance   # max allowed station value
 
         self.PathToAxisShp.setEnabled(False)
 
         self.Overview.setAxis(pts)
         self.Overview.dataRefresh()
 
-    def Direction(self, p1, p2):
-        p1 = np.array(p1).reshape(1, 2)
-        p2 = np.array(p2).reshape(1, 2)
-        p = p2 - p1
-        p = p / math.sqrt(p[0, 0] ** 2 + p[0, 1] ** 2)
-        self.direction = p
+    #def Direction(self, p1, p2):
+    #    p1 = np.array(p1).reshape(1, 2)
+    #    p2 = np.array(p2).reshape(1, 2)
+    #    p = p2 - p1
+    #    p = p / math.sqrt(p[0, 0] ** 2 + p[0, 1] ** 2)
+    #    self.direction = p
 
     def polygon(self):
         def poly_points(start, vector, length, width):
-            start_point = np.array(start).reshape(1, 2)
-            rot_vector = np.array([-vector[0, 1], vector[0, 0]]).reshape(1, 2)
+            start_point = np.array([start]).reshape(1, 2)
+            rot_vector = np.array([-vector[1], vector[0]]).reshape(1, 2)
+            vector = np.array([vector[0], vector[1]]).reshape(1, 2)
             p1 = start_point + (rot_vector * length / 2)
             p2 = start_point + (-rot_vector * length / 2)
             p3 = p2 + (width * vector)
@@ -286,7 +264,15 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.Overview.dataRefresh()
 
         # extract the points inside of the polygon
-        result = pyDM.NumpyConverter.searchPoint(self.odm, polygon, self.layout2, withCoordinates=True, noDataObj=np.nan)
+        try:
+            result = pyDM.NumpyConverter.searchPoint(self.odm, polygon, self.layout2, withCoordinates=True, noDataObj=np.nan)
+        except Exception as e:
+            # this occurs if no points where found
+            result = {}
+            result['Classification'] = np.empty(shape=(0, 0))
+            result['x'] = np.empty(shape=(0, 0))
+            result['y'] = np.empty(shape=(0, 0))
+            result['z'] = np.empty(shape=(0, 0))
         self.result = result
 
         self.checkClassification = result['Classification'].copy()
@@ -319,7 +305,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
     def createPolygon(self):
         if not self.odm:
             return
-        if not self.linestring:
+        if not self.station_axis:
             return
 
         self.along = float(self.along_section.text().strip())
@@ -344,19 +330,18 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
         self.layout2 = lf2.getLayout()
 
-        self.Direction(self.begin, self.end)
+        self.begin, self.direction = self.station_axis.get_point_and_direction(self.current_station)
         self.polygon()
 
     def ptsInSection(self):
         self.Section.setData(self.result)
-        coords1 = [self.result["x"][0], self.result["y"][0], self.result["z"][0]]
-        coords2 = [coords1[0] + 10., coords1[1] + 10., coords1[2] + 10.]
-        self.Section.setStretchAxis(coords1, coords2)
+        if len(self.result["x"]) > 2:
+            coords1 = [self.result["x"][0], self.result["y"][0], self.result["z"][0]]
+            coords2 = [coords1[0] + 10., coords1[1] + 10., coords1[2] + 10.]
+            self.Section.setStretchAxis(coords1, coords2)
 
     def viewFirstSection(self):
         self.load_axis()
-        checkPos = MovingPolygon(self.segment, self.linestring[0]).checkPosition()
-        self.begin, self.end = checkPos[0], checkPos[1]
         self.createPolygon()
         self.ptsInSection()
         self.Section.setOrthoView(self.rot_camera)
@@ -388,56 +373,56 @@ class ClassificationTool(QtWidgets.QMainWindow):
             self.odm.save()
 
     def knn(self):
-        comp = copy.deepcopy(self.result)
-
-        kdtree = pyDM.PointIndexLeaf(pyDM.IndexType.kdtree,2,True)
+        # create 3d kdtree for nearest neighbour selection
+        kdtree = pyDM.PointIndexLeaf(pyDM.IndexType.kdtree, 3, True)
+        # settings for nn selection
+        nnCount = 1
+        searchMode = pyDM.SelectionMode.nearest
+        maxSearchDist = -1
 
         for idx in range(len(self.knnSection['x'])):
-            kdtree.addPoint(pyDM.Point(self.knnSection['x'][idx],self.knnSection['y'][idx],self.knnSection['z'][idx]))
+            classid = self.knnSection['Classification'][idx]
+            pt = pyDM.Point(self.knnSection['x'][idx],self.knnSection['y'][idx],self.knnSection['z'][idx])
+            pt.setAddInfoView(self.layout2, False)
+            pt.info().set(1,int(classid))
+            kdtree.addPoint(pt)
 
-        #for idx in range(len(self.setObj['x'])):
-         #   kdtree.addPoint(pyDM.Point(self.setObj['x'][idx], self.setObj['y'][idx], self.setObj['z'][idx]))
-
+        assigned_pts = 0
         for idx in range(len(self.result['x'])):
             if not self.result[self.manuallyClassified][idx]:
-                nnCount = 1
-                searchPt = pyDM.Point(self.result['x'][idx],self.result['y'][idx],0.)
-                searchMode = pyDM.SelectionMode.nearest
-                maxSearchDist = 2
-
+                searchPt = pyDM.Point(self.result['x'][idx],self.result['y'][idx],self.result['z'][idx])
                 pts = kdtree.searchPoint(nnCount,searchPt,maxSearchDist,searchMode)
 
                 if pts != []:
-                    pt = np.where(self.knnSection['x'] == (pts[0].x))
-                    k = self.knnSection['Classification'][pt[0][0]]
-                    self.result['Classification'][idx] = k
+                    classid = pts[0].info().get(1)
+                    # jo, should we assign classid == 0 (undefined) as well?
+                    self.result['Classification'][idx] = classid
+                    assigned_pts += 1
 
-        self.knnPts = sum(comp['Classification'] != self.result['Classification'])
-        self.model.removeRow(1)
-        self.model.removeRow(2)
+        self.knnPts = assigned_pts
         self.ptsNoClass = sum(self.result['Classification'] > 0)
         self.ptsNoClass = sum(self.result['Classification'] == 0)
-        self.result = self.result
+        # update histogram
+        classes, counts = numpy.unique(self.result['Classification'], return_counts=True)
+        self.classHisto = {}
+        for cl, cn in zip(classes, counts):
+            self.classHisto[cl] = cn
 
     def nextSection(self):
-        pos = [0,0]
+        if not self.station_axis:
+            return
+        ds = self.along * (1 - self.overlap)
+        new_station = self.current_station + ds
+        if new_station + ds > self.max_station:
+            new_station = self.max_station-ds
+        if new_station == self.current_station:
+            return
+
         self.changeAttributes()
         self.knnSection = copy.deepcopy(self.result)
 
-        for i in range(len(self.begin)):
-            pos[i] = self.begin[i] + ((self.along * (1 - self.overlap)) * self.direction[0, i])
-
-        checkPos = MovingPolygon(self.linestring,pos).checkPosition()
-
-        #if self.counter == (len(self.linestring) - 1) or self.counter < 0:
-         #   QtWidgets.QMessageBox(QtWidgets.QMessageBox.Critical, "Error occured", "End of Polyline! No more points available.").exec_()
-        #else:
-
-        self.Direction(checkPos[0], checkPos[1])
-
-        for i in range(len(self.begin)):
-            self.begin[i] = self.begin[i] + ((self.along * (1 - self.overlap)) * self.direction[0, i])
-
+        self.current_station = new_station
+        self.begin, self.direction = self.station_axis.get_point_and_direction(self.current_station)
         self.polygon()
 
         if self.knnTree.isChecked():
@@ -448,24 +433,25 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.showMessages()
 
     def previousSection(self):
-        pos = [0, 0]
+        if not self.station_axis:
+            return
+        ds = self.along * (1 - self.overlap)
+        new_station = self.current_station - ds
+        if new_station < self.min_station:
+            new_station = self.min_station
+        if new_station == self.current_station:
+            return
+
         self.changeAttributes()
+        self.current_station = new_station
 
-        for i in range(len(self.begin)):
-            pos[i] = self.begin[i] - ((self.along * (1 - self.overlap)) * self.direction[0, i])
-
-        checkPos = MovingPolygon(self.linestring, pos).checkPosition()
-
-        #if self.counter == (len(self.linestring) - 1) or self.counter < 0:
-         #   QtWidgets.QMessageBox(QtWidgets.QMessageBox.Critical, "Error occured", "Begin of Polyline! No more points available.").exec_()
-
-        #else:
-        self.Direction(checkPos[0], checkPos[1])
-
-        for i in range(len(self.begin)):
-            self.begin[i] = self.begin[i] - ((self.along * (1 - self.overlap)) * self.direction[0, i])
-
+        self.begin, self.direction = self.station_axis.get_point_and_direction(self.current_station)
         self.polygon()
+
+        # jo, sollte das beim rückwerts gehen nicht auch gemacht werden?
+        #if self.knnTree.isChecked():
+        #    self.knn()
+
         self.ptsInSection()
         self.Section.dataRefresh()
         self.showMessages()
@@ -516,7 +502,8 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
     def showMessages(self):
         self.model.clear()
-
+        self.model.appendRow(QStandardItem(r'Current station: {:.2f} - {:.2f}'.format(self.current_station,
+                                                                                      self.current_station+self.along)))
         self.model.appendRow(QStandardItem(r'Loaded: {} Points'.format(self.ptsLoad)))
         self.model.appendRow(QStandardItem(r'Classified: {} Points'.format(self.ptsClass)))
         self.model.appendRow(QStandardItem(r'Unclassified: {} Points'.format(self.ptsNoClass)))
