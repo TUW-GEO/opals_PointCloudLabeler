@@ -164,7 +164,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
         #import into odm if needed
         if os.path.isfile(odm_name) == False:
-            Import.Import(inFile=data, outFile=odm_name).run()
+            Import.Import(inFile=data, tilePointCount=50000, outFile=odm_name).run()
 
         #Check if odm is in tiling modus (jo: spielt das eine rolle, ob der odm im tiling mode ist? sollte jedenfalls nicht sein)
         inf = Info.Info(inFile=odm_name)
@@ -179,7 +179,8 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
         #if node == 0:
         #    # jo: spielt das eine rolle, ob der odm im tiling mode ist? sollte nicht der fall sein
-        #    Import.Import(inFile=data, tilePointCount=50000, outFile=odm_name).run()
+        #
+        #Import.Import(inFile=data, tilePointCount=50000, outFile=odm_name).run()
 
         #create shading
         if os.path.isfile(grid_name) == False:
@@ -255,7 +256,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
         # extract the points inside of the polygon
         try:
-            result = pyDM.NumpyConverter.searchPoint(self.odm, polygon, self.layout2, withCoordinates=True, noDataObj=np.nan)
+            result = pyDM.NumpyConverter.searchPoint(self.odm, polygon, self.layout2, withCoordinates=True, noDataObj=0)
         except Exception as e:
             # this occurs if no points where found
             result = {}
@@ -266,7 +267,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.result = result
 
         self.checkClassification = result['Classification'].copy()
-        self.result[self.manuallyClassified] = self.result['Classification'] != 0
+        #self.result[self.manuallyClassified] = (self.result['Classification'] != 0) #* (self.result['Classification'] != 1)
 
         self.ptsLoad = len(self.result['x'])
         # build histogram of class ids
@@ -289,8 +290,6 @@ class ClassificationTool(QtWidgets.QMainWindow):
         # update class selection combo box if needed
         if classesAdded:
             self.refeshClassComboBox()
-
-
 
     def createPolygon(self):
         if not self.odm:
@@ -316,7 +315,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
         lf2 = pyDM.AddInfoLayoutFactory()
         type, inDM = lf2.addColumn(dm, 'Id', True);assert inDM == True
         type, inDM = lf2.addColumn(dm, 'Classification', True); assert inDM == True
-        type, inDM = lf2.addColumn(dm, self.manuallyClassified, True, pyDM.ColumnType.bool_)  # add atribute for knn
+        type, inDM = lf2.addColumn(dm, self.manuallyClassified, True, pyDM.ColumnType.uint8)  # add atribute for knn
 
         self.layout2 = lf2.getLayout()
 
@@ -379,7 +378,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
         assigned_pts = 0
         for idx in range(len(self.result['x'])):
-            if not self.result[self.manuallyClassified][idx]:
+            if self.result['Classification'][idx] == 0:
                 searchPt = pyDM.Point(self.result['x'][idx],self.result['y'][idx],self.result['z'][idx])
                 pts = kdtree.searchPoint(nnCount,searchPt,maxSearchDist,searchMode)
 
@@ -387,6 +386,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
                     classid = pts[0].info().get(1)
                     # jo, should we assign classid == 0 (undefined) as well?
                     self.result['Classification'][idx] = classid
+                    self.result[self.manuallyClassified][idx] = 2
                     assigned_pts += 1
 
         self.knnPts = assigned_pts

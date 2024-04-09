@@ -264,9 +264,8 @@ class DrawWidget(QGLWidget):
         idxPt = np.unique(posIds[posIds>=0]).tolist()
 
         for pt in idxPt:
-            classArray = self.Data['Classification']
-            classArray[pt] = self.currentClass
-            self.Data['Classification'] = classArray
+            self.Data['Classification'][pt] = self.currentClass
+            self.Data['_manuallyClassified'][pt] = 1
 
     def Picking(self, singlePoint = True):
         self.makeCurrent()
