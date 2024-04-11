@@ -277,10 +277,11 @@ class DrawWidget(QGLWidget):
                 self.multiPtPicking(1, 1, self.mouse[0], self.mouse[1])
 
             else:
-                width = int(abs((self.mouse[0] - self.wheel) - (self.mouse[0] + self.wheel)))
-                height = int(abs((self.mouse[1] - self.wheel) - (self.mouse[1] + self.wheel)))
-
-                self.multiPtPicking(width, height, (self.mouse[0] - self.wheel), (self.mouse[1] - self.wheel))
+                width = int(abs(self.wheel*2))
+                height = int(abs(self.wheel*2))
+                minx = self.mouse[0] - abs(self.wheel)
+                miny = self.mouse[1] - abs(self.wheel)
+                self.multiPtPicking(width, height, minx, miny)
 
 
         else:
@@ -320,11 +321,10 @@ class DrawWidget(QGLWidget):
 
             glLoadIdentity()
             self.camera.transformAxis()
-            glMatrixMode(GL_MODELVIEW);
+            glMatrixMode(GL_MODELVIEW)
             glLoadIdentity();
 
-            # glEnable( GL_DEPTH_TEST );
-            glDisable(GL_DEPTH_TEST);
+            glDisable(GL_DEPTH_TEST)
             if self.axisList == None:
                 self.initAxis()
             glCallList(self.axisList)
@@ -336,15 +336,22 @@ class DrawWidget(QGLWidget):
             # restore old view port
             glViewport(0, 0, self.widthInPixels, self.heightInPixels)
 
-            if self.start and self.stop:
-                if self.SelectRectangle:
-                    # draw selection box
-                    # we switch to orthogonal view with 'windows coordinates'. therefore, we can directly use
-                    # the mouse coordinates for drawing
-                    glMatrixMode(GL_PROJECTION)
-                    glLoadIdentity()
-                    glOrtho(0, self.widthInPixels, self.heightInPixels, 0, -self.camera.farPlane, self.camera.farPlane)
+            rect_selection = False
+            pt_selection = False
+            if self.start and self.stop and self.SelectRectangle:
+                rect_selection = True
+            elif self.mouse and self.SelectPoint:
+                pt_selection = True
 
+            if rect_selection or pt_selection:
+                # draw selection box
+                # we switch to orthogonal view with 'windows coordinates'. therefore, we can directly use
+                # the mouse coordinates for drawing
+                glMatrixMode(GL_PROJECTION)
+                glLoadIdentity()
+                glOrtho(0, self.widthInPixels, self.heightInPixels, 0, -self.camera.farPlane, self.camera.farPlane)
+
+                if rect_selection:
                     glBegin(GL_LINE_LOOP)
                     glColor3f(0.7, 0.7, 0.7)  # color for selection rectangle
                     glVertex(self.start[0], self.start[1], 0)
@@ -352,15 +359,9 @@ class DrawWidget(QGLWidget):
                     glVertex(self.stop[0],  self.stop[1],  0)
                     glVertex(self.start[0], self.stop[1],  0)
                     glEnd()
-
-            elif self.mouse:
-                if self.SelectPoint:
-                    glMatrixMode(GL_PROJECTION)
-                    glLoadIdentity()
-                    glOrtho(0, self.widthInPixels, self.heightInPixels, 0, -self.camera.farPlane, self.camera.farPlane)
-
+                elif pt_selection:
                     glBegin(GL_LINE_LOOP)
-                    glColor3f(0.7, 0.7, 0.7)
+                    glColor3f(0.7, 0.7, 0.7) # color for selection rectangle
                     glVertex(self.mouse[0] - self.wheel, self.mouse[1] + self.wheel, 0)
                     glVertex(self.mouse[0] + self.wheel, self.mouse[1] + self.wheel, 0)
                     glVertex(self.mouse[0] + self.wheel, self.mouse[1] - self.wheel, 0)
@@ -457,5 +458,5 @@ class DrawWidget(QGLWidget):
             self.update()
 
         else:
-            self.wheel += (event.angleDelta().y()/120)
+            self.wheel += event.angleDelta().y()/120   #can be positive or negative
             self.update()

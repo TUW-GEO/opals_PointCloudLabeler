@@ -86,7 +86,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
         # Test data jo
         #self.PathToFile.setText(r"C:\projects\bugs\felix_pydm_290224\Fluss_110736_0_loos_528600_533980_Klassifiziert.las")
-        #self.PathToFile.setText(r"C:\projects\bugs\felix_pydm_290224\test2.odm")
+        #self.PathToFile.setText(r"C:\projects\bugs\felix_pydm_290224\test.odm")
         #self.PathToAxisShp.setText(r"C:\projects\bugs\felix_pydm_290224\Fluss_110736_0_loos_528600_533980_Klassifiziert_axis.shp")
 
         #self.PathToFile.setText(r"C:\Users\felix\Documents\Test_Data\Fluss_110736_0_loos_528600_533980_Klassifiziert.las")
@@ -150,9 +150,8 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
         self.knnTree.setChecked(False)
 
-        self.model = QStandardItemModel()
-
-        self.StatusMessages.setModel(self.model)
+        self.StatusMessageModel = QStandardItemModel()
+        self.StatusMessages.setModel(self.StatusMessageModel)
 
         self.Save.pressed.connect(self.save_file)
 
@@ -177,22 +176,6 @@ class ClassificationTool(QtWidgets.QMainWindow):
         #import into odm if needed
         if os.path.isfile(odm_name) == False:
             Import.Import(inFile=data, tilePointCount=50000, outFile=odm_name).run()
-
-        #Check if odm is in tiling modus (jo: spielt das eine rolle, ob der odm im tiling mode ist? sollte jedenfalls nicht sein)
-        inf = Info.Info(inFile=odm_name)
-        inf.run()
-        if isinstance(inf.statistic,list):
-            idx_stat = inf.statistic[0].getIndices()
-        else:
-            idx_stat = inf.statistic.getIndices()
-
-        for i in idx_stat:
-            node = i.getCountNode()
-
-        #if node == 0:
-        #    # jo: spielt das eine rolle, ob der odm im tiling mode ist? sollte nicht der fall sein
-        #
-        #Import.Import(inFile=data, tilePointCount=50000, outFile=odm_name).run()
 
         #create shading
         if os.path.isfile(grid_name) == False:
@@ -503,17 +486,17 @@ class ClassificationTool(QtWidgets.QMainWindow):
             self.Section.dataRefresh()
 
     def showMessages(self):
-        self.model.clear()
-        self.model.appendRow(QStandardItem(r'Current station: {:.2f} - {:.2f}'.format(self.current_station,
-                                                                                      self.current_station+self.along)))
-        self.model.appendRow(QStandardItem(r'Loaded: {} Points'.format(self.ptsLoad)))
-        self.model.appendRow(QStandardItem(r'Classified: {} Points'.format(self.ptsClass)))
-        self.model.appendRow(QStandardItem(r'Unclassified: {} Points'.format(self.ptsNoClass)))
-        self.model.appendRow(QStandardItem(r'Class histogram: {}'.format(self.classHisto)))
+        self.StatusMessageModel.clear()
+        self.StatusMessageModel.appendRow(QStandardItem(r'Current station: {:.2f} - {:.2f}'.format(self.current_station,
+                                                                                                   self.current_station + self.along)))
+        self.StatusMessageModel.appendRow(QStandardItem(r'Loaded: {} Points'.format(self.ptsLoad)))
+        self.StatusMessageModel.appendRow(QStandardItem(r'Classified: {} Points'.format(self.ptsClass)))
+        self.StatusMessageModel.appendRow(QStandardItem(r'Unclassified: {} Points'.format(self.ptsNoClass)))
+        self.StatusMessageModel.appendRow(QStandardItem(r'Class histogram: {}'.format(self.classHisto)))
 
 
         if self.knnTree.isChecked():
-            self.model.appendRow(QStandardItem(r'Class predicted: {} Points'.format(self.knnPts)))
+            self.StatusMessageModel.appendRow(QStandardItem(r'Class predicted: {} Points'.format(self.knnPts)))
 
     def save_file(self):
         self.changeAttributes()
