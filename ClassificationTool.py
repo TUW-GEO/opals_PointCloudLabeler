@@ -165,22 +165,6 @@ class ClassificationTool(QtWidgets.QMainWindow):
         if os.path.isfile(odm_name) == False:
             Import.Import(inFile=data, tilePointCount=50000, outFile=odm_name).run()
 
-        #Check if odm is in tiling modus (jo: spielt das eine rolle, ob der odm im tiling mode ist? sollte jedenfalls nicht sein)
-        inf = Info.Info(inFile=odm_name)
-        inf.run()
-        if isinstance(inf.statistic,list):
-            idx_stat = inf.statistic[0].getIndices()
-        else:
-            idx_stat = inf.statistic.getIndices()
-
-        for i in idx_stat:
-            node = i.getCountNode()
-
-        #if node == 0:
-        #    # jo: spielt das eine rolle, ob der odm im tiling mode ist? sollte nicht der fall sein
-        #
-        #Import.Import(inFile=data, tilePointCount=50000, outFile=odm_name).run()
-
         #create shading
         if os.path.isfile(grid_name) == False:
             Grid.Grid(inFile=odm_name, outFile=grid_name, filter='echo[last]',
