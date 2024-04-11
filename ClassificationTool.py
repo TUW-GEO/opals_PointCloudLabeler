@@ -35,6 +35,7 @@ CLASSIFICATION_DATA = {0: ['0 unclassified', [210, 210, 210]],
                        44: ['44 IHO S-57 object', [90, 75, 170]],
                        45: ['45 volume backscatter', [60, 130, 130]]}
 
+PREDICTION = {0:'no prediction', 1:'predict next', 2:'predict previous', 3:'predict all'}
 
 class ClassificationTool(QtWidgets.QMainWindow):
     def __init__(self):
@@ -70,6 +71,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.knnPts = 0
         self.manuallyClassified = '_manuallyClassified'
         self.classificationData = CLASSIFICATION_DATA
+        self.prediction = PREDICTION
         self.classHisto = {}  # class histogram of the current section
 
 
@@ -110,9 +112,19 @@ class ClassificationTool(QtWidgets.QMainWindow):
         if currSelection != "":
             self.ClassList.setCurrentText(currSelection)
 
+    def PredictComboBox(self):
+        currentSelection = self.knnPrediction.currentText()
+
+        for key, val in self.prediction.items():
+            self.knnPrediction.addItem(val)
+
+        if currentSelection != "":
+            self.knnPrediction.setCurrentText(currentSelection)
+
     def initUI(self):
         #Build ComboBox:
         self.refeshClassComboBox()
+        self.PredictComboBox()
 
         self.LoadButton.pressed.connect(self.load_pointcloud)
         self.LoadAxis.pressed.connect(self.viewFirstSection)
