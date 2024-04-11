@@ -84,7 +84,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
         # Test data jo
         #self.PathToFile.setText(r"C:\projects\bugs\felix_pydm_290224\Fluss_110736_0_loos_528600_533980_Klassifiziert.las")
-        #self.PathToFile.setText(r"C:\projects\bugs\felix_pydm_290224\test2.odm")
+        #self.PathToFile.setText(r"C:\projects\bugs\felix_pydm_290224\test.odm")
         #self.PathToAxisShp.setText(r"C:\projects\bugs\felix_pydm_290224\Fluss_110736_0_loos_528600_533980_Klassifiziert_axis.shp")
 
         #self.PathToFile.setText(r"C:\Users\felix\Documents\Test_Data\Fluss_110736_0_loos_528600_533980_Klassifiziert.las")
@@ -138,9 +138,8 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
         self.knnTree.setChecked(False)
 
-        self.model = QStandardItemModel()
-
-        self.StatusMessages.setModel(self.model)
+        self.StatusMessageModel = QStandardItemModel()
+        self.StatusMessages.setModel(self.StatusMessageModel)
 
         self.Save.pressed.connect(self.save_file)
 
@@ -491,17 +490,17 @@ class ClassificationTool(QtWidgets.QMainWindow):
             self.Section.dataRefresh()
 
     def showMessages(self):
-        self.model.clear()
-        self.model.appendRow(QStandardItem(r'Current station: {:.2f} - {:.2f}'.format(self.current_station,
-                                                                                      self.current_station+self.along)))
-        self.model.appendRow(QStandardItem(r'Loaded: {} Points'.format(self.ptsLoad)))
-        self.model.appendRow(QStandardItem(r'Classified: {} Points'.format(self.ptsClass)))
-        self.model.appendRow(QStandardItem(r'Unclassified: {} Points'.format(self.ptsNoClass)))
-        self.model.appendRow(QStandardItem(r'Class histogram: {}'.format(self.classHisto)))
+        self.StatusMessageModel.clear()
+        self.StatusMessageModel.appendRow(QStandardItem(r'Current station: {:.2f} - {:.2f}'.format(self.current_station,
+                                                                                                   self.current_station + self.along)))
+        self.StatusMessageModel.appendRow(QStandardItem(r'Loaded: {} Points'.format(self.ptsLoad)))
+        self.StatusMessageModel.appendRow(QStandardItem(r'Classified: {} Points'.format(self.ptsClass)))
+        self.StatusMessageModel.appendRow(QStandardItem(r'Unclassified: {} Points'.format(self.ptsNoClass)))
+        self.StatusMessageModel.appendRow(QStandardItem(r'Class histogram: {}'.format(self.classHisto)))
 
 
         if self.knnTree.isChecked():
-            self.model.appendRow(QStandardItem(r'Class predicted: {} Points'.format(self.knnPts)))
+            self.StatusMessageModel.appendRow(QStandardItem(r'Class predicted: {} Points'.format(self.knnPts)))
 
     def save_file(self):
         self.changeAttributes()
