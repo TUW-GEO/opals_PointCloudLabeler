@@ -680,7 +680,7 @@
             </property>
             <property name="icon">
              <iconset>
-              <normaloff>../../Grafiken/Orthogonal.png</normaloff>../../Grafiken/Orthogonal.png</iconset>
+              <normaloff>Graphics/Orthogonal.png</normaloff>Graphics/Orthogonal.png</iconset>
             </property>
             <property name="iconSize">
              <size>
@@ -742,6 +742,16 @@
             </property>
             <property name="tickInterval">
              <number>1</number>
+            </property>
+           </widget>
+          </item>
+          <item row="3" column="3">
+           <widget class="QComboBox" name="knnPrediction">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Maximum" vsizetype="Maximum">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
             </property>
            </widget>
           </item>
