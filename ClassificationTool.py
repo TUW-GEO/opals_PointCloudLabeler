@@ -35,7 +35,7 @@ CLASSIFICATION_DATA = {0: ['0 unclassified', [210, 210, 210]],
                        44: ['44 IHO S-57 object', [90, 75, 170]],
                        45: ['45 volume backscatter', [60, 130, 130]]}
 
-PREDICTION = {0:'no prediction', 1:'predict next', 2:'predict previous', 3:'predict all'}
+PREDICTION = {0:'no prediction', 1:'predict next', 2:'predict previous', 3:'always predict'}
 
 class ClassificationTool(QtWidgets.QMainWindow):
     def __init__(self):
@@ -121,10 +121,16 @@ class ClassificationTool(QtWidgets.QMainWindow):
         if currentSelection != "":
             self.knnPrediction.setCurrentText(currentSelection)
 
+    def disableButtonFunctions(self):
+        if not self.station_axis:
+            return
+
     def initUI(self):
         #Build ComboBox:
         self.refeshClassComboBox()
         self.PredictComboBox()
+
+        self.PathToAxisShp.setEnabled(False)
 
         self.LoadButton.pressed.connect(self.load_pointcloud)
         self.LoadAxis.pressed.connect(self.viewFirstSection)
@@ -144,11 +150,9 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.RectangleSelection.clicked.connect(self.SelectRectangle)
 
         self.ClassList.currentTextChanged.connect(self.PointsClassification)
-        self.Reset.clicked.connect(self.Section.Reset)
+        self.Reset.clicked.connect(self.resetSection)
 
         self.PointSize.valueChanged.connect(self.Section.setPointSize)
-
-        self.knnTree.setChecked(False)
 
         self.StatusMessageModel = QStandardItemModel()
         self.StatusMessages.setModel(self.StatusMessageModel)
@@ -175,7 +179,18 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
         #import into odm if needed
         if os.path.isfile(odm_name) == False:
-            Import.Import(inFile=data, tilePointCount=50000, outFile=odm_name).run()
+            #Import.Import(inFile=data, tilePointCount=50000, outFile=odm_name).run()
+            Import.Import(inFile=data, outFile=odm_name).run()
+
+        inf = Info.Info(inFile=odm_name)
+        inf.run()
+        if isinstance(inf.statistic, list):
+            idx_stat = inf.statistic[0].getIndices()
+        else:
+            idx_stat = inf.statistic.getIndices()
+
+        for i in idx_stat:
+            node = i.getCountNode()
 
         #create shading
         if os.path.isfile(grid_name) == False:
@@ -192,6 +207,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.Overview.dataRefresh()
 
         self.PathToFile.setEnabled(False)
+        self.PathToAxisShp.setEnabled(True)
 
     def load_axis(self):
         axis = str(self.PathToAxisShp.text()).strip()
@@ -325,6 +341,9 @@ class ClassificationTool(QtWidgets.QMainWindow):
             self.Section.setStretchAxis(coords1, coords2)
 
     def viewFirstSection(self):
+        if not self.odm:
+            return
+
         self.load_axis()
         self.createPolygon()
         self.ptsInSection()
@@ -334,9 +353,14 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.showMessages()
 
     def overlapPolygons(self):
+        self.disableButtonFunctions()
+
         self.overlap = float(self.overlap_section.text().strip())/100
 
     def changePolygonSize(self):
+        if not self.station_axis:
+            return
+
         self.along = float(self.along_section.text().strip())
         self.across = float(self.across_section.text().strip())
         self.polygon()
@@ -396,6 +420,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
     def nextSection(self):
         if not self.station_axis:
             return
+
         ds = self.along * (1 - self.overlap)
         new_station = self.current_station + ds
         if new_station + ds > self.max_station:
@@ -410,8 +435,9 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.begin, self.direction = self.station_axis.get_point_and_direction(self.current_station)
         self.polygon()
 
-        if self.knnTree.isChecked():
+        if self.knnPrediction.currentText() == 'predict next' or self.knnPrediction.currentText() == 'always predict':
             self.knn()
+
 
         self.ptsInSection()
         self.Section.dataRefresh()
@@ -420,6 +446,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
     def previousSection(self):
         if not self.station_axis:
             return
+
         ds = self.along * (1 - self.overlap)
         new_station = self.current_station - ds
         if new_station < self.min_station:
@@ -428,14 +455,14 @@ class ClassificationTool(QtWidgets.QMainWindow):
             return
 
         self.changeAttributes()
-        self.current_station = new_station
+        self.knnSection = copy.deepcopy(self.result)
 
+        self.current_station = new_station
         self.begin, self.direction = self.station_axis.get_point_and_direction(self.current_station)
         self.polygon()
 
-        # jo, sollte das beim rückwerts gehen nicht auch gemacht werden?
-        #if self.knnTree.isChecked():
-        #    self.knn()
+        if self.knnPrediction.currentText() == 'predict previous' or self.knnPrediction.currentText() == 'always predict':
+            self.knn()
 
         self.ptsInSection()
         self.Section.dataRefresh()
@@ -447,6 +474,9 @@ class ClassificationTool(QtWidgets.QMainWindow):
                 self.Section.currentClass = key
 
     def SelectPoint(self):
+        if not self.station_axis:
+            return
+
         if self.RectangleSelection.isChecked():
             self.RectangleSelection.setChecked(False)
             self.Section.SelectRectangle = False
@@ -459,6 +489,9 @@ class ClassificationTool(QtWidgets.QMainWindow):
             self.Section.SelectPoint = False
 
     def SelectRectangle(self):
+        if not self.station_axis:
+            return
+
         if self.PointSelection.isChecked():
             self.PointSelection.setChecked(False)
             self.Section.SelectPoint = False
@@ -495,10 +528,18 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.StatusMessageModel.appendRow(QStandardItem(r'Class histogram: {}'.format(self.classHisto)))
 
 
-        if self.knnTree.isChecked():
+        if self.knnPrediction.currentText() == ('predict previous' or 'always predict' or 'predict next'):
             self.StatusMessageModel.appendRow(QStandardItem(r'Class predicted: {} Points'.format(self.knnPts)))
 
+    def resetSection(self):
+        if not self.station_axis:
+            return
+        self.Section.Reset()
+
     def save_file(self):
+        if not self.station_axis:
+            return
+
         self.changeAttributes()
         self.Section.deleteReset()
         self.PathToFile.setEnabled(True)
