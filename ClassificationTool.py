@@ -2,6 +2,7 @@ import numpy
 from opals import Import, Grid, Shade, pyDM, Info
 from PyQt5 import QtWidgets,uic
 from PyQt5.QtGui import *
+from PyQt5.QtWidgets import QFileDialog
 import os
 import opals
 import numpy as np
@@ -81,8 +82,8 @@ class ClassificationTool(QtWidgets.QMainWindow):
         #self.PathToAxisShp.setText(r"C:\swdvlp64_cmake\opals\distro\demo\strip21_axis.shp")
 
         #Test data
-        self.PathToFile.setText(r"C:\Users\felix\OneDrive\Dokumente\TU Wien\Bachelorarbeit\Classificationtool\Test_Data\Fluss_110736_0_loos_528600_533980_Klassifiziert.las")
-        self.PathToAxisShp.setText(r"C:\Users\felix\OneDrive\Dokumente\TU Wien\Bachelorarbeit\Classificationtool\Test_Data\Fluss_110736_0_loos_528600_533980_Klassifiziert_axis.shp")
+        #self.PathToFile.setText(r"C:\Users\felix\OneDrive\Dokumente\TU Wien\Bachelorarbeit\Classificationtool\Test_Data\Fluss_110736_0_loos_528600_533980_Klassifiziert.las")
+        #self.PathToAxisShp.setText(r"C:\Users\felix\OneDrive\Dokumente\TU Wien\Bachelorarbeit\Classificationtool\Test_Data\Fluss_110736_0_loos_528600_533980_Klassifiziert_axis.shp")
 
         # Test data jo
         #self.PathToFile.setText(r"C:\projects\bugs\felix_pydm_290224\Fluss_110736_0_loos_528600_533980_Klassifiziert.las")
@@ -159,13 +160,15 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
     def load_pointcloud(self):
         path = str(self.PathToFile.text()).strip()
+        if path == "":
+            path, _ = QFileDialog.getOpenFileName(self, "Select point cloud file", "",
+                                                  "OPALS Datamanager (*.odm);;LAS Files (*.las *laz);;All Files (*.*)")
+            if path == "":
+                return
+            self.PathToFile.setText(os.path.abspath(path))
         os.chdir(os.path.dirname(os.path.abspath(path)))
 
-        # get the filname (jo, os.path funktionalität verwennden)
-        #data = path.split('\\')
-        #data = data[len(data) - 1]
-        #filename = data.split('.')
-        #name = filename[0]
+        # get the filename
         _, data = os.path.split(path)
         name, _ = os.path.splitext(data)
 
@@ -177,16 +180,6 @@ class ClassificationTool(QtWidgets.QMainWindow):
         if os.path.isfile(odm_name) == False:
             #Import.Import(inFile=data, tilePointCount=50000, outFile=odm_name).run()
             Import.Import(inFile=data, outFile=odm_name).run()
-
-        inf = Info.Info(inFile=odm_name)
-        inf.run()
-        if isinstance(inf.statistic, list):
-            idx_stat = inf.statistic[0].getIndices()
-        else:
-            idx_stat = inf.statistic.getIndices()
-
-        for i in idx_stat:
-            node = i.getCountNode()
 
         #create shading
         if os.path.isfile(grid_name) == False:
@@ -207,11 +200,15 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
     def load_axis(self):
         axis = str(self.PathToAxisShp.text()).strip()
-        #data = axis.split('\\')
-        #file = data[len(data)-1]
-        # jo, warum nicht einfach absoluten pfad verwenden? gegebenfalls os.path funktionalität verwennden
-        _, file = os.path.split(axis)
-        imp = pyDM.Import.create(file, pyDM.DataFormat.auto)
+        if axis == "":
+            axis, _ = QFileDialog.getOpenFileName(self, "Select axis file", "",
+                                                  "Shape File (*.shp);;All Files (*.*)")
+            if axis == "":
+                return
+            self.PathToAxisShp.setText(os.path.abspath(axis))
+
+
+        imp = pyDM.Import.create(axis, pyDM.DataFormat.auto)
 
         pts = []
         for obj in imp:
@@ -349,7 +346,9 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.showMessages()
 
     def overlapPolygons(self):
-        self.disableButtonFunctions()
+        # self.disableButtonFunctions()
+        if not self.station_axis:
+            return
 
         self.overlap = float(self.overlap_section.text().strip())/100
 
@@ -399,7 +398,6 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
                 if pts != []:
                     classid = pts[0].info().get(1)
-                    # jo, should we assign classid == 0 (undefined) as well?
                     self.result['Classification'][idx] = classid
                     self.result[self.manuallyClassified][idx] = 2
                     assigned_pts += 1
