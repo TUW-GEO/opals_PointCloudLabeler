@@ -121,10 +121,6 @@ class ClassificationTool(QtWidgets.QMainWindow):
         if currentSelection != "":
             self.knnPrediction.setCurrentText(currentSelection)
 
-    def disableButtonFunctions(self):
-        if not self.station_axis:
-            return
-
     def initUI(self):
         #Build ComboBox:
         self.refeshClassComboBox()
