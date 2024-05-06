@@ -41,7 +41,7 @@ PREDICTION = {0:'no prediction', 1:'predict next', 2:'predict previous', 3:'alwa
 class ClassificationTool(QtWidgets.QMainWindow):
     def __init__(self):
         super(ClassificationTool, self).__init__()
-        uic.loadUi('ClassificationTool.ui', self)
+        uic.loadUi('PointCloudLabeler.ui', self)
 
         self.Section.setMouseTracking(True)
         self.station_axis = None

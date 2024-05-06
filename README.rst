@@ -1,7 +1,7 @@
-Classificationtool for 3D ALS Pointclouds
-*****************************************
+PointCloudLabeler
+*****************
 
-This tool can be used for manuall classification of 3D ALS pointclouds. It is based on the `OPALS
+This tool can be used for manual classification of 3D ALS point clouds. It is based on the `OPALS
 <https://geo.tuwien.ac.at/opals>`_ software, for which a license is required. 
 
 As prerequisite please install all necessary dependencies using the following command:
@@ -11,8 +11,8 @@ As prerequisite please install all necessary dependencies using the following co
     pip install -r requirements.txt
 
 
-For running the ClassificationTool please type
+For running the PointCloudLabeler please type
 
 .. code::
 
-    python ClassificationTool.pyw
+    python PointCloudLabeler.pyw
