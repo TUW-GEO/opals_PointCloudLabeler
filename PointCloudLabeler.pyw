@@ -1,8 +1,8 @@
 import numpy
 from opals import Import, Grid, Shade, pyDM, Info
-from PyQt5 import QtWidgets,uic
+from PyQt5 import QtWidgets,uic, QtCore
 from PyQt5.QtGui import *
-from PyQt5.QtWidgets import QFileDialog
+from PyQt5.QtWidgets import QFileDialog, QApplication
 import os
 import opals
 import numpy as np
@@ -64,6 +64,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.backwards = False
         self.hightcolor = False
         self.Point = False
+        self.FalseAxis = False
         self.Rectangle = False
         self.firstSection = None
         self.ptsLoad = 0
@@ -75,15 +76,12 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.prediction = PREDICTION
         self.classHisto = {}  # class histogram of the current section
 
-
-        #self.PathToFile.setText( r"C:\Users\felix\OneDrive\Dokumente\TU Wien\Bachelorarbeit\Classificationtool\strip21.laz" )
-        #self.PathToAxisShp.setText( r"C:\Users\felix\OneDrive\Dokumente\TU Wien\Bachelorarbeit\Classificationtool\strip21_axis_transformed.shp")
-        #self.PathToFile.setText(r"C:\swdvlp64_cmake\opals\distro\demo\strip21.laz")
-        #self.PathToAxisShp.setText(r"C:\swdvlp64_cmake\opals\distro\demo\strip21_axis.shp")
-
         #Test data
         #self.PathToFile.setText(r"C:\Users\felix\OneDrive\Dokumente\TU Wien\Bachelorarbeit\Classificationtool\Test_Data\Fluss_110736_0_loos_528600_533980_Klassifiziert.las")
         #self.PathToAxisShp.setText(r"C:\Users\felix\OneDrive\Dokumente\TU Wien\Bachelorarbeit\Classificationtool\Test_Data\Fluss_110736_0_loos_528600_533980_Klassifiziert_axis.shp")
+
+        self.PathToFile.setText(r"X:\students\fmeixner\PointCloudLabeler\Data\Fluss_110736_0_loos_528600_533980_Klassifiziert.las")
+        self.PathToAxisShp.setText(r"X:\students\fmeixner\PointCloudLabeler\Data\Fluss_110736_0_loos_528600_533980_Klassifiziert_axis.shp")
 
         # Test data jo
         #self.PathToFile.setText(r"C:\projects\bugs\felix_pydm_290224\Fluss_110736_0_loos_528600_533980_Klassifiziert.las")
@@ -132,9 +130,11 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.LoadButton.pressed.connect(self.load_pointcloud)
         self.LoadAxis.pressed.connect(self.viewFirstSection)
 
-        self.QPushButtonAlong.pressed.connect(self.changePolygonSize)
-        self.QPushButtonAcross.pressed.connect(self.changePolygonSize)
-        self.QPushButtonOverlap.pressed.connect(self.overlapPolygons)
+        #self.along_section.textChanged.connect(self.changePolygonSize)
+
+        #self.QPushButtonAlong.pressed.connect(self.changePolygonSize)
+        #self.QPushButtonAcross.pressed.connect(self.changePolygonSize)
+        #self.QPushButtonOverlap.pressed.connect(self.overlapPolygons)
         self.Next.pressed.connect(self.nextSection)
         self.Previous.pressed.connect(self.previousSection)
 
@@ -159,6 +159,8 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.Section.setClassifcationData(self.classificationData)
 
     def load_pointcloud(self):
+        data_types = ['.odm', '.las', '.laz', '.xyz']
+
         path = str(self.PathToFile.text()).strip()
         if path == "":
             path, _ = QFileDialog.getOpenFileName(self, "Select point cloud file", "",
@@ -172,31 +174,35 @@ class ClassificationTool(QtWidgets.QMainWindow):
         _, data = os.path.split(path)
         name, _ = os.path.splitext(data)
 
-        odm_name = name + '.odm'
-        grid_name = name + '_z.tif'
-        shd_name = name + '_shd.tif'
+        if _ not in data_types:
+            QtWidgets.QMessageBox(QtWidgets.QMessageBox.Warning, "Warning",
+                                  "Wrong file type! \nFile has to be one of {}.".format(data_types)).exec_()
+        else:
+            odm_name = name + '.odm'
+            grid_name = name + '_z.tif'
+            shd_name = name + '_shd.tif'
 
-        #import into odm if needed
-        if os.path.isfile(odm_name) == False:
-            #Import.Import(inFile=data, tilePointCount=50000, outFile=odm_name).run()
-            Import.Import(inFile=data, outFile=odm_name).run()
+            #import into odm if needed
+            if os.path.isfile(odm_name) == False:
+                #Import.Import(inFile=data, tilePointCount=50000, outFile=odm_name).run()
+                Import.Import(inFile=data, outFile=odm_name).run()
 
-        #create shading
-        if os.path.isfile(grid_name) == False:
-            Grid.Grid(inFile=odm_name, outFile=grid_name, filter='echo[last]',
-                  interpolation=opals.Types.GridInterpolator.movingPlanes, gridSize=0.5).run()
+            #create shading
+            if os.path.isfile(grid_name) == False:
+                Grid.Grid(inFile=odm_name, outFile=grid_name, filter='echo[last]',
+                      interpolation=opals.Types.GridInterpolator.movingPlanes, gridSize=0.5).run()
 
-        if os.path.isfile(shd_name) == False:
-            Shade.Shade(inFile=grid_name, outFile=shd_name).run()
+            if os.path.isfile(shd_name) == False:
+                Shade.Shade(inFile=grid_name, outFile=shd_name).run()
 
-        # load the opals datamanager in read and write
-        self.odm = pyDM.Datamanager.load(odm_name, readOnly=False, threadSafety=False)
+            # load the opals datamanager in read and write
+            self.odm = pyDM.Datamanager.load(odm_name, readOnly=False, threadSafety=False)
 
-        self.Overview.setShading(shd_name)
-        self.Overview.dataRefresh()
+            self.Overview.setShading(shd_name)
+            self.Overview.dataRefresh()
 
-        self.PathToFile.setEnabled(False)
-        self.PathToAxisShp.setEnabled(True)
+            self.PathToFile.setEnabled(False)
+            self.PathToAxisShp.setEnabled(True)
 
     def load_axis(self):
         axis = str(self.PathToAxisShp.text()).strip()
@@ -207,28 +213,36 @@ class ClassificationTool(QtWidgets.QMainWindow):
                 return
             self.PathToAxisShp.setText(os.path.abspath(axis))
 
+        _, data = os.path.split(axis)
+        name, _ = os.path.splitext(data)
 
-        imp = pyDM.Import.create(axis, pyDM.DataFormat.auto)
+        if _ != '.shp':
+            QtWidgets.QMessageBox(QtWidgets.QMessageBox.Warning, "Warning!",
+                                  "Wrong file type! \nFile has to be a shape-file.").exec_()
+            self.FalseAxis = True
+        else:
+            self.FalseAxis = False
+            imp = pyDM.Import.create(axis, pyDM.DataFormat.auto)
 
-        pts = []
-        for obj in imp:
-            # loop over points
-            for i in range(obj.sizePoint()):
-                pt = obj[i]
-                pts.append([pt.x, pt.y])
+            pts = []
+            for obj in imp:
+                # loop over points
+                for i in range(obj.sizePoint()):
+                    pt = obj[i]
+                    pts.append([pt.x, pt.y])
 
-        # maximal extrapolation distance at start and end of axis
-        extrapolation_distance = float(self.along_section.text().strip())*5
+            # maximal extrapolation distance at start and end of axis
+            extrapolation_distance = float(self.along_section.text().strip())*5
 
-        self.station_axis = StationPolyline2D(pts)
-        self.current_station = 0
-        self.min_station = self.station_axis.min_station()-extrapolation_distance   # min allowed station value
-        self.max_station = self.station_axis.max_station()+extrapolation_distance   # max allowed station value
+            self.station_axis = StationPolyline2D(pts)
+            self.current_station = 0
+            self.min_station = self.station_axis.min_station()-extrapolation_distance   # min allowed station value
+            self.max_station = self.station_axis.max_station()+extrapolation_distance   # max allowed station value
 
-        self.PathToAxisShp.setEnabled(False)
+            self.PathToAxisShp.setEnabled(False)
 
-        self.Overview.setAxis(pts)
-        self.Overview.dataRefresh()
+            self.Overview.setAxis(pts)
+            self.Overview.dataRefresh()
 
     def polygon(self):
         def poly_points(start, vector, length, width):
@@ -338,6 +352,9 @@ class ClassificationTool(QtWidgets.QMainWindow):
             return
 
         self.load_axis()
+        if self.FalseAxis:
+            return
+
         self.createPolygon()
         self.ptsInSection()
         self.Section.setOrthoView(self.rot_camera)
@@ -358,6 +375,9 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
         self.along = float(self.along_section.text().strip())
         self.across = float(self.across_section.text().strip())
+
+        #self.along = self.along_section.text()
+
         self.polygon()
         self.ptsInSection()
         self.Section.dataRefresh()
@@ -538,6 +558,11 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.Section.deleteReset()
         self.PathToFile.setEnabled(True)
         self.PathToAxisShp.setEnabled(True)
+
+    def keyPressEvent(self, event):
+        if event.key() == QtCore.Qt.Key_Return:
+            #self.along_section.textChanged.connect(self.changePolygonSize)
+            self.changePolygonSize()
 
 if __name__ == "__main__":
     import sys

@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1377</width>
+    <width>1385</width>
     <height>997</height>
    </rect>
   </property>
@@ -59,7 +59,7 @@
          <number>4</number>
         </property>
         <item>
-         <spacer name="verticalSpacer_7">
+         <spacer name="verticalSpacer_4">
           <property name="orientation">
            <enum>Qt::Vertical</enum>
           </property>
@@ -125,8 +125,8 @@
           </property>
           <property name="maximumSize">
            <size>
-            <width>1200</width>
-            <height>600</height>
+            <width>6000</width>
+            <height>3000</height>
            </size>
           </property>
           <property name="sizeIncrement">
@@ -144,15 +144,18 @@
           <property name="mouseTracking">
            <bool>false</bool>
           </property>
+          <property name="focusPolicy">
+           <enum>Qt::StrongFocus</enum>
+          </property>
          </widget>
         </item>
         <item>
-         <spacer name="verticalSpacer_4">
+         <spacer name="verticalSpacer_7">
           <property name="orientation">
            <enum>Qt::Vertical</enum>
           </property>
           <property name="sizeType">
-           <enum>QSizePolicy::Fixed</enum>
+           <enum>QSizePolicy::Minimum</enum>
           </property>
           <property name="sizeHint" stdset="0">
            <size>
@@ -388,101 +391,11 @@
               <pointsize>9</pointsize>
              </font>
             </property>
+            <property name="focusPolicy">
+             <enum>Qt::StrongFocus</enum>
+            </property>
             <property name="text">
              <string>5</string>
-            </property>
-           </widget>
-          </item>
-          <item row="3" column="2">
-           <widget class="QPushButton" name="QPushButtonOverlap">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="minimumSize">
-             <size>
-              <width>56</width>
-              <height>30</height>
-             </size>
-            </property>
-            <property name="font">
-             <font>
-              <pointsize>8</pointsize>
-             </font>
-            </property>
-            <property name="toolTip">
-             <string>Overlap of the next polygon</string>
-            </property>
-            <property name="text">
-             <string>Overlap (%)</string>
-            </property>
-           </widget>
-          </item>
-          <item row="3" column="0">
-           <widget class="QPushButton" name="QPushButtonAcross">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="minimumSize">
-             <size>
-              <width>56</width>
-              <height>30</height>
-             </size>
-            </property>
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>16777215</height>
-             </size>
-            </property>
-            <property name="font">
-             <font>
-              <pointsize>8</pointsize>
-             </font>
-            </property>
-            <property name="toolTip">
-             <string>Transverse extension of the polygon </string>
-            </property>
-            <property name="text">
-             <string>Across</string>
-            </property>
-           </widget>
-          </item>
-          <item row="3" column="1">
-           <widget class="QPushButton" name="QPushButtonAlong">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="minimumSize">
-             <size>
-              <width>56</width>
-              <height>30</height>
-             </size>
-            </property>
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>16777215</height>
-             </size>
-            </property>
-            <property name="font">
-             <font>
-              <pointsize>8</pointsize>
-             </font>
-            </property>
-            <property name="toolTip">
-             <string>Extension of the polygon lengthwise</string>
-            </property>
-            <property name="text">
-             <string>Along</string>
             </property>
            </widget>
           </item>
@@ -733,6 +646,27 @@
             </property>
            </widget>
           </item>
+          <item row="3" column="0">
+           <widget class="QLabel" name="label_5">
+            <property name="text">
+             <string>Across</string>
+            </property>
+           </widget>
+          </item>
+          <item row="3" column="1">
+           <widget class="QLabel" name="label_6">
+            <property name="text">
+             <string>Along</string>
+            </property>
+           </widget>
+          </item>
+          <item row="3" column="2">
+           <widget class="QLabel" name="label_7">
+            <property name="text">
+             <string>Overlap [%]</string>
+            </property>
+           </widget>
+          </item>
          </layout>
         </item>
         <item>
@@ -822,21 +756,21 @@
         <item>
          <widget class="OverviewWidget" name="Overview" native="true">
           <property name="sizePolicy">
-           <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+           <sizepolicy hsizetype="Maximum" vsizetype="Maximum">
             <horstretch>0</horstretch>
             <verstretch>0</verstretch>
            </sizepolicy>
           </property>
           <property name="minimumSize">
            <size>
-            <width>600</width>
-            <height>400</height>
+            <width>300</width>
+            <height>300</height>
            </size>
           </property>
           <property name="maximumSize">
            <size>
-            <width>600</width>
-            <height>400</height>
+            <width>900</width>
+            <height>900</height>
            </size>
           </property>
          </widget>
@@ -1125,8 +1059,8 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1377</width>
-     <height>18</height>
+     <width>1385</width>
+     <height>21</height>
     </rect>
    </property>
   </widget>
