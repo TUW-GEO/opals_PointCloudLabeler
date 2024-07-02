@@ -395,7 +395,7 @@
              <enum>Qt::StrongFocus</enum>
             </property>
             <property name="text">
-             <string>5</string>
+             <string/>
             </property>
            </widget>
           </item>
@@ -458,7 +458,7 @@
              </font>
             </property>
             <property name="text">
-             <string>20</string>
+             <string/>
             </property>
            </widget>
           </item>
@@ -1080,6 +1080,29 @@
    <container>1</container>
   </customwidget>
  </customwidgets>
+ <tabstops>
+  <tabstop>across_section</tabstop>
+  <tabstop>along_section</tabstop>
+  <tabstop>overlap_section</tabstop>
+  <tabstop>Save</tabstop>
+  <tabstop>Reset</tabstop>
+  <tabstop>Previous</tabstop>
+  <tabstop>Next</tabstop>
+  <tabstop>ClassList</tabstop>
+  <tabstop>PointSelection</tabstop>
+  <tabstop>RectangleSelection</tabstop>
+  <tabstop>knnPrediction</tabstop>
+  <tabstop>Section</tabstop>
+  <tabstop>LoadButton</tabstop>
+  <tabstop>StatusMessages</tabstop>
+  <tabstop>HightColor</tabstop>
+  <tabstop>PointSize</tabstop>
+  <tabstop>OrthoView</tabstop>
+  <tabstop>LoadAxis</tabstop>
+  <tabstop>ClassColor</tabstop>
+  <tabstop>PathToAxisShp</tabstop>
+  <tabstop>PathToFile</tabstop>
+ </tabstops>
  <resources/>
  <connections/>
 </ui>

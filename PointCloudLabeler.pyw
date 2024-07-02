@@ -10,6 +10,7 @@ import math
 import copy
 from sortedcontainers import SortedDict
 from StationUtilities import StationPolyline2D
+import keyboard
 
 # predefined classication dictionary, mapping class ids to class lables and colors
 CLASSIFICATION_DATA = {0: ['0 unclassified', [210, 210, 210]],
@@ -130,11 +131,6 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.LoadButton.pressed.connect(self.load_pointcloud)
         self.LoadAxis.pressed.connect(self.viewFirstSection)
 
-        #self.along_section.textChanged.connect(self.changePolygonSize)
-
-        #self.QPushButtonAlong.pressed.connect(self.changePolygonSize)
-        #self.QPushButtonAcross.pressed.connect(self.changePolygonSize)
-        #self.QPushButtonOverlap.pressed.connect(self.overlapPolygons)
         self.Next.pressed.connect(self.nextSection)
         self.Previous.pressed.connect(self.previousSection)
 
@@ -159,7 +155,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.Section.setClassifcationData(self.classificationData)
 
     def load_pointcloud(self):
-        data_types = ['.odm', '.las', '.laz', '.xyz']
+        data_types = ['.odm', '.las', '.laz', '.xyz', '.bxyz', '.shp', '.wnp', '.bwnp', '.sdw', '.fwf', '.trj', 'btrj', '.gdal', '.scop']
 
         path = str(self.PathToFile.text()).strip()
         if path == "":
@@ -176,7 +172,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
         if _ not in data_types:
             QtWidgets.QMessageBox(QtWidgets.QMessageBox.Warning, "Warning",
-                                  "Wrong file type! \nFile has to be one of {}.".format(data_types)).exec_()
+                                  "Wrong file type! \nPlease choose a file with the right type. ").exec_()
         else:
             odm_name = name + '.odm'
             grid_name = name + '_z.tif'
@@ -230,6 +226,8 @@ class ClassificationTool(QtWidgets.QMainWindow):
                 for i in range(obj.sizePoint()):
                     pt = obj[i]
                     pts.append([pt.x, pt.y])
+
+            self.polygonSize(self.odm)
 
             # maximal extrapolation distance at start and end of axis
             extrapolation_distance = float(self.along_section.text().strip())*5
@@ -315,8 +313,8 @@ class ClassificationTool(QtWidgets.QMainWindow):
         if not self.station_axis:
             return
 
-        self.along = float(self.along_section.text().strip())
-        self.across = float(self.across_section.text().strip())
+        #self.along = float(self.along_section.text().strip())
+        #self.across = float(self.across_section.text().strip())
         self.overlap = (float(self.overlap_section.text().strip()))/100
 
         dm = self.odm
@@ -336,9 +334,34 @@ class ClassificationTool(QtWidgets.QMainWindow):
         type, inDM = lf2.addColumn(dm, self.manuallyClassified, True, pyDM.ColumnType.uint8)  # add atribute for knn
 
         self.layout2 = lf2.getLayout()
-
         self.begin, self.direction = self.station_axis.get_point_and_direction(self.current_station)
         self.polygon()
+
+    def polygonSize(self, dm):
+        lf = pyDM.AddInfoLayoutFactory()
+        type, inDM = lf.addColumn(dm, 'Id', True);assert inDM == True
+        layout = lf.getLayout()
+
+        limit = dm.getLimit()
+        queryWin = pyDM.Window(limit.xmin, limit.ymin, limit.xmax, limit.ymax)
+
+        result = pyDM.NumpyConverter.searchPoint(dm, queryWin, layout, withCoordinates=True, noDataObj=np.nan)
+
+        n = len(result['Id'])
+        A = (limit.xmax - limit.xmin) * (limit.ymax - limit.ymin)
+        density = n / A
+
+        mean_ptdistance = 1 / np.sqrt(density)
+
+        self.across = int(100 * mean_ptdistance)
+
+        if mean_ptdistance < 1:
+            self.along = 1
+        else:
+            self.along = int(mean_ptdistance)
+
+        self.along_section.setText(str(self.along))
+        self.across_section.setText(str(self.across))
 
     def ptsInSection(self):
         self.Section.setData(self.result)
@@ -559,9 +582,8 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.PathToFile.setEnabled(True)
         self.PathToAxisShp.setEnabled(True)
 
-    def keyPressEvent(self, event):
-        if event.key() == QtCore.Qt.Key_Return:
-            #self.along_section.textChanged.connect(self.changePolygonSize)
+    def keyReleaseEvent(self, event):
+        if event.key() == QtCore.Qt.Key_Return or event.key() == QtCore.Qt.Key_Tab:
             self.changePolygonSize()
 
 if __name__ == "__main__":
