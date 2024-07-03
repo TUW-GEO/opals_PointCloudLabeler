@@ -9,8 +9,7 @@ import numpy as np
 import math
 import copy
 from sortedcontainers import SortedDict
-from StationUtilities import StationPolyline2D
-import keyboard
+from StationUtilities import StationPolyline2D, StationCubicSpline2D
 
 # predefined classication dictionary, mapping class ids to class lables and colors
 CLASSIFICATION_DATA = {0: ['0 unclassified', [210, 210, 210]],
@@ -81,8 +80,8 @@ class ClassificationTool(QtWidgets.QMainWindow):
         #self.PathToFile.setText(r"C:\Users\felix\OneDrive\Dokumente\TU Wien\Bachelorarbeit\Classificationtool\Test_Data\Fluss_110736_0_loos_528600_533980_Klassifiziert.las")
         #self.PathToAxisShp.setText(r"C:\Users\felix\OneDrive\Dokumente\TU Wien\Bachelorarbeit\Classificationtool\Test_Data\Fluss_110736_0_loos_528600_533980_Klassifiziert_axis.shp")
 
-        self.PathToFile.setText(r"X:\students\fmeixner\PointCloudLabeler\Data\Fluss_110736_0_loos_528600_533980_Klassifiziert.las")
-        self.PathToAxisShp.setText(r"X:\students\fmeixner\PointCloudLabeler\Data\Fluss_110736_0_loos_528600_533980_Klassifiziert_axis.shp")
+        #self.PathToFile.setText(r"X:\students\fmeixner\PointCloudLabeler\Data\Fluss_110736_0_loos_528600_533980_Klassifiziert.las")
+        #self.PathToAxisShp.setText(r"X:\students\fmeixner\PointCloudLabeler\Data\Fluss_110736_0_loos_528600_533980_Klassifiziert_axis.shp")
 
         # Test data jo
         #self.PathToFile.setText(r"C:\projects\bugs\felix_pydm_290224\Fluss_110736_0_loos_528600_533980_Klassifiziert.las")
@@ -232,14 +231,18 @@ class ClassificationTool(QtWidgets.QMainWindow):
             # maximal extrapolation distance at start and end of axis
             extrapolation_distance = float(self.along_section.text().strip())*5
 
-            self.station_axis = StationPolyline2D(pts)
+            if len(pts) == 1:
+                self.station_axis = StationPolyline2D(pts)
+            else:
+                self.station_axis = StationCubicSpline2D(pts)
+
             self.current_station = 0
             self.min_station = self.station_axis.min_station()-extrapolation_distance   # min allowed station value
             self.max_station = self.station_axis.max_station()+extrapolation_distance   # max allowed station value
 
             self.PathToAxisShp.setEnabled(False)
 
-            self.Overview.setAxis(pts)
+            self.Overview.setAxis(self.station_axis.vertices)
             self.Overview.dataRefresh()
 
     def polygon(self):
@@ -328,24 +331,20 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
         self.layout = lf.getLayout()
 
-        lf2 = pyDM.AddInfoLayoutFactory()
-        type, inDM = lf2.addColumn(dm, 'Id', True);assert inDM == True
-        type, inDM = lf2.addColumn(dm, 'Classification', True); assert inDM == True
-        type, inDM = lf2.addColumn(dm, self.manuallyClassified, True, pyDM.ColumnType.uint8)  # add atribute for knn
-
-        self.layout2 = lf2.getLayout()
         self.begin, self.direction = self.station_axis.get_point_and_direction(self.current_station)
         self.polygon()
 
     def polygonSize(self, dm):
-        lf = pyDM.AddInfoLayoutFactory()
-        type, inDM = lf.addColumn(dm, 'Id', True);assert inDM == True
-        layout = lf.getLayout()
+        lf2 = pyDM.AddInfoLayoutFactory()
+        type, inDM = lf2.addColumn(dm, 'Id', True);assert inDM == True
+        type, inDM = lf2.addColumn(dm, 'Classification', True);assert inDM == True
+        type, inDM = lf2.addColumn(dm, self.manuallyClassified, True, pyDM.ColumnType.uint8)
+        self.layout2 = lf2.getLayout()
 
         limit = dm.getLimit()
         queryWin = pyDM.Window(limit.xmin, limit.ymin, limit.xmax, limit.ymax)
 
-        result = pyDM.NumpyConverter.searchPoint(dm, queryWin, layout, withCoordinates=True, noDataObj=np.nan)
+        result = pyDM.NumpyConverter.searchPoint(dm, queryWin, self.layout2, withCoordinates=True, noDataObj=np.nan)
 
         n = len(result['Id'])
         A = (limit.xmax - limit.xmin) * (limit.ymax - limit.ymin)
@@ -353,12 +352,11 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
         mean_ptdistance = 1 / np.sqrt(density)
 
-        self.across = int(100 * mean_ptdistance)
+        self.across = round(1000 * mean_ptdistance,2)
+        self.along = round(5 * mean_ptdistance,2)
 
-        if mean_ptdistance < 1:
-            self.along = 1
-        else:
-            self.along = int(mean_ptdistance)
+        self.across_copy = self.across.copy()
+        self.along_copy = self.along.copy()
 
         self.along_section.setText(str(self.along))
         self.across_section.setText(str(self.across))
@@ -399,7 +397,11 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.along = float(self.along_section.text().strip())
         self.across = float(self.across_section.text().strip())
 
-        #self.along = self.along_section.text()
+        if self.along == self.along_copy and self.across == self.across_copy:
+            return
+
+        self.along_copy = self.along
+        self.across_copy = self.across
 
         self.polygon()
         self.ptsInSection()
