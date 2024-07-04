@@ -1,4 +1,4 @@
-from PyQt5 import QtCore, QtGui
+from PyQt5 import QtCore, QtGui, uic
 from PyQt5.QtSvg import QSvgWidget
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
@@ -15,7 +15,6 @@ class OverviewWidget(QSvgWidget):
         self.shd_bbox = None
         self.axis = None
         self.selection = None
-
 
     def pixel2coords(self,px,py):
         x = self.shd_geotrafo[0] + px * self.shd_geotrafo[1] + py * self.shd_geotrafo[2]
@@ -74,4 +73,3 @@ class OverviewWidget(QSvgWidget):
         self.renderer().load(svg_bytes)
         self.renderer().setAspectRatioMode(QtCore.Qt.KeepAspectRatio)
         self.update()
-

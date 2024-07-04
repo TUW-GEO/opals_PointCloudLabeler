@@ -43,6 +43,8 @@ class ClassificationTool(QtWidgets.QMainWindow):
         super(ClassificationTool, self).__init__()
         uic.loadUi('PointCloudLabeler.ui', self)
 
+        self.Overview.setStyleSheet("border: 1px solid black;")
+
         self.Section.setMouseTracking(True)
         self.station_axis = None
         self.current_station = None
@@ -179,8 +181,10 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
             #import into odm if needed
             if os.path.isfile(odm_name) == False:
-                #Import.Import(inFile=data, tilePointCount=50000, outFile=odm_name).run()
                 Import.Import(inFile=data, outFile=odm_name).run()
+
+            #Extract the header of the odm to get the point density
+            self.ptsDensity = pyDM.Datamanager.getHeaderODM(odm_name).estimatedPointDensity()
 
             #create shading
             if os.path.isfile(grid_name) == False:
@@ -226,7 +230,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
                     pt = obj[i]
                     pts.append([pt.x, pt.y])
 
-            self.polygonSize(self.odm)
+            self.polygonSize()
 
             # maximal extrapolation distance at start and end of axis
             extrapolation_distance = float(self.along_section.text().strip())*5
@@ -332,35 +336,26 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
         self.layout = lf.getLayout()
 
-        self.begin, self.direction = self.station_axis.get_point_and_direction(self.current_station)
-        self.polygon()
-
-    def polygonSize(self, dm):
         lf2 = pyDM.AddInfoLayoutFactory()
-        type, inDM = lf2.addColumn(dm, 'Id', True);assert inDM == True
-        type, inDM = lf2.addColumn(dm, 'Classification', True);assert inDM == True
+        type, inDM = lf2.addColumn(dm, 'Id', True); assert inDM == True
+        type, inDM = lf2.addColumn(dm, 'Classification', True); assert inDM == True
         type, inDM = lf2.addColumn(dm, self.manuallyClassified, True, pyDM.ColumnType.uint8)
         self.layout2 = lf2.getLayout()
 
-        limit = dm.getLimit()
-        queryWin = pyDM.Window(limit.xmin, limit.ymin, limit.xmax, limit.ymax)
+        self.begin, self.direction = self.station_axis.get_point_and_direction(self.current_station)
+        self.polygon()
 
-        result = pyDM.NumpyConverter.searchPoint(dm, queryWin, self.layout2, withCoordinates=True, noDataObj=np.nan)
+    def polygonSize(self):
+        meanPtDistance = 1 / np.sqrt(self.ptsDensity)
 
-        n = len(result['Id'])
-        A = (limit.xmax - limit.xmin) * (limit.ymax - limit.ymin)
-        density = n / A
-
-        mean_ptdistance = 1 / np.sqrt(density)
-
-        self.across = 1000 * mean_ptdistance
+        self.across = 1000 * meanPtDistance
 
         if self.across > 30:
             self.across = 30.0
         else:
-            self.across = round(1000 * mean_ptdistance,2)
+            self.across = round(1000 * meanPtDistance,2)
 
-        self.along = round(5 * mean_ptdistance,2)
+        self.along = round(5 * meanPtDistance,2)
 
         self.along_section.setText(str(self.along))
         self.across_section.setText(str(self.across))

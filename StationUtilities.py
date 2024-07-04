@@ -1,4 +1,6 @@
 import bisect
+import numpy as np
+from scipy.interpolate import CubicSpline
 
 class StationPolyline2D:
     """2d polyline class with station support
