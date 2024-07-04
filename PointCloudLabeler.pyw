@@ -235,6 +235,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
                 self.station_axis = StationPolyline2D(pts)
             else:
                 self.station_axis = StationCubicSpline2D(pts)
+                #self.station_axis = StationPolyline2D(pts)
 
             self.current_station = 0
             self.min_station = self.station_axis.min_station()-extrapolation_distance   # min allowed station value
@@ -352,11 +353,14 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
         mean_ptdistance = 1 / np.sqrt(density)
 
-        self.across = round(1000 * mean_ptdistance,2)
-        self.along = round(5 * mean_ptdistance,2)
+        self.across = 1000 * mean_ptdistance
 
-        self.across_copy = self.across.copy()
-        self.along_copy = self.along.copy()
+        if self.across > 30:
+            self.across = 30.0
+        else:
+            self.across = round(1000 * mean_ptdistance,2)
+
+        self.along = round(5 * mean_ptdistance,2)
 
         self.along_section.setText(str(self.along))
         self.across_section.setText(str(self.across))
@@ -396,12 +400,6 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
         self.along = float(self.along_section.text().strip())
         self.across = float(self.across_section.text().strip())
-
-        if self.along == self.along_copy and self.across == self.across_copy:
-            return
-
-        self.along_copy = self.along
-        self.across_copy = self.across
 
         self.polygon()
         self.ptsInSection()
