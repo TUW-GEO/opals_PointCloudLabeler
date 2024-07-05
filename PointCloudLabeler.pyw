@@ -46,6 +46,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.Overview.setStyleSheet("border: 1px solid black;")
 
         self.Section.setMouseTracking(True)
+        self.Overview.setMouseTracking(True)
         self.station_axis = None
         self.current_station = None
         self.min_station = None
@@ -159,12 +160,12 @@ class ClassificationTool(QtWidgets.QMainWindow):
         data_types = ['.odm', '.las', '.laz', '.xyz', '.bxyz', '.shp', '.wnp', '.bwnp', '.sdw', '.fwf', '.trj', 'btrj', '.gdal', '.scop']
 
         path = str(self.PathToFile.text()).strip()
-        if path == "":
-            path, _ = QFileDialog.getOpenFileName(self, "Select point cloud file", "",
+        #if path == "":
+        path, _ = QFileDialog.getOpenFileName(self, "Select point cloud file", "",
                                                   "OPALS Datamanager (*.odm);;LAS Files (*.las *laz);;All Files (*.*)")
-            if path == "":
-                return
-            self.PathToFile.setText(os.path.abspath(path))
+        if path == "":
+            return
+        self.PathToFile.setText(os.path.abspath(path))
         os.chdir(os.path.dirname(os.path.abspath(path)))
 
         # get the filename
@@ -199,18 +200,20 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
             self.Overview.setShading(shd_name)
             self.Overview.dataRefresh()
+            #self.Overview.resize(self.Overview.width, self.Overview.height)
+            #self.Overview.setStyleSheet("")
 
             self.PathToFile.setEnabled(False)
             self.PathToAxisShp.setEnabled(True)
 
     def load_axis(self):
         axis = str(self.PathToAxisShp.text()).strip()
-        if axis == "":
-            axis, _ = QFileDialog.getOpenFileName(self, "Select axis file", "",
+        #if axis == "":
+        axis, _ = QFileDialog.getOpenFileName(self, "Select axis file", "",
                                                   "Shape File (*.shp);;All Files (*.*)")
-            if axis == "":
-                return
-            self.PathToAxisShp.setText(os.path.abspath(axis))
+        if axis == "":
+            return
+        self.PathToAxisShp.setText(os.path.abspath(axis))
 
         _, data = os.path.split(axis)
         name, _ = os.path.splitext(data)
