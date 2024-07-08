@@ -4,3 +4,4 @@ numpy
 sortedcontainers
 PyOpenGL
 svgwrite
+scipy
