@@ -156,12 +156,13 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
         self.Section.setClassifcationData(self.classificationData)
 
-    def load_pointcloud(self):
-        data_types = ['.odm', '.las', '.laz', '.xyz', '.bxyz', '.shp', '.wnp', '.bwnp', '.sdw', '.fwf', '.trj', 'btrj', '.gdal', '.scop']
+        self.DrawAxis.stateChanged.connect(self.DigitalAxis)
 
-        path = str(self.PathToFile.text()).strip()
-        #if path == "":
-        path, _ = QFileDialog.getOpenFileName(self, "Select point cloud file", "",
+    def load_pointcloud(self, path=None):
+       #path = str(self.PathToFile.text()).strip()
+
+        if path is None:
+            path, _ = QFileDialog.getOpenFileName(self, "Select point cloud file", "",
                                                   "OPALS Datamanager (*.odm);;LAS Files (*.las *laz);;All Files (*.*)")
         if path == "":
             return
@@ -172,15 +173,12 @@ class ClassificationTool(QtWidgets.QMainWindow):
         _, data = os.path.split(path)
         name, _ = os.path.splitext(data)
 
-        if _ not in data_types:
-            QtWidgets.QMessageBox(QtWidgets.QMessageBox.Warning, "Warning",
-                                  "Wrong file type! \nPlease choose a file with the right type. ").exec_()
-        else:
+        try:
             odm_name = name + '.odm'
             grid_name = name + '_z.tif'
             shd_name = name + '_shd.tif'
 
-            #import into odm if needed
+             #import into odm if needed
             if os.path.isfile(odm_name) == False:
                 Import.Import(inFile=data, outFile=odm_name).run()
 
@@ -198,13 +196,19 @@ class ClassificationTool(QtWidgets.QMainWindow):
             # load the opals datamanager in read and write
             self.odm = pyDM.Datamanager.load(odm_name, readOnly=False, threadSafety=False)
 
+            self.axis_odm = pyDM.Datamanager.create(name + "_axis.odm", False)
+            self.Overview.setAxisODM(self.axis_odm)
+
+            #self.axis_odm = Over
             self.Overview.setShading(shd_name)
             self.Overview.dataRefresh()
-            #self.Overview.resize(self.Overview.width, self.Overview.height)
-            #self.Overview.setStyleSheet("")
 
             self.PathToFile.setEnabled(False)
             self.PathToAxisShp.setEnabled(True)
+
+        except Exception as e:
+            QtWidgets.QMessageBox(QtWidgets.QMessageBox.Warning, "Warning",
+                                  "Wrong file type! \nPlease choose a file with the right type. ").exec_()
 
     def load_axis(self):
         axis = str(self.PathToAxisShp.text()).strip()
@@ -242,7 +246,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
                 self.station_axis = StationPolyline2D(pts)
             else:
                 self.station_axis = StationCubicSpline2D(pts)
-                #self.station_axis = StationPolyline2D(pts)
+                self.station_axis = StationPolyline2D(pts)
 
             self.current_station = 0
             self.min_station = self.station_axis.min_station()-extrapolation_distance   # min allowed station value
@@ -294,7 +298,6 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.result = result
 
         self.checkClassification = result['Classification'].copy()
-        #self.result[self.manuallyClassified] = (self.result['Classification'] != 0) #* (self.result['Classification'] != 1)
 
         self.ptsLoad = len(self.result['x'])
         # build histogram of class ids
@@ -324,8 +327,6 @@ class ClassificationTool(QtWidgets.QMainWindow):
         if not self.station_axis:
             return
 
-        #self.along = float(self.along_section.text().strip())
-        #self.across = float(self.across_section.text().strip())
         self.overlap = (float(self.overlap_section.text().strip()))/100
 
         dm = self.odm
@@ -406,6 +407,12 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
     def setOrthoView(self):
         self.Section.setOrthoView(self.rot_camera)
+
+    def DigitalAxis(self):
+        if self.DrawAxis.isChecked():
+            self.Overview.Axis = True
+        else:
+            self.Overview.Axis = False
 
     def changeAttributes(self):
         if np.array_equal(self.result['Classification'],self.checkClassification) == False:
@@ -588,5 +595,7 @@ if __name__ == "__main__":
     import sys
     app = QtWidgets.QApplication(sys.argv)
     win = ClassificationTool()
+    if len(sys.argv) > 1:
+        win.load_pointcloud(sys.argv[1])
     win.show()
     sys.exit(app.exec_())
