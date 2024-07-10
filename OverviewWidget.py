@@ -1,4 +1,4 @@
-from PyQt5 import QtCore, QtGui, uic
+from PyQt5 import QtCore, QtWidgets, QtGui, uic
 from PyQt5.QtSvg import QSvgWidget
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
@@ -16,12 +16,20 @@ class OverviewWidget(QSvgWidget):
         self.shd_rasterSize = None
         self.shd_bbox = None
         self.axis = []
+        self.lines = []
         self.selection = None
         self.width = None
         self.height = None
         self.Axis = False
-        #self.width, self.height = self.size(), self.height()
-        self.lines = []
+        self.selected_line_idx_new = None
+        self.selected_line_idx_old = 0
+        self.AxisManagement = None
+
+
+    def setAxisManagment(self, listWidget):
+        self.AxisManagement = listWidget
+        self.AxisManagement.itemChanged.connect(self.handleItemChanged)
+
     def pixel2coords(self,px,py):
         x = self.shd_geotrafo[0] + px * self.shd_geotrafo[1] + py * self.shd_geotrafo[2]
         y = self.shd_geotrafo[3] + px * self.shd_geotrafo[4] + py * self.shd_geotrafo[5]
@@ -39,6 +47,12 @@ class OverviewWidget(QSvgWidget):
     def setAxis(self, linestring):
         self.axis = linestring
 
+    # def removeAxis(self, line_idx):
+    #     if 0 <= line_idx < len(self.lines):
+    #         del self.lines[line_idx]
+    #         self.AxisManagement.takeItem(line_idx)
+    #         self.drawAxis()
+
     def setSelectionBox(self,p1,p2,p3,p4):
         self.selection = [(p1[0][0], p1[0][1]),
                           (p2[0][0], p2[0][1]),
@@ -48,7 +62,7 @@ class OverviewWidget(QSvgWidget):
 
     def world2pixel(self,x,y):
         pass
-    def pixel2world(self):
+    def pixel2world(self,px,py):
         pass
 
     def dataRefresh(self):
@@ -71,10 +85,7 @@ class OverviewWidget(QSvgWidget):
         self.svg.add(self.svg.image(href=self.shd_filename, insert=(minx,miny), size=(self.dx,self.dy)))
 
         if self.axis:
-            for idx in range(len(self.axis) - 1):
-                pt1 = (self.axis[idx][0] - self.red_x, self.red_y - self.axis[idx][1])
-                pt2 = (self.axis[idx + 1][0] - self.red_x, self.red_y - self.axis[idx + 1][1])
-                self.svg.add(self.svg.line(start=pt1, end=pt2, stroke='blue', stroke_width=2))
+            self.drawAxis()
 
         if self.selection:
             for idx in range(len(self.selection)-1):
@@ -82,23 +93,38 @@ class OverviewWidget(QSvgWidget):
                 pt2 = (self.selection[idx+1][0]-self.red_x,self.red_y-self.selection[idx+1][1])
                 self.svg.add(self.svg.line(start=pt1, end=pt2, stroke='red', stroke_width=1))
 
-        svg_xml = self.svg.tostring()
-        svg_bytes = bytearray(svg_xml, encoding ='utf-8')
-        self.renderer().load(svg_bytes)
-        self.renderer().setAspectRatioMode(QtCore.Qt.KeepAspectRatio)
-        self.update()
+        self.update_svg()
 
-    def drawAxis(self):
-        if self.lines == []:
+    def drawAxis(self, activate=False):#, deactivate=False):
+        if self.lines == [] or activate:
             color = 'blue'
-        else:
+        elif self.AxisManagement.count() > 0 or not activate:
             color = 'lightblue'
 
-        pt1 = (self.axis[-2][0] - self.red_x, self.red_y - self.axis[-2][1])
-        pt2 = (self.axis[-1][0] - self.red_x, self.red_y - self.axis[-1][1])
+        for idx in range(len(self.axis) - 1):
+            pt1 = (self.axis[idx][0] - self.red_x, self.red_y - self.axis[idx][1])
+            pt2 = (self.axis[idx + 1][0] - self.red_x, self.red_y - self.axis[idx + 1][1])
 
-        self.svg.add(self.svg.line(start=pt1, end=pt2, stroke=color, stroke_width=self.dx/100.))
+            self.remove_line(pt1, pt2)
+            self.svg.add(self.svg.line(start=pt1, end=pt2, stroke=color, stroke_width=self.dx/200.))
 
+        self.update_svg()
+
+    def remove_line(self, pt1, pt2):
+        # Remove the line from SVG structure
+        svg_lines = self.svg.elements
+        for element in svg_lines:
+            if isinstance(element, svgwrite.shapes.Line):
+                x1, y1 = element.attribs['x1'], element.attribs['y1']
+                x2, y2 = element.attribs['x2'], element.attribs['y2']
+                if (x1, y1) == pt1 and (x2, y2) == pt2:
+                    svg_lines.remove(element)
+                    break
+
+        self.update_svg()
+
+    def update_svg(self):
+        # Update the SVG in the widget
         svg_xml = self.svg.tostring()
         svg_bytes = bytearray(svg_xml, encoding='utf-8')
         self.renderer().load(svg_bytes)
@@ -107,6 +133,43 @@ class OverviewWidget(QSvgWidget):
 
     def setAxisODM(self,odm):
         self.axis_odm = odm
+
+    def changeAxisWidth(self,width):
+        self.axis_width = width
+
+    def handleItemChanged(self, item):
+        if self.selected_line_idx_new < 0:
+            self.selected_line_idx_old = 0
+        else:
+            self.selected_line_idx_old = self.selected_line_idx_new
+
+        if item.checkState() == QtCore.Qt.Checked:
+            for i in range(self.AxisManagement.count()):
+                list_item = self.AxisManagement.item(i)
+                if list_item != item:
+                    list_item.setCheckState(QtCore.Qt.Unchecked)
+
+            self.selected_line_idx_new = self.AxisManagement.row(item)
+
+        else:
+            self.selected_line_idx = None
+
+        self.output_search(self.lines[self.selected_line_idx_new])
+        self.output_search(self.lines[self.selected_line_idx_old,False])
+
+    def output_polyline(self, line, activate):
+        for idx, part in enumerate(line.parts()):
+            for p in part.points():
+                self.axis.append([p.x,p.y])
+        if activate:
+            self.drawAxis(True)
+        else:
+            self.drawAxis(False)
+        self.axis = []
+
+    def output_search(self, lines, activate=True):
+        for idx, l in enumerate(lines):
+            self.output_polyline(l,activate)
 
     def mousePressEvent(self, mouseEvent):
         if mouseEvent.button() == QtCore.Qt.LeftButton and self.Axis:
@@ -117,18 +180,30 @@ class OverviewWidget(QSvgWidget):
 
             if len(self.axis) > 1:
                 self.drawAxis()
+
         if mouseEvent.button() == QtCore.Qt.RightButton and self.axis != []:
             f = pyDM.PolylineFactory()
-
             # create polylines and add them to the odm
             for pt in self.axis:
-                f.addPoint(pt[0],pt[1])
+                f.addPoint(pt[0],pt[1],0)
 
             self.axis_odm.addPolyline(f.getPolyline())
-            pi = self.axis_odm.getPolylineIndex()
             self.axis_odm.save()
-            self.lines.append(pi)
+            self.lines.append([f.getPolyline()])
             self.axis = []
 
+            item = QtWidgets.QListWidgetItem(f"Axis {len(self.lines)}")
+            item.setFlags(item.flags() | QtCore.Qt.ItemIsUserCheckable)
+            if len(self.lines) == 1:
+                item.setCheckState(QtCore.Qt.Checked)
+                self.selected_line_idx_new = self.AxisManagement.row(item)
+            else:
+                item.setCheckState(QtCore.Qt.Unchecked)
+
+            self.AxisManagement.addItem(item)
+
         if mouseEvent.button() == QtCore.Qt.LeftButton and not self.Axis:
-            self.searchLine = pi.searchGeometry(1, pyDM.Point(mouseEvent.x()/self.width*self.dx,self.red_y - mouseEvent.y()/self.height*self.dy))
+            pi = self.axis_odm.getPolylineIndex()
+            pt = (mouseEvent.x() / self.width * self.dx + self.red_x, self.red_y - mouseEvent.y() / self.height * self.dy)
+            self.searchLine = pi.searchGeometry(1, pyDM.Point(pt[0], pt[1], 0))
+            self.output_search(self.searchLine)

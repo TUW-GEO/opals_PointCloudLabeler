@@ -148,9 +148,12 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.Reset.clicked.connect(self.resetSection)
 
         self.PointSize.valueChanged.connect(self.Section.setPointSize)
+        self.LineSize.valueChanged.connect(self.Overview.changeAxisWidth)
 
         self.StatusMessageModel = QStandardItemModel()
         self.StatusMessages.setModel(self.StatusMessageModel)
+
+        self.Overview.setAxisManagment(self.AxisView)
 
         self.Save.pressed.connect(self.save_file)
 
@@ -196,8 +199,8 @@ class ClassificationTool(QtWidgets.QMainWindow):
             # load the opals datamanager in read and write
             self.odm = pyDM.Datamanager.load(odm_name, readOnly=False, threadSafety=False)
 
-            self.axis_odm = pyDM.Datamanager.create(name + "_axis.odm", False)
-            self.Overview.setAxisODM(self.axis_odm)
+            axis_odm = pyDM.Datamanager.create(name + "_axis.odm", False)
+            self.Overview.setAxisODM(axis_odm)
 
             #self.axis_odm = Over
             self.Overview.setShading(shd_name)
