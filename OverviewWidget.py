@@ -1,5 +1,6 @@
 from PyQt5 import QtCore, QtWidgets, QtGui, uic
 from PyQt5.QtSvg import QSvgWidget
+import numpy as np
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 import svgwrite
@@ -17,6 +18,7 @@ class OverviewWidget(QSvgWidget):
         self.shd_bbox = None
         self.axis = []
         self.lines = []
+        self.pis = []
         self.selection = None
         self.width = None
         self.height = None
@@ -29,6 +31,9 @@ class OverviewWidget(QSvgWidget):
     def setAxisManagment(self, listWidget):
         self.AxisManagement = listWidget
         self.AxisManagement.itemChanged.connect(self.handleItemChanged)
+
+    def changeAxisWidth(self):
+        pass
 
     def pixel2coords(self,px,py):
         x = self.shd_geotrafo[0] + px * self.shd_geotrafo[1] + py * self.shd_geotrafo[2]
@@ -47,11 +52,11 @@ class OverviewWidget(QSvgWidget):
     def setAxis(self, linestring):
         self.axis = linestring
 
-    # def removeAxis(self, line_idx):
-    #     if 0 <= line_idx < len(self.lines):
-    #         del self.lines[line_idx]
-    #         self.AxisManagement.takeItem(line_idx)
-    #         self.drawAxis()
+    def removeAxis(self, line_idx):
+         if 0 <= line_idx < len(self.lines):
+             del self.lines[line_idx]
+             self.AxisManagement.takeItem(line_idx)
+             self.drawAxis()
 
     def setSelectionBox(self,p1,p2,p3,p4):
         self.selection = [(p1[0][0], p1[0][1]),
@@ -60,10 +65,31 @@ class OverviewWidget(QSvgWidget):
                           (p4[0][0], p4[0][1]),
                           (p1[0][0], p1[0][1]) ]
 
-    def world2pixel(self,x,y):
-        pass
-    def pixel2world(self,px,py):
-        pass
+    def world2pixel(self, x, y):
+        a0, a1, a2, a3, a4, a5 = self.shd_geotrafo
+        A_inv = np.linalg.inv(np.array([[a1, a2], [a4, a5]]))
+        px, py = np.dot(A_inv, np.array([x - a0, y - a3]))
+        return px, py
+
+    def pixel2world(self, px, py):
+        a0, a1, a2, a3, a4, a5 = self.shd_geotrafo
+
+        red_x = a0#self.shd_bbox[0][0]  # left coordinate of shading
+        red_y = a1#self.shd_bbox[0][1]  # upper coordinate of shading
+
+        dx = self.shd_bbox[1][0] - self.shd_bbox[0][0]
+        dy = self.shd_bbox[0][1] - self.shd_bbox[1][1]
+
+        width, height = self.size().width(), self.size().height()
+
+        norm_px = (px / width) * dx
+        norm_py = (py / height) * dy
+
+        transformation_matrix = np.array([[1, 0], [0, -1]])
+        offset_vector = np.array([red_x, red_y])
+
+        world_coords = np.dot(transformation_matrix, np.array([norm_px, norm_py])) + offset_vector
+        return world_coords[0], world_coords[1]
 
     def dataRefresh(self):
         self.svg = svgwrite.Drawing()
@@ -81,6 +107,8 @@ class OverviewWidget(QSvgWidget):
         self.dx = self.shd_bbox[1][0] - self.shd_bbox[0][0]
         self.dy = self.shd_bbox[0][1] - self.shd_bbox[1][1]
 
+        self.stroke_width = self.dx / 200.
+
         self.svg.viewbox(minx=minx, miny=miny, width=self.dx, height=self.dy)
         self.svg.add(self.svg.image(href=self.shd_filename, insert=(minx,miny), size=(self.dx,self.dy)))
 
@@ -88,10 +116,7 @@ class OverviewWidget(QSvgWidget):
             self.drawAxis()
 
         if self.selection:
-            for idx in range(len(self.selection)-1):
-                pt1 = (self.selection[idx][0]-self.red_x,self.red_y-self.selection[idx][1])
-                pt2 = (self.selection[idx+1][0]-self.red_x,self.red_y-self.selection[idx+1][1])
-                self.svg.add(self.svg.line(start=pt1, end=pt2, stroke='red', stroke_width=1))
+            self.drawSection()
 
         self.update_svg()
 
@@ -106,7 +131,15 @@ class OverviewWidget(QSvgWidget):
             pt2 = (self.axis[idx + 1][0] - self.red_x, self.red_y - self.axis[idx + 1][1])
 
             self.remove_line(pt1, pt2)
-            self.svg.add(self.svg.line(start=pt1, end=pt2, stroke=color, stroke_width=self.dx/200.))
+            self.svg.add(self.svg.line(start=pt1, end=pt2, stroke=color, stroke_width=self.stroke_width))
+
+        self.update_svg()
+
+    def drawSection(self):
+        for idx in range(len(self.selection) - 1):
+            pt1 = (self.selection[idx][0] - self.red_x, self.red_y - self.selection[idx][1])
+            pt2 = (self.selection[idx + 1][0] - self.red_x, self.red_y - self.selection[idx + 1][1])
+            self.svg.add(self.svg.line(start=pt1, end=pt2, stroke='red', stroke_width=1))
 
         self.update_svg()
 
@@ -137,6 +170,14 @@ class OverviewWidget(QSvgWidget):
     def changeAxisWidth(self,width):
         self.axis_width = width
 
+        self.stroke_width = float(width)
+
+        for line in self.lines:
+            if line == self.currentaxis:
+                self.output_polyline(line)
+            else:
+                self.output_polyline(line,False)
+
     def handleItemChanged(self, item):
         if self.selected_line_idx_new < 0:
             self.selected_line_idx_old = 0
@@ -154,29 +195,36 @@ class OverviewWidget(QSvgWidget):
         else:
             self.selected_line_idx = None
 
-        self.output_search(self.lines[self.selected_line_idx_new])
-        self.output_search(self.lines[self.selected_line_idx_old,False])
+        self.changeAxis(self.lines[self.selected_line_idx_new], self.lines[self.selected_line_idx_old])
 
-    def output_polyline(self, line, activate):
+        #self.output_search(self.lines[self.selected_line_idx_new])
+        #self.output_search(self.lines[self.selected_line_idx_old],False)
+
+    def changeAxis(self,new, old):
+        self.output_search(old, False)
+        self.output_search(new)
+
+    def output_polyline(self, line, active=True):
         for idx, part in enumerate(line.parts()):
             for p in part.points():
                 self.axis.append([p.x,p.y])
-        if activate:
+        if active:
             self.drawAxis(True)
+            self.currentaxis = [line]
         else:
             self.drawAxis(False)
         self.axis = []
 
-    def output_search(self, lines, activate=True):
+    def output_search(self, lines, active=True):
         for idx, l in enumerate(lines):
-            self.output_polyline(l,activate)
+            self.output_polyline(l,active)
 
     def mousePressEvent(self, mouseEvent):
         if mouseEvent.button() == QtCore.Qt.LeftButton and self.Axis:
             self.width = self.size().width()
             self.height = self.size().height()
 
-            self.axis.append([mouseEvent.x()/self.width*self.dx + self.red_x, self.red_y - mouseEvent.y()/self.height*self.dy])
+            self.axis.append([mouseEvent.x()/self.width*self.dx + self.red_x, self.red_y - mouseEvent.y()/self.height*self.dy, 0])
 
             if len(self.axis) > 1:
                 self.drawAxis()
@@ -185,11 +233,19 @@ class OverviewWidget(QSvgWidget):
             f = pyDM.PolylineFactory()
             # create polylines and add them to the odm
             for pt in self.axis:
-                f.addPoint(pt[0],pt[1],0)
+                f.addPoint(pt[0],pt[1],pt[2])
 
             self.axis_odm.addPolyline(f.getPolyline())
             self.axis_odm.save()
-            self.lines.append([f.getPolyline()])
+
+            #muss einfacher gehen
+            pt = (mouseEvent.x() / self.width * self.dx + self.red_x, self.red_y - mouseEvent.y() / self.height * self.dy)
+            pi = self.axis_odm.getPolylineIndex()
+            line = pi.searchGeometry(1,pyDM.Point(pt[0], pt[1], 0))
+            self.lines.append(line)
+
+            # self.lines.append([f.getPolyline()])
+            self.currentaxis = self.lines[0]
             self.axis = []
 
             item = QtWidgets.QListWidgetItem(f"Axis {len(self.lines)}")
@@ -206,4 +262,10 @@ class OverviewWidget(QSvgWidget):
             pi = self.axis_odm.getPolylineIndex()
             pt = (mouseEvent.x() / self.width * self.dx + self.red_x, self.red_y - mouseEvent.y() / self.height * self.dy)
             self.searchLine = pi.searchGeometry(1, pyDM.Point(pt[0], pt[1], 0))
-            self.output_search(self.searchLine)
+            #self.output_search(self.currentaxis, False)
+            #self.output_search(self.searchLine)
+            #self.index = self.lines.index(self.searchLine)
+
+            self.changeAxis(self.searchLine, self.currentaxis)
+            #self.handleItemChanged(self.AxisManagement.item(self.index))
+
