@@ -161,6 +161,9 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
         self.DrawAxis.stateChanged.connect(self.DigitalAxis)
 
+        self.activeaxis = self.Overview.linestring
+
+
     def load_pointcloud(self, path=None):
        #path = str(self.PathToFile.text()).strip()
 
@@ -213,52 +216,55 @@ class ClassificationTool(QtWidgets.QMainWindow):
             QtWidgets.QMessageBox(QtWidgets.QMessageBox.Warning, "Warning",
                                   "Wrong file type! \nPlease choose a file with the right type. ").exec_()
 
-    def load_axis(self):
-        axis = str(self.PathToAxisShp.text()).strip()
-        #if axis == "":
-        axis, _ = QFileDialog.getOpenFileName(self, "Select axis file", "",
-                                                  "Shape File (*.shp);;All Files (*.*)")
-        if axis == "":
-            return
-        self.PathToAxisShp.setText(os.path.abspath(axis))
+    def load_axis(self,shapeFile=True):
+        if shapeFile:
+            axis = str(self.PathToAxisShp.text()).strip()
+            #if axis == "":
+            axis, _ = QFileDialog.getOpenFileName(self, "Select axis file", "",
+                                                      "Shape File (*.shp);;All Files (*.*)")
+            if axis == "":
+                return
+            self.PathToAxisShp.setText(os.path.abspath(axis))
 
-        _, data = os.path.split(axis)
-        name, _ = os.path.splitext(data)
+            _, data = os.path.split(axis)
+            name, _ = os.path.splitext(data)
 
-        if _ != '.shp':
-            QtWidgets.QMessageBox(QtWidgets.QMessageBox.Warning, "Warning!",
-                                  "Wrong file type! \nFile has to be a shape-file.").exec_()
-            self.FalseAxis = True
-        else:
-            self.FalseAxis = False
-            imp = pyDM.Import.create(axis, pyDM.DataFormat.auto)
-
-            pts = []
-            for obj in imp:
-                # loop over points
-                for i in range(obj.sizePoint()):
-                    pt = obj[i]
-                    pts.append([pt.x, pt.y])
-
-            self.polygonSize()
-
-            # maximal extrapolation distance at start and end of axis
-            extrapolation_distance = float(self.along_section.text().strip())*5
-
-            if len(pts) == 1:
-                self.station_axis = StationPolyline2D(pts)
+            if _ != '.shp':
+                QtWidgets.QMessageBox(QtWidgets.QMessageBox.Warning, "Warning!",
+                                      "Wrong file type! \nFile has to be a shape-file.").exec_()
+                self.FalseAxis = True
             else:
-                self.station_axis = StationCubicSpline2D(pts)
-                self.station_axis = StationPolyline2D(pts)
+                self.FalseAxis = False
+                imp = pyDM.Import.create(axis, pyDM.DataFormat.auto)
 
-            self.current_station = 0
-            self.min_station = self.station_axis.min_station()-extrapolation_distance   # min allowed station value
-            self.max_station = self.station_axis.max_station()+extrapolation_distance   # max allowed station value
+                pts = []
+                for obj in imp:
+                    # loop over points
+                    for i in range(obj.sizePoint()):
+                        pt = obj[i]
+                        pts.append([pt.x, pt.y])
+        else:
+            pts = self.axis
 
-            self.PathToAxisShp.setEnabled(False)
+        self.polygonSize()
 
-            self.Overview.setAxis(self.station_axis.vertices)
-            self.Overview.dataRefresh()
+        # maximal extrapolation distance at start and end of axis
+        extrapolation_distance = float(self.along_section.text().strip())*5
+
+        if len(pts) == 1:
+            self.station_axis = StationPolyline2D(pts)
+        else:
+            self.station_axis = StationCubicSpline2D(pts)
+            #self.station_axis = StationPolyline2D(pts)
+
+        self.current_station = 0
+        self.min_station = self.station_axis.min_station()-extrapolation_distance   # min allowed station value
+        self.max_station = self.station_axis.max_station()+extrapolation_distance   # max allowed station value
+
+        self.PathToAxisShp.setEnabled(False)
+
+        self.Overview.setAxis(self.station_axis.vertices)
+        self.Overview.dataRefresh()
 
     def polygon(self):
         def poly_points(start, vector, length, width):
@@ -374,11 +380,15 @@ class ClassificationTool(QtWidgets.QMainWindow):
             coords2 = [coords1[0] + 10., coords1[1] + 10., coords1[2] + 10.]
             self.Section.setStretchAxis(coords1, coords2)
 
-    def viewFirstSection(self):
+    def viewFirstSection(self,shapeFile=True):
         if not self.odm:
             return
 
-        self.load_axis()
+        if not shapeFile:
+            self.load_axis(shapeFile=shapeFile)
+        else:
+            self.load_axis()
+
         if self.FalseAxis:
             return
 

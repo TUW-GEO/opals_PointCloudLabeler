@@ -17,6 +17,7 @@ class OverviewWidget(QSvgWidget):
         self.shd_rasterSize = None
         self.shd_bbox = None
         self.axis = []
+        self.linestring = None
         self.lines = []
         self.pis = []
         self.selection = None
@@ -52,11 +53,11 @@ class OverviewWidget(QSvgWidget):
     def setAxis(self, linestring):
         self.axis = linestring
 
-    def removeAxis(self, line_idx):
-         if 0 <= line_idx < len(self.lines):
-             del self.lines[line_idx]
-             self.AxisManagement.takeItem(line_idx)
-             self.drawAxis()
+    # def removeAxis(self, line_idx):
+    #      if 0 <= line_idx < len(self.lines):
+    #          del self.lines[line_idx]
+    #          self.AxisManagement.takeItem(line_idx)
+    #          self.drawAxis()
 
     def setSelectionBox(self,p1,p2,p3,p4):
         self.selection = [(p1[0][0], p1[0][1]),
@@ -67,15 +68,21 @@ class OverviewWidget(QSvgWidget):
 
     def world2pixel(self, x, y):
         a0, a1, a2, a3, a4, a5 = self.shd_geotrafo
-        A_inv = np.linalg.inv(np.array([[a1, a2], [a4, a5]]))
-        px, py = np.dot(A_inv, np.array([x - a0, y - a3]))
+
+        # Transformation als Matrixoperation
+        px = (x - a0)
+        py = (a3 - y)
+
+        #px = px / a1
+        #py = py / abs(a5)
+
         return px, py
 
     def pixel2world(self, px, py):
-        a0, a1, a2, a3, a4, a5 = self.shd_geotrafo
+        #a0, a1, a2, a3, a4, a5 = self.shd_geotrafo
 
-        red_x = a0#self.shd_bbox[0][0]  # left coordinate of shading
-        red_y = a1#self.shd_bbox[0][1]  # upper coordinate of shading
+        red_x = self.shd_bbox[0][0]
+        red_y = self.shd_bbox[0][1]
 
         dx = self.shd_bbox[1][0] - self.shd_bbox[0][0]
         dy = self.shd_bbox[0][1] - self.shd_bbox[1][1]
@@ -89,7 +96,7 @@ class OverviewWidget(QSvgWidget):
         offset_vector = np.array([red_x, red_y])
 
         world_coords = np.dot(transformation_matrix, np.array([norm_px, norm_py])) + offset_vector
-        return world_coords[0], world_coords[1]
+        return [world_coords[0], world_coords[1],0]
 
     def dataRefresh(self):
         self.svg = svgwrite.Drawing()
@@ -127,8 +134,11 @@ class OverviewWidget(QSvgWidget):
             color = 'lightblue'
 
         for idx in range(len(self.axis) - 1):
-            pt1 = (self.axis[idx][0] - self.red_x, self.red_y - self.axis[idx][1])
-            pt2 = (self.axis[idx + 1][0] - self.red_x, self.red_y - self.axis[idx + 1][1])
+            #pt1 = (self.axis[idx][0] - self.red_x, self.red_y - self.axis[idx][1])
+            #pt2 = (self.axis[idx + 1][0] - self.red_x, self.red_y - self.axis[idx + 1][1])
+
+            pt1 = self.world2pixel(self.axis[idx][0], self.axis[idx][1])
+            pt2 = self.world2pixel(self.axis[idx + 1][0], self.axis[idx + 1][1])
 
             self.remove_line(pt1, pt2)
             self.svg.add(self.svg.line(start=pt1, end=pt2, stroke=color, stroke_width=self.stroke_width))
@@ -137,8 +147,12 @@ class OverviewWidget(QSvgWidget):
 
     def drawSection(self):
         for idx in range(len(self.selection) - 1):
-            pt1 = (self.selection[idx][0] - self.red_x, self.red_y - self.selection[idx][1])
-            pt2 = (self.selection[idx + 1][0] - self.red_x, self.red_y - self.selection[idx + 1][1])
+            #pt1 = (self.selection[idx][0] - self.red_x, self.red_y - self.selection[idx][1])
+            #pt2 = (self.selection[idx + 1][0] - self.red_x, self.red_y - self.selection[idx + 1][1])
+
+            pt1 = self.world2pixel(self.selection[0], self.selection[idx][1])
+            pt2 = self.world2pixel(self.selection[idx + 1][0], self.selection[idx + 1][1])
+
             self.svg.add(self.svg.line(start=pt1, end=pt2, stroke='red', stroke_width=1))
 
         self.update_svg()
@@ -204,6 +218,7 @@ class OverviewWidget(QSvgWidget):
         self.output_search(old, False)
         self.output_search(new)
 
+
     def output_polyline(self, line, active=True):
         for idx, part in enumerate(line.parts()):
             for p in part.points():
@@ -211,6 +226,8 @@ class OverviewWidget(QSvgWidget):
         if active:
             self.drawAxis(True)
             self.currentaxis = [line]
+            self.linestring = self.axis.copy()
+
         else:
             self.drawAxis(False)
         self.axis = []
@@ -224,7 +241,7 @@ class OverviewWidget(QSvgWidget):
             self.width = self.size().width()
             self.height = self.size().height()
 
-            self.axis.append([mouseEvent.x()/self.width*self.dx + self.red_x, self.red_y - mouseEvent.y()/self.height*self.dy, 0])
+            self.axis.append(self.pixel2world(mouseEvent.x(),mouseEvent.y()))
 
             if len(self.axis) > 1:
                 self.drawAxis()
@@ -233,19 +250,24 @@ class OverviewWidget(QSvgWidget):
             f = pyDM.PolylineFactory()
             # create polylines and add them to the odm
             for pt in self.axis:
-                f.addPoint(pt[0],pt[1],pt[2])
+                f.addPoint(pt[0],pt[1])#,pt[2])
 
             self.axis_odm.addPolyline(f.getPolyline())
             self.axis_odm.save()
 
             #muss einfacher gehen
-            pt = (mouseEvent.x() / self.width * self.dx + self.red_x, self.red_y - mouseEvent.y() / self.height * self.dy)
+           # pt = (mouseEvent.x() / self.width * self.dx + self.red_x, self.red_y - mouseEvent.y() / self.height * self.dy)
+            pt = self.pixel2world(mouseEvent.x(),mouseEvent.y())
             pi = self.axis_odm.getPolylineIndex()
             line = pi.searchGeometry(1,pyDM.Point(pt[0], pt[1], 0))
             self.lines.append(line)
 
             # self.lines.append([f.getPolyline()])
             self.currentaxis = self.lines[0]
+
+            if len(self.lines) == 1:
+                self.linestring = self.axis
+
             self.axis = []
 
             item = QtWidgets.QListWidgetItem(f"Axis {len(self.lines)}")
@@ -260,7 +282,8 @@ class OverviewWidget(QSvgWidget):
 
         if mouseEvent.button() == QtCore.Qt.LeftButton and not self.Axis:
             pi = self.axis_odm.getPolylineIndex()
-            pt = (mouseEvent.x() / self.width * self.dx + self.red_x, self.red_y - mouseEvent.y() / self.height * self.dy)
+            #pt = (mouseEvent.x() / self.width * self.dx + self.red_x, self.red_y - mouseEvent.y() / self.height * self.dy)
+            pt = self.pixel2world(mouseEvent.x(), mouseEvent.y())
             self.searchLine = pi.searchGeometry(1, pyDM.Point(pt[0], pt[1], 0))
             #self.output_search(self.currentaxis, False)
             #self.output_search(self.searchLine)
