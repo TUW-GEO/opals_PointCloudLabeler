@@ -260,8 +260,8 @@ class OverviewWidget(QSvgWidget):
             #self.lines.append([f.getPolyline()])
             self.currentaxis = self.lines[0]
 
-            #if len(self.lines) == 1:
-             #   self.polylinePicked.emit(line)
+            if len(self.lines) == 1:
+                self.polylinePicked.emit(line)
 
             self.axis = []
 
