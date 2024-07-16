@@ -8,6 +8,7 @@ from osgeo import gdal
 from opals import pyDM
 
 class OverviewWidget(QSvgWidget):
+    polylinePicked = QtCore.pyqtSignal(object)
 
     def __init__(self, *args):
         QSvgWidget.__init__(self, *args)
@@ -73,9 +74,6 @@ class OverviewWidget(QSvgWidget):
         px = (x - a0)
         py = (a3 - y)
 
-        #px = px / a1
-        #py = py / abs(a5)
-
         return px, py
 
     def pixel2world(self, px, py):
@@ -128,29 +126,29 @@ class OverviewWidget(QSvgWidget):
         self.update_svg()
 
     def drawAxis(self, activate=False):#, deactivate=False):
-        if self.lines == [] or activate:
-            color = 'blue'
-        elif self.AxisManagement.count() > 0 or not activate:
-            color = 'lightblue'
+         if len(self.lines) < 1 or activate:
+             color = 'blue'
+         elif self.AxisManagement.count() > 0 or not activate:
+             color = 'lightblue'
 
-        for idx in range(len(self.axis) - 1):
-            #pt1 = (self.axis[idx][0] - self.red_x, self.red_y - self.axis[idx][1])
-            #pt2 = (self.axis[idx + 1][0] - self.red_x, self.red_y - self.axis[idx + 1][1])
+         for idx in range(len(self.axis) - 1):
+             #pt1 = (self.axis[idx][0] - self.red_x, self.red_y - self.axis[idx][1])
+             #pt2 = (self.axis[idx + 1][0] - self.red_x, self.red_y - self.axis[idx + 1][1])
 
-            pt1 = self.world2pixel(self.axis[idx][0], self.axis[idx][1])
-            pt2 = self.world2pixel(self.axis[idx + 1][0], self.axis[idx + 1][1])
+             pt1 = self.world2pixel(self.axis[idx][0], self.axis[idx][1])
+             pt2 = self.world2pixel(self.axis[idx + 1][0], self.axis[idx + 1][1])
 
-            self.remove_line(pt1, pt2)
-            self.svg.add(self.svg.line(start=pt1, end=pt2, stroke=color, stroke_width=self.stroke_width))
+             self.remove_line(pt1, pt2)
+             self.svg.add(self.svg.line(start=pt1, end=pt2, stroke=color, stroke_width=self.stroke_width))
 
-        self.update_svg()
+         self.update_svg()
 
     def drawSection(self):
         for idx in range(len(self.selection) - 1):
             #pt1 = (self.selection[idx][0] - self.red_x, self.red_y - self.selection[idx][1])
             #pt2 = (self.selection[idx + 1][0] - self.red_x, self.red_y - self.selection[idx + 1][1])
 
-            pt1 = self.world2pixel(self.selection[0], self.selection[idx][1])
+            pt1 = self.world2pixel(self.selection[idx][0], self.selection[idx][1])
             pt2 = self.world2pixel(self.selection[idx + 1][0], self.selection[idx + 1][1])
 
             self.svg.add(self.svg.line(start=pt1, end=pt2, stroke='red', stroke_width=1))
@@ -211,9 +209,6 @@ class OverviewWidget(QSvgWidget):
 
         self.changeAxis(self.lines[self.selected_line_idx_new], self.lines[self.selected_line_idx_old])
 
-        #self.output_search(self.lines[self.selected_line_idx_new])
-        #self.output_search(self.lines[self.selected_line_idx_old],False)
-
     def changeAxis(self,new, old):
         self.output_search(old, False)
         self.output_search(new)
@@ -226,7 +221,7 @@ class OverviewWidget(QSvgWidget):
         if active:
             self.drawAxis(True)
             self.currentaxis = [line]
-            self.linestring = self.axis.copy()
+            self.polylinePicked.emit([line])
 
         else:
             self.drawAxis(False)
@@ -262,11 +257,11 @@ class OverviewWidget(QSvgWidget):
             line = pi.searchGeometry(1,pyDM.Point(pt[0], pt[1], 0))
             self.lines.append(line)
 
-            # self.lines.append([f.getPolyline()])
+            #self.lines.append([f.getPolyline()])
             self.currentaxis = self.lines[0]
 
-            if len(self.lines) == 1:
-                self.linestring = self.axis
+            #if len(self.lines) == 1:
+             #   self.polylinePicked.emit(line)
 
             self.axis = []
 
@@ -282,11 +277,9 @@ class OverviewWidget(QSvgWidget):
 
         if mouseEvent.button() == QtCore.Qt.LeftButton and not self.Axis:
             pi = self.axis_odm.getPolylineIndex()
-            #pt = (mouseEvent.x() / self.width * self.dx + self.red_x, self.red_y - mouseEvent.y() / self.height * self.dy)
             pt = self.pixel2world(mouseEvent.x(), mouseEvent.y())
             self.searchLine = pi.searchGeometry(1, pyDM.Point(pt[0], pt[1], 0))
-            #self.output_search(self.currentaxis, False)
-            #self.output_search(self.searchLine)
+
             #self.index = self.lines.index(self.searchLine)
 
             self.changeAxis(self.searchLine, self.currentaxis)

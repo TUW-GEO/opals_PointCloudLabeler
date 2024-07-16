@@ -78,6 +78,9 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.classificationData = CLASSIFICATION_DATA
         self.prediction = PREDICTION
         self.classHisto = {}  # class histogram of the current section
+        self.axis = []
+        self.currrentaxisID = None
+
 
         #Test data
         #self.PathToFile.setText(r"C:\Users\felix\OneDrive\Dokumente\TU Wien\Bachelorarbeit\Classificationtool\Test_Data\Fluss_110736_0_loos_528600_533980_Klassifiziert.las")
@@ -161,7 +164,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
         self.DrawAxis.stateChanged.connect(self.DigitalAxis)
 
-        self.activeaxis = self.Overview.linestring
+        self.Overview.polylinePicked.connect(self.handlePickedPolyline)
 
 
     def load_pointcloud(self, path=None):
@@ -202,10 +205,10 @@ class ClassificationTool(QtWidgets.QMainWindow):
             # load the opals datamanager in read and write
             self.odm = pyDM.Datamanager.load(odm_name, readOnly=False, threadSafety=False)
 
+            #if not pyDM.Datamanager.existsODM(name + '_axis.odm'):
             axis_odm = pyDM.Datamanager.create(name + "_axis.odm", False)
             self.Overview.setAxisODM(axis_odm)
 
-            #self.axis_odm = Over
             self.Overview.setShading(shd_name)
             self.Overview.dataRefresh()
 
@@ -216,12 +219,12 @@ class ClassificationTool(QtWidgets.QMainWindow):
             QtWidgets.QMessageBox(QtWidgets.QMessageBox.Warning, "Warning",
                                   "Wrong file type! \nPlease choose a file with the right type. ").exec_()
 
-    def load_axis(self,shapeFile=True):
-        if shapeFile:
+    def load_axis(self,File=True):
+        if File:
             axis = str(self.PathToAxisShp.text()).strip()
             #if axis == "":
             axis, _ = QFileDialog.getOpenFileName(self, "Select axis file", "",
-                                                      "Shape File (*.shp);;All Files (*.*)")
+                                                      "OPALS Datamanager (*.odm);;Shape File (*.shp);;All Files (*.*)")
             if axis == "":
                 return
             self.PathToAxisShp.setText(os.path.abspath(axis))
@@ -229,11 +232,11 @@ class ClassificationTool(QtWidgets.QMainWindow):
             _, data = os.path.split(axis)
             name, _ = os.path.splitext(data)
 
-            if _ != '.shp':
+            if _ != '.shp' and _ != '.odm':
                 QtWidgets.QMessageBox(QtWidgets.QMessageBox.Warning, "Warning!",
                                       "Wrong file type! \nFile has to be a shape-file.").exec_()
                 self.FalseAxis = True
-            else:
+            elif _ == '.shp':
                 self.FalseAxis = False
                 imp = pyDM.Import.create(axis, pyDM.DataFormat.auto)
 
@@ -243,6 +246,18 @@ class ClassificationTool(QtWidgets.QMainWindow):
                     for i in range(obj.sizePoint()):
                         pt = obj[i]
                         pts.append([pt.x, pt.y])
+
+            elif _ == '.odm':
+                lf = pyDM.AddInfoLayoutFactory()
+                lf.addColumn(pyDM.ColumnSemantic.Id)
+                layout = lf.getLayout()
+
+                ids = []
+
+                for obj in axis.geometries(layout):
+                    ids.append(obj.info().get(0))
+                i=0
+
         else:
             pts = self.axis
 
@@ -380,12 +395,22 @@ class ClassificationTool(QtWidgets.QMainWindow):
             coords2 = [coords1[0] + 10., coords1[1] + 10., coords1[2] + 10.]
             self.Section.setStretchAxis(coords1, coords2)
 
-    def viewFirstSection(self,shapeFile=True):
+    def handlePickedPolyline(self, polyline):
+        # Process the received polyline
+        self.axis = []
+        print("Received polyline:", polyline)
+        for idx, l in enumerate(polyline):
+            for idx, part in enumerate(l.parts()):
+                for p in part.points():
+                    self.axis.append([p.x,p.y])
+        self.viewFirstSection(False)
+
+    def viewFirstSection(self,File=True):
         if not self.odm:
             return
 
-        if not shapeFile:
-            self.load_axis(shapeFile=shapeFile)
+        if not File:
+            self.load_axis(File=File)
         else:
             self.load_axis()
 
