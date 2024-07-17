@@ -36,7 +36,7 @@ class OverviewWidget(QSvgWidget):
         self.AxisManagement = listWidget
         self.AxisManagement.itemChanged.connect(self.handleItemChanged)
 
-    def pixel2coords(self,px,py):
+    def raster2world(self, px, py):
         x = self.shd_geotrafo[0] + px * self.shd_geotrafo[1] + py * self.shd_geotrafo[2]
         y = self.shd_geotrafo[3] + px * self.shd_geotrafo[4] + py * self.shd_geotrafo[5]
         return x,y
@@ -47,7 +47,7 @@ class OverviewWidget(QSvgWidget):
         self.shd_geotrafo = ds.GetGeoTransform()
         #self.shd_rasterSize = (600,400)#(ds.RasterXSize, ds.RasterYSize)
         #self.width, self.height = self.width(), self.height()
-        self.shd_bbox = [self.pixel2coords(0,0), self.pixel2coords(ds.RasterXSize, ds.RasterYSize)]
+        self.shd_bbox = [self.raster2world(0, 0), self.raster2world(ds.RasterXSize, ds.RasterYSize)]
         del ds
 
     def setAxis(self, linestring):
