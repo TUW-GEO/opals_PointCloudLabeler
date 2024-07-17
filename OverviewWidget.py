@@ -15,7 +15,8 @@ class OverviewWidget(QSvgWidget):
         self.setMouseTracking(True)
         self.shd_filename = None
         self.shd_geotrafo = None
-        self.shd_rasterSize = None
+        #self.shd_rasterSize = None
+        self.scale_pixel2svg = None
         self.shd_bbox = None
         self.axis = []
         self.linestring = None
@@ -44,7 +45,7 @@ class OverviewWidget(QSvgWidget):
         self.shd_filename = filename
         ds = gdal.Open(self.shd_filename, gdal.GA_ReadOnly)
         self.shd_geotrafo = ds.GetGeoTransform()
-        self.shd_rasterSize = (600,400)#(ds.RasterXSize, ds.RasterYSize)
+        #self.shd_rasterSize = (600,400)#(ds.RasterXSize, ds.RasterYSize)
         #self.width, self.height = self.width(), self.height()
         self.shd_bbox = [self.pixel2coords(0,0), self.pixel2coords(ds.RasterXSize, ds.RasterYSize)]
         del ds
@@ -73,42 +74,29 @@ class OverviewWidget(QSvgWidget):
                           (p4[0][0], p4[0][1]),
                           (p1[0][0], p1[0][1]) ]
 
-    def world2pixel(self, x, y):
-        a0, a1, a2, a3, a4, a5 = self.shd_geotrafo
+    def world2svg(self, wx, wy):
+        sx = wx - self.red_x
+        sy = self.red_y - wy
+        return sx, sy
 
-        # Transformation als Matrixoperation
-        px = (x - a0)
-        py = (a3 - y)
-
-        return px, py
-
-    def pixel2world(self, px, py):
-        #a0, a1, a2, a3, a4, a5 = self.shd_geotrafo
-
-        red_x = self.shd_bbox[0][0]
-        red_y = self.shd_bbox[0][1]
-
-        dx = self.shd_bbox[1][0] - self.shd_bbox[0][0]
-        dy = self.shd_bbox[0][1] - self.shd_bbox[1][1]
+    def pixel2svg(self, px, py):
 
         width, height = self.size().width(), self.size().height()
+        sx = (px - width/2)*self.scale_pixel2svg + self.dx/2
+        sy = (py - height/2)*self.scale_pixel2svg + self.dy/2
+        return sx, sy
 
-        norm_px = (px / width) * dx
-        norm_py = (py / height) * dy
+    def pixel2world(self, px, py):
+        sx, sy = self.pixel2svg(px, py)
 
-        transformation_matrix = np.array([[1, 0], [0, -1]])
-        offset_vector = np.array([red_x, red_y])
-
-        world_coords = np.dot(transformation_matrix, np.array([norm_px, norm_py])) + offset_vector
-        return [world_coords[0], world_coords[1],0]
+        wx = self.red_x + sx
+        wy = self.red_y - sy
+        return wx, wy
 
     def dataRefresh(self):
         self.svg = svgwrite.Drawing()
 
-        # svg coordinate origin is upper left
-        # use reduction point for vertical inverting coordinates:
-        # svg_x = x - red_x
-        # svg_Y = red_y - y
+        # svg coordinate origin is upper left of shading
         self.red_x = self.shd_bbox[0][0]  # left coordinate of shading
         self.red_y = self.shd_bbox[0][1]  # upper coordinate of shading
 
@@ -123,6 +111,19 @@ class OverviewWidget(QSvgWidget):
         self.svg.viewbox(minx=minx, miny=miny, width=self.dx, height=self.dy)
         self.svg.add(self.svg.image(href=self.shd_filename, insert=(minx,miny), size=(self.dx,self.dy)))
 
+        width, height = self.size().width(), self.size().height()
+
+        # we use Qt.KeepAspectRatio for drawing so the larger svg/pixel ratio defines scale
+        rx = self.dx / width
+        ry = self.dy / height
+        self.scale_pixel2svg = max([rx, ry])
+
+        if self.axis:
+            self.drawAxis()
+
+        if self.selection:
+            self.drawSection()
+
         self.update_svg()
 
     def drawAxis(self, activate=False):#, deactivate=False):
@@ -132,8 +133,8 @@ class OverviewWidget(QSvgWidget):
              color = 'lightblue'
 
          for idx in range(len(self.axis) - 1):
-             pt1 = self.world2pixel(self.axis[idx][0], self.axis[idx][1])
-             pt2 = self.world2pixel(self.axis[idx + 1][0], self.axis[idx + 1][1])
+             pt1 = self.world2svg(self.axis[idx][0], self.axis[idx][1])
+             pt2 = self.world2svg(self.axis[idx + 1][0], self.axis[idx + 1][1])
 
              self.remove_line(pt1, pt2)
              self.svg.add(self.svg.line(start=pt1, end=pt2, stroke=color, stroke_width=self.stroke_width))
@@ -143,15 +144,15 @@ class OverviewWidget(QSvgWidget):
     def drawSection(self):
         for idx in range(len(self.selection) - 1):
             try:
-                pt1_old = self.world2pixel(self.oldSelection[idx][0], self.oldSelection[idx][1])
-                pt2_old = self.world2pixel(self.oldSelection[idx + 1][0], self.oldSelection[idx + 1][1])
+                pt1_old = self.world2svg(self.oldSelection[idx][0], self.oldSelection[idx][1])
+                pt2_old = self.world2svg(self.oldSelection[idx + 1][0], self.oldSelection[idx + 1][1])
 
                 self.remove_line(pt1_old, pt2_old)
             except Exception as e:
                 pass
 
-            pt1 = self.world2pixel(self.selection[idx][0], self.selection[idx][1])
-            pt2 = self.world2pixel(self.selection[idx + 1][0], self.selection[idx + 1][1])
+            pt1 = self.world2svg(self.selection[idx][0], self.selection[idx][1])
+            pt2 = self.world2svg(self.selection[idx + 1][0], self.selection[idx + 1][1])
 
             self.svg.add(self.svg.line(start=pt1, end=pt2, stroke='red', stroke_width=1))
 
