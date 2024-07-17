@@ -241,22 +241,29 @@ class ClassificationTool(QtWidgets.QMainWindow):
                 imp = pyDM.Import.create(axis, pyDM.DataFormat.auto)
 
                 pts = []
+                self.lines = []
+
                 for obj in imp:
+                    self.lines.append([obj])
                     # loop over points
-                    for i in range(obj.sizePoint()):
-                        pt = obj[i]
-                        pts.append([pt.x, pt.y])
+                    if len(self.lines) == 1:
+                        for i in range(obj.sizePoint()):
+                            pt = obj[i]
+                            pts.append([pt.x, pt.y])
+                self.Overview.setAxis(self.lines)
 
-            elif _ == '.odm':
-                lf = pyDM.AddInfoLayoutFactory()
-                lf.addColumn(pyDM.ColumnSemantic.Id)
-                layout = lf.getLayout()
-
-                ids = []
-
-                for obj in axis.geometries(layout):
-                    ids.append(obj.info().get(0))
-                i=0
+            # elif _ == '.odm':
+            #     imp = pyDM.Import.create(axis, pyDM.DataFormat.auto)
+            #
+            #     lf = pyDM.AddInfoLayoutFactory()
+            #     lf.addColumn(pyDM.ColumnSemantic.Id)
+            #     layout = lf.getLayout()
+            #
+            #     ids = []
+            #
+            #     for obj in axis.geometries(layout):
+            #         ids.append(obj.info().get(0))
+            #     i=0
 
         else:
             pts = self.axis
@@ -269,17 +276,17 @@ class ClassificationTool(QtWidgets.QMainWindow):
         if len(pts) == 1:
             self.station_axis = StationPolyline2D(pts)
         else:
-            self.station_axis = StationCubicSpline2D(pts)
-            #self.station_axis = StationPolyline2D(pts)
-
+           # self.station_axis = StationCubicSpline2D(pts)
+            self.station_axis = StationPolyline2D(pts)
+        #
         self.current_station = 0
         self.min_station = self.station_axis.min_station()-extrapolation_distance   # min allowed station value
         self.max_station = self.station_axis.max_station()+extrapolation_distance   # max allowed station value
-
+        #
         self.PathToAxisShp.setEnabled(False)
-
-        self.Overview.setAxis(self.station_axis.vertices)
-        self.Overview.dataRefresh()
+        #
+        # self.Overview.setAxis(self.station_axis.vertices)
+        self.Overview.drawAxis(True)
 
     def polygon(self):
         def poly_points(start, vector, length, width):
@@ -307,7 +314,8 @@ class ClassificationTool(QtWidgets.QMainWindow):
         # create the polygon
         polygon = create_polygon(p1, p2, p3, p4)
         self.Overview.setSelectionBox(p1, p2, p3, p4)
-        self.Overview.dataRefresh()
+        #self.Overview.dataRefresh()
+        self.Overview.drawSection()
 
         # extract the points inside of the polygon
         try:
@@ -403,6 +411,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
             for idx, part in enumerate(l.parts()):
                 for p in part.points():
                     self.axis.append([p.x,p.y])
+        self.Overview.axis = self.axis
         self.viewFirstSection(False)
 
     def viewFirstSection(self,File=True):
