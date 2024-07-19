@@ -12,6 +12,11 @@ from sortedcontainers import SortedDict
 from StationUtilities import StationPolyline2D, StationCubicSpline2D
 from AxisManagment import AxisManagement
 
+#ToDO: achsen wechsel über axismanagmet
+#ToDo: self.lines ersetzten
+#ToDo: löschen von achsen
+#ToDo: spline in das achsenmanagement einbauen
+
 # predefined classication dictionary, mapping class ids to class lables and colors
 CLASSIFICATION_DATA = {0: ['0 unclassified', [210, 210, 210]],
                        1: ['1 undefined', [180, 180, 180]],
@@ -206,20 +211,26 @@ class ClassificationTool(QtWidgets.QMainWindow):
             # load the opals datamanager in read and write
             self.odm = pyDM.Datamanager.load(odm_name, readOnly=False, threadSafety=False)
 
-
-            if os.path.isfile(axis_odm_name) == False:
-                axis_odm = pyDM.Datamanager.create(axis_odm_name, False)
-                self.Overview.setAxisODM(axis_odm)
-
-            self.Overview.setShading(shd_name)
-            self.Overview.dataRefresh()
-
-            self.PathToFile.setEnabled(False)
-            self.PathToAxisShp.setEnabled(True)
-
         except Exception as e:
             QtWidgets.QMessageBox(QtWidgets.QMessageBox.Warning, "Warning",
                                   "Wrong file type! \nPlease choose a file with the right type. ").exec_()
+
+
+        if os.path.isfile(axis_odm_name) == False:
+            axis_odm = pyDM.Datamanager.create(axis_odm_name, False)
+            self.axis_odm = AxisManagement(axis_odm)
+            self.Overview.setAxisODM(self.axis_odm)
+            self.Overview.setAxisManagement(self.axis_odm)
+
+        self.Overview.setShading(shd_name)
+        self.Overview.dataRefresh()
+
+        self.PathToFile.setEnabled(False)
+        self.PathToAxisShp.setEnabled(True)
+
+        #except Exception as e:
+         #   QtWidgets.QMessageBox(QtWidgets.QMessageBox.Warning, "Warning",
+          #                        "Wrong file type! \nPlease choose a file with the right type. ").exec_()
 
     def load_axis(self,File=True):
         if File:
@@ -242,34 +253,35 @@ class ClassificationTool(QtWidgets.QMainWindow):
             elif _ == '.shp':
                 self.FalseAxis = False
                 imp = pyDM.Import.create(axis, pyDM.DataFormat.auto)
-                #axis_odm_layout = AxisManagment(axis_odm)
 
                 pts = []
                 self.lines = []
 
                 for obj in imp:
                     self.lines.append([obj])
+                    self.axis_odm.addLine(obj)
                     # loop over points
                     if len(self.lines) == 1:
                         for i in range(obj.sizePoint()):
                             pt = obj[i]
                             pts.append([pt.x, pt.y])
-                self.Overview.setAxis(self.lines)
+                #self.axis_manager = AxisManagement(self.axis_odm)._read_odm
+                self.axis_manager = self.axis_odm._read_odm
+                self.Overview.setAxisManagement(self.axis_odm)
+
+                #self.Overview.setAxis(self.lines)
 
             elif _ == '.odm':
                 axis_odm = pyDM.Datamanager.load(axis, readOnly=False, threadSafety=False)
-                self.axis_manager = AxisManagement(axis_odm)
-                self.Overview.setAxisManagement(self.axis_manager)
+                self.axis_odm = AxisManagement(axis_odm)
+                self.axis_manager = self.axis_odm._read_odm()
+
+                self.Overview.setAxisManagement(self.axis_odm)
 
                 pts = []
-                for idx, part in enumerate(self.axis_manager.axis[0][0].parts()):
+                for idx, part in enumerate(self.axis_odm.axis[0][0].parts()):
                     for p in part.points():
                         pts.append([p.x, p.y])
-                i=0
-                # for idx, l in enumerate(polyline):
-                #     for idx, part in enumerate(l.parts()):
-                #         for p in part.points():
-                #             self.axis.append([p.x, p.y])
 
         else:
             pts = self.axis
@@ -413,7 +425,6 @@ class ClassificationTool(QtWidgets.QMainWindow):
     def handlePickedPolyline(self, polyline):
         # Process the received polyline
         self.axis = []
-        print("Received polyline:", polyline)
         for idx, l in enumerate(polyline):
             for idx, part in enumerate(l.parts()):
                 for p in part.points():

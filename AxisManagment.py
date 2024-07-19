@@ -8,7 +8,7 @@ class AxisManagement:
         self.odm2idx = {}
         self.idx2odm = {}
         self.axis = []
-        self._read_odm()
+        #self._read_odm()
 
     def _createlayout(self):
         lf = pyDM.AddInfoLayoutFactory()
@@ -29,7 +29,8 @@ class AxisManagement:
         idx = len(self.axis)
         self.odm2idx[id] = idx
         self.idx2odm[idx] = id
-        self.axis.append(line)
+        self.axis.append([line])
+        self.save()
 
     def getByIdx(self, idx):
         return self.axis[idx]
@@ -54,3 +55,6 @@ class AxisManagement:
         self.odm.deletePolyline(id)
         del self.idx2odm[idx]
         del self.odm2idx[id]
+
+    def save(self):
+        self.odm.save()
