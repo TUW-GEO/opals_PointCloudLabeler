@@ -252,24 +252,13 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
             elif _ == '.shp':
                 self.FalseAxis = False
-                imp = pyDM.Import.create(axis, pyDM.DataFormat.auto)
 
-                pts = []
-                self.lines = []
+                self.axis_odm.readShpFile(axis)
 
-                for obj in imp:
-                    self.lines.append([obj])
-                    self.axis_odm.addLine(obj)
-                    # loop over points
-                    if len(self.lines) == 1:
-                        for i in range(obj.sizePoint()):
-                            pt = obj[i]
-                            pts.append([pt.x, pt.y])
-                #self.axis_manager = AxisManagement(self.axis_odm)._read_odm
                 self.axis_manager = self.axis_odm._read_odm
                 self.Overview.setAxisManagement(self.axis_odm)
 
-                #self.Overview.setAxis(self.lines)
+                pts = self.axis_odm.polyline2linestring(self.axis_odm.axis[0][0])
 
             elif _ == '.odm':
                 axis_odm = pyDM.Datamanager.load(axis, readOnly=False, threadSafety=False)
@@ -278,10 +267,8 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
                 self.Overview.setAxisManagement(self.axis_odm)
 
-                pts = []
-                for idx, part in enumerate(self.axis_odm.axis[0][0].parts()):
-                    for p in part.points():
-                        pts.append([p.x, p.y])
+                pts = self.axis_odm.polyline2linestring(self.axis_odm.axis[0][0])
+
 
         else:
             pts = self.axis
@@ -304,7 +291,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.PathToAxisShp.setEnabled(False)
 
         # self.Overview.setAxis(self.station_axis.vertices)
-        self.Overview.drawAxis(True)
+        self.Overview.drawAxis()
 
 
     def polygon(self):
@@ -577,6 +564,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
         self.ptsInSection()
         self.Section.dataRefresh()
+        self.Overview.dataRefresh()
         self.showMessages()
 
     def PointsClassification(self):

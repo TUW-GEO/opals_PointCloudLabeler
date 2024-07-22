@@ -40,15 +40,19 @@ class OverviewWidget(QSvgWidget):
         self.AxisList = listWidget
         self.AxisList.itemChanged.connect(self.handleItemChanged)
 
+    def setAxisODM(self,odm):
+        self.axis_odm = odm
+
     def setAxisManagement(self,axis_manager):
         self.AxisManager = axis_manager
-
+        self.odm2idx = axis_manager.odm2idx
+        self.idx2odm = axis_manager.idx2odm
+        self.activeLineIdx = 0
         if axis_manager.axis == []:
             return
         else:
-        #(self.DM(axis_manager.odm))
-            self.setAxis(axis_manager.axis, odmfile=True)
-
+            self.dataRefresh()
+            self.addAxisItem()
 
     def raster2world(self, px, py):
         x = self.shd_geotrafo[0] + px * self.shd_geotrafo[1] + py * self.shd_geotrafo[2]
@@ -61,29 +65,6 @@ class OverviewWidget(QSvgWidget):
         self.shd_geotrafo = ds.GetGeoTransform()
         self.shd_bbox = [self.raster2world(0, 0), self.raster2world(ds.RasterXSize, ds.RasterYSize)]
         del ds
-
-    def setAxis(self, lines, odmfile=False):
-        self.lines = lines
-        for i in range(len(lines)):
-            if i == 0:
-                if odmfile:
-                    self.output_search(lines[i], True, False)
-                else:
-                    self.output_search(lines[i],True, True)
-            else:
-                if odmfile:
-                    self.output_search(lines[i], False, False)
-                else:
-                    self.output_search(lines[i], False, True)
-
-        self.addAxisItem()
-
-
-    # def deleteAxis(self, line_idx):
-    #      if 0 <= line_idx < len(self.lines):
-    #          del self.lines[line_idx]
-    #          self.AxisManagement.takeItem(line_idx)
-    #          self.drawAxis()
 
     def setSelectionBox(self,p1,p2,p3,p4):
         self.selection = [(p1[0][0], p1[0][1]),
@@ -136,20 +117,29 @@ class OverviewWidget(QSvgWidget):
         ry = self.dy / height
         self.scale_pixel2svg = max([rx, ry])
 
-        if self.axis:
-            self.drawAxis()
+        try:
+            for line in self.AxisManager.axis:
+                if self.odm2idx[line[0].info().get(0)] == self.activeLineIdx:
+                    self.color = 'blue'
+                else:
+                    self.color = 'lightblue'
 
-        if self.selection:
-            self.drawSection()
+                self.output_search(line)
+
+                if self.axis:
+                    self.drawAxis()
+
+                self.axis=[]
+
+            if self.selection:
+                self.drawSection()
+
+        except Exception as e:
+            pass
 
         self.update_svg()
 
-    def drawAxis(self, activate=False, firstPoint=False):#, deactivate=False):
-         if len(self.AxisManager.axis) < 1 or activate:
-             color = 'blue'
-         elif self.AxisList.count() > 0 or not activate:
-             color = 'lightblue'
-
+    def drawAxis(self, firstPoint=False):
          if firstPoint:
              pt1 = self.world2svg(self.axis[0][0], self.axis[0][1])
              self.svg.add(self.svg.circle(center=pt1, r=self.stroke_width / 2, stroke='orange', fill='none'))
@@ -158,8 +148,8 @@ class OverviewWidget(QSvgWidget):
              pt1 = self.world2svg(self.axis[idx][0], self.axis[idx][1])
              pt2 = self.world2svg(self.axis[idx + 1][0], self.axis[idx + 1][1])
 
-             self.remove_line(pt1, pt2)
-             self.svg.add(self.svg.line(start=pt1, end=pt2, stroke=color, stroke_width=self.stroke_width))
+             #self.remove_line(pt1, pt2)
+             self.svg.add(self.svg.line(start=pt1, end=pt2, stroke= self.color, stroke_width=self.stroke_width))
              self.svg.add(self.svg.circle(center=pt1, r=self.stroke_width/2, stroke='orange', fill='none'))
 
              if idx == (len(self.axis) - 2):
@@ -170,22 +160,21 @@ class OverviewWidget(QSvgWidget):
 
     def drawSection(self):
         for idx in range(len(self.selection) - 1):
-            try:
-                pt1_old = self.world2svg(self.oldSelection[idx][0], self.oldSelection[idx][1])
-                pt2_old = self.world2svg(self.oldSelection[idx + 1][0], self.oldSelection[idx + 1][1])
+            #try:
+               # pt1_old = self.world2svg(self.oldSelection[idx][0], self.oldSelection[idx][1])
+               # pt2_old = self.world2svg(self.oldSelection[idx + 1][0], self.oldSelection[idx + 1][1])
 
-                self.remove_line(pt1_old, pt2_old)
-            except Exception as e:
-                pass
+                #self.remove_line(pt1_old, pt2_old)
+            #except Exception as e:
+             #   pass
 
             pt1 = self.world2svg(self.selection[idx][0], self.selection[idx][1])
             pt2 = self.world2svg(self.selection[idx + 1][0], self.selection[idx + 1][1])
 
             self.svg.add(self.svg.line(start=pt1, end=pt2, stroke='red', stroke_width=1))
 
-
         self.update_svg()
-        self.oldSelection = self.selection
+
 
     def remove_line(self, pt1, pt2):
         # Remove the line from SVG structure
@@ -208,10 +197,6 @@ class OverviewWidget(QSvgWidget):
         self.renderer().setAspectRatioMode(QtCore.Qt.KeepAspectRatio)
         self.update()
 
-    def setAxisODM(self,odm):
-        self.axis_odm = odm
-       # self.axis_odm = AxisManagement(axis_odm)
-        i=0
 
     def changeAxisWidth(self,width):
         self.axis_width = width
@@ -225,62 +210,62 @@ class OverviewWidget(QSvgWidget):
                 self.output_polyline(line,False)
 
     def handleItemChanged(self, item):
-        if self.selected_line_idx_new < 0:
-            self.selected_line_idx_old = 0
-        else:
-            self.selected_line_idx_old = self.selected_line_idx_new
-
         if item.checkState() == QtCore.Qt.Checked:
             for i in range(self.AxisList.count()):
                 list_item = self.AxisList.item(i)
                 if list_item != item:
                     list_item.setCheckState(QtCore.Qt.Unchecked)
 
-            self.selected_line_idx_new = self.AxisList.row(item)
+            self.activeLineIdx = self.AxisList.row(item)
 
         else:
             self.selected_line_idx = None
+        self.dataRefresh()
 
-        self.changeAxis(self.AxisManager.axis[self.selected_line_idx_new], self.AxisManager.axis[self.selected_line_idx_old])
+    def setItemChecked(self, index):
+        for i in range(self.AxisList.count()):
+            item = self.AxisList.item(i)
+            if i == index:
+                item.setCheckState(QtCore.Qt.Checked)
+            else:
+                item.setCheckState(QtCore.Qt.Unchecked)
 
     def changeAxis(self,new, old):
+        #self.activeLineIdx
+        self.dataRefresh()
+
         self.output_search(old, False)
         self.output_search(new)
 
-    def output_polyline(self, line, active=True, odm=False):
+    def output_polyline(self, line, odm=False):
         for idx, part in enumerate(line.parts()):
             for p in part.points():
                 self.axis.append([p.x,p.y])
-        if active:
-            #self.drawAxis(True)
-            self.currentaxis = [line]
+
+        if self.odm2idx[line.info().get(0)] == self.activeLineIdx:
             self.polylinePicked.emit([line])
-        else:
-            self.drawAxis(False)
 
         if odm:
             self.linestring2polylineobj()
-        self.axis = []
 
-    def output_search(self, lines, active=True, odm=False):
+    def output_search(self,lines):
         for idx, l in enumerate(lines):
-            self.output_polyline(l,active,odm)
+            self.output_polyline(l)
 
     def addAxisItem(self):
-        for i, line in enumerate(self.lines):
-            item = QtWidgets.QListWidgetItem(f"Axis {i + 1}")
+        for i, line in enumerate(self.AxisManager.axis):
+            item = QtWidgets.QListWidgetItem(f"Axis {i + 1}") #ToDo: mehr Information über Achse (länge und anzahl der stützpunkte)
             item.setFlags(item.flags() | QtCore.Qt.ItemIsUserCheckable)
             self.AxisList.addItem(item)
 
             if i == 0:
                 item.setCheckState(QtCore.Qt.Checked)
-                self.selected_line_idx_new = self.AxisList.row(item)
             else:
                 item.setCheckState(QtCore.Qt.Unchecked)
 
             self.AxisList.addItem(item)
 
-    def addItems(self):
+    def addItem(self):
         item = QtWidgets.QListWidgetItem(f"Axis {len(self.AxisManager.axis)}")
         item.setFlags(item.flags() | QtCore.Qt.ItemIsUserCheckable)
         if len(self.AxisManager.axis) == 1:
@@ -302,7 +287,6 @@ class OverviewWidget(QSvgWidget):
     def addLineToODM(self,line):
         self.AxisManager.addLine(line)
 
-
     def mousePressEvent(self, mouseEvent):
         if mouseEvent.button() == QtCore.Qt.LeftButton and self.DrawAxis:
             self.width = self.size().width()
@@ -312,8 +296,10 @@ class OverviewWidget(QSvgWidget):
 
             if len(self.axis) == 1:
                 self.drawAxis(firstPoint=True)
+                #self.dataRefresh()
             elif len(self.axis) > 1:
                 self.drawAxis()
+                #self.dataRefresh()
 
 
         if mouseEvent.button() == QtCore.Qt.RightButton and self.axis != [] and self.DrawAxis:
@@ -325,22 +311,20 @@ class OverviewWidget(QSvgWidget):
                 self.polylinePicked.emit(self.AxisManager.axis[0])
 
             self.axis = []
-            self.addItems()
+            self.addItem()
 
         if mouseEvent.button() == QtCore.Qt.LeftButton and not self.DrawAxis:
             try:
-                pi = self.axis_odm.getPolylineIndex()
                 pt = self.pixel2world(mouseEvent.x(), mouseEvent.y())
-                self.searchLine = pi.searchGeometry(1, pyDM.Point(pt[0], pt[1], 0))
+                line = self.AxisManager.getByCoords(pt[0],pt[1])
+                self.activeLineIdx = self.odm2idx[line[0].info().get(0)]
+                self.setItemChecked(self.activeLineIdx)
+                self.dataRefresh()
 
-                self.changeAxis(self.searchLine, self.currentaxis)
-                #self.index = self.lines.index(self.currentaxis)
-                i=0
-                #self.handleItemChanged(self.AxisManagement.item(self.index))
             except Exception as e:
                 return
 
-# Create custom cursor and change the cursor, depends on the active mode
+# Create custom cursor and change the cursor, depends on the mode in which the widget is setto:
     def createCrossCursor(self):
         # Create a white cross cursor
         cursor_pixmap = QPixmap(16, 16)

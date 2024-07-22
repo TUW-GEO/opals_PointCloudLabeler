@@ -44,11 +44,26 @@ class AxisManagement:
         pi = self.odm.getPolylineIndex()
         searchLine = pi.searchGeometry(1, pyDM.Point(x, y, 0))
         assert( len(searchLine) == 1)
-        searchLine[0].cloneView(self.layout)
+        #searchLine[0].cloneView(self.layout)
         id = searchLine[0].info().get(0)
         assert(id in self.odm2idx)
         idx = self.odm2idx[id]
         return self.axis[idx]
+
+    def readShpFile(self, shp):
+        imp = pyDM.Import.create(shp, pyDM.DataFormat.auto)
+
+        for obj in imp:
+            self.addLine(obj)
+
+        #return self.odm
+
+    def polyline2linestring(self,odm_line):
+        pts = []
+        for idx, part in enumerate(odm_line.parts()):
+            for p in part.points():
+                pts.append([p.x, p.y])
+        return pts
 
     def removeByIdx(self,idx):
         id = self.idx2odm[idx]
