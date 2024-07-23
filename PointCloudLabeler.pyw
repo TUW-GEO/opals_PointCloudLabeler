@@ -12,10 +12,8 @@ from sortedcontainers import SortedDict
 from StationUtilities import StationPolyline2D, StationCubicSpline2D
 from AxisManagment import AxisManagement
 
-#ToDO: achsen wechsel über axismanagmet
-#ToDo: self.lines ersetzten
 #ToDo: löschen von achsen
-#ToDo: spline in das achsenmanagement einbauen
+
 
 # predefined classication dictionary, mapping class ids to class lables and colors
 CLASSIFICATION_DATA = {0: ['0 unclassified', [210, 210, 210]],
@@ -157,7 +155,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.Reset.clicked.connect(self.resetSection)
 
         self.PointSize.valueChanged.connect(self.Section.setPointSize)
-        self.LineSize.valueChanged.connect(self.Overview.changeAxisWidth)
+        self.LineSize.valueChanged.connect(self.Overview.changeLineWidth)
 
         self.StatusMessageModel = QStandardItemModel()
         self.StatusMessages.setModel(self.StatusMessageModel)
@@ -281,8 +279,8 @@ class ClassificationTool(QtWidgets.QMainWindow):
         if len(pts) == 1:
             self.station_axis = StationPolyline2D(pts)
         else:
-           # self.station_axis = StationCubicSpline2D(pts)
-            self.station_axis = StationPolyline2D(pts)
+            self.station_axis = StationCubicSpline2D(pts)
+            #self.station_axis = StationPolyline2D(pts)
 
         self.current_station = 0
         self.min_station = self.station_axis.min_station()-extrapolation_distance   # min allowed station value

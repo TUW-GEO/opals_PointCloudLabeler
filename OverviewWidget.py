@@ -34,7 +34,7 @@ class OverviewWidget(QSvgWidget):
         self.oldSelection = None
         self.createCrossCursor()
         self.AxisManager = None
-
+        self.stroke_width = 0.5
 
     def setAxisList(self, listWidget):
         self.AxisList = listWidget
@@ -79,7 +79,7 @@ class OverviewWidget(QSvgWidget):
         return sx, sy
 
     def pixel2svg(self, px, py):
-
+        #self.stroke_width = self.dx / 200.
         width, height = self.size().width(), self.size().height()
         sx = (px - width/2)*self.scale_pixel2svg + self.dx/2
         sy = (py - height/2)*self.scale_pixel2svg + self.dy/2
@@ -105,8 +105,6 @@ class OverviewWidget(QSvgWidget):
         self.dx = self.shd_bbox[1][0] - self.shd_bbox[0][0]
         self.dy = self.shd_bbox[0][1] - self.shd_bbox[1][1]
 
-        self.stroke_width = self.dx / 200.
-
         self.svg.viewbox(minx=minx, miny=miny, width=self.dx, height=self.dy)
         self.svg.add(self.svg.image(href=self.shd_filename, insert=(minx,miny), size=(self.dx,self.dy)))
 
@@ -119,17 +117,20 @@ class OverviewWidget(QSvgWidget):
 
         try:
             for line in self.AxisManager.axis:
-                if self.odm2idx[line[0].info().get(0)] == self.activeLineIdx:
-                    self.color = 'blue'
-                else:
-                    self.color = 'lightblue'
+                self.color = 'lightblue'
 
                 self.output_search(line)
 
                 if self.axis:
                     self.drawAxis()
 
-                self.axis=[]
+                self.axis = []
+
+                if self.odm2idx[line[0].info().get(0)] == self.activeLineIdx:
+                    self.color = 'blue'
+                    self.axis = self.AxisManager.splines[self.activeLineIdx]
+                    self.drawAxis(nodes=False)
+                    self.axis = []
 
             if self.selection:
                 self.drawSection()
@@ -139,8 +140,8 @@ class OverviewWidget(QSvgWidget):
 
         self.update_svg()
 
-    def drawAxis(self, firstPoint=False):
-         if firstPoint:
+    def drawAxis(self, nodes = True , firstPoint=False):
+         if firstPoint and nodes:
              pt1 = self.world2svg(self.axis[0][0], self.axis[0][1])
              self.svg.add(self.svg.circle(center=pt1, r=self.stroke_width / 2, stroke='orange', fill='none'))
 
@@ -150,11 +151,10 @@ class OverviewWidget(QSvgWidget):
 
              #self.remove_line(pt1, pt2)
              self.svg.add(self.svg.line(start=pt1, end=pt2, stroke= self.color, stroke_width=self.stroke_width))
-             self.svg.add(self.svg.circle(center=pt1, r=self.stroke_width/2, stroke='orange', fill='none'))
+             if nodes: self.svg.add(self.svg.circle(center=pt1, r=self.stroke_width/2, stroke='orange', fill='none'))
 
              if idx == (len(self.axis) - 2):
-                self.svg.add(self.svg.circle(center=pt2, r=self.stroke_width / 2, stroke='orange', fill='none'))
-
+                if nodes: self.svg.add(self.svg.circle(center=pt2, r=self.stroke_width / 2, stroke='orange', fill='none'))
 
          self.update_svg()
 
@@ -171,10 +171,9 @@ class OverviewWidget(QSvgWidget):
             pt1 = self.world2svg(self.selection[idx][0], self.selection[idx][1])
             pt2 = self.world2svg(self.selection[idx + 1][0], self.selection[idx + 1][1])
 
-            self.svg.add(self.svg.line(start=pt1, end=pt2, stroke='red', stroke_width=1))
+            self.svg.add(self.svg.line(start=pt1, end=pt2, stroke='red', stroke_width=self.stroke_width))
 
         self.update_svg()
-
 
     def remove_line(self, pt1, pt2):
         # Remove the line from SVG structure
@@ -197,17 +196,9 @@ class OverviewWidget(QSvgWidget):
         self.renderer().setAspectRatioMode(QtCore.Qt.KeepAspectRatio)
         self.update()
 
-
-    def changeAxisWidth(self,width):
-        self.axis_width = width
-
-        self.stroke_width = float(width)
-
-        for line in self.AxisManager.axis:
-            if line == self.currentaxis:
-                self.output_polyline(line)
-            else:
-                self.output_polyline(line,False)
+    def changeLineWidth(self,value):
+        self.stroke_width = value / 2.
+        self.dataRefresh()
 
     def handleItemChanged(self, item):
         if item.checkState() == QtCore.Qt.Checked:
@@ -230,13 +221,6 @@ class OverviewWidget(QSvgWidget):
             else:
                 item.setCheckState(QtCore.Qt.Unchecked)
 
-    def changeAxis(self,new, old):
-        #self.activeLineIdx
-        self.dataRefresh()
-
-        self.output_search(old, False)
-        self.output_search(new)
-
     def output_polyline(self, line, odm=False):
         for idx, part in enumerate(line.parts()):
             for p in part.points():
@@ -254,19 +238,19 @@ class OverviewWidget(QSvgWidget):
 
     def addAxisItem(self):
         for i, line in enumerate(self.AxisManager.axis):
-            item = QtWidgets.QListWidgetItem(f"Axis {i + 1}") #ToDo: mehr Information über Achse (länge und anzahl der stützpunkte)
-            item.setFlags(item.flags() | QtCore.Qt.ItemIsUserCheckable)
+            item = QtWidgets.QListWidgetItem(f"Axis {i + 1}: {{Nodes : {self.AxisManager.axisInfo[i][0]}, Length : {round(self.AxisManager.axisInfo[i][1], 2)}}}")
             self.AxisList.addItem(item)
+
+            item.setFlags(item.flags() | QtCore.Qt.ItemIsUserCheckable)
 
             if i == 0:
                 item.setCheckState(QtCore.Qt.Checked)
             else:
                 item.setCheckState(QtCore.Qt.Unchecked)
 
-            self.AxisList.addItem(item)
-
     def addItem(self):
-        item = QtWidgets.QListWidgetItem(f"Axis {len(self.AxisManager.axis)}")
+        item = QtWidgets.QListWidgetItem(f"Axis {len(self.AxisManager.axis)}: {{Nodes : {self.AxisManager.axisInfo[len(self.AxisManager.axis) - 1][0]}, Length : {round(self.AxisManager.axisInfo[len(self.AxisManager.axis) - 1][1], 2)}}}")
+
         item.setFlags(item.flags() | QtCore.Qt.ItemIsUserCheckable)
         if len(self.AxisManager.axis) == 1:
             item.setCheckState(QtCore.Qt.Checked)
@@ -293,6 +277,11 @@ class OverviewWidget(QSvgWidget):
             self.height = self.size().height()
 
             self.axis.append(self.pixel2world(mouseEvent.x(),mouseEvent.y()))
+
+            if self.AxisManager.axis == []:
+                self.color = 'blue'
+            else:
+                self.color = 'lightblue'
 
             if len(self.axis) == 1:
                 self.drawAxis(firstPoint=True)
@@ -324,7 +313,8 @@ class OverviewWidget(QSvgWidget):
             except Exception as e:
                 return
 
-# Create custom cursor and change the cursor, depends on the mode in which the widget is setto:
+
+# Create custom cursor and change the cursor, depends on the mode in which the widget is set to:
     def createCrossCursor(self):
         # Create a white cross cursor
         cursor_pixmap = QPixmap(16, 16)
@@ -342,7 +332,6 @@ class OverviewWidget(QSvgWidget):
 
     def updateCursor(self):
         if self.DrawAxis:
-            #self.setCursor(Qt.CrossCursor)
             self.setCursor(self.crossCursor)
         else:
             self.unsetCursor()

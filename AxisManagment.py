@@ -1,3 +1,4 @@
+from StationUtilities import StationCubicSpline2D
 from opals import pyDM
 
 class AxisManagement:
@@ -8,6 +9,8 @@ class AxisManagement:
         self.odm2idx = {}
         self.idx2odm = {}
         self.axis = []
+        self.axisInfo = {}
+        self.splines = {}
         #self._read_odm()
 
     def _createlayout(self):
@@ -23,6 +26,17 @@ class AxisManagement:
             self.odm2idx[id] = idx
             self.idx2odm[idx] = id
             self.axis.append([obj])
+            notes, lenght = self.information(obj)
+            self.axisInfo[idx] = [notes, lenght]
+        i=0
+
+    def readShpFile(self, shp):
+        imp = pyDM.Import.create(shp, pyDM.DataFormat.auto)
+
+        for obj in imp:
+            self.addLine(obj)
+
+        # return self.odm
 
     def addLine(self, line):
         id = self.odm.addPolyline(line)
@@ -30,7 +44,26 @@ class AxisManagement:
         self.odm2idx[id] = idx
         self.idx2odm[idx] = id
         self.axis.append([line])
+        notes, lenght = self.information(line)
+        self.axisInfo[idx] = [notes, lenght]
         self.save()
+
+    def information(self, obj):
+        lenght = 0
+        pts =  self.polyline2linestring(obj)
+        self.createSplines(pts)
+        notes = len(pts)
+        for idx in range(1, len(pts)):
+            pt1 = pts[idx - 1]
+            pt2 = pts[idx]
+            dx = pt2[0]-pt1[0]
+            dy = pt2[1]-pt1[1]
+            lenght =+ (dx ** 2 + dy ** 2) ** 0.5
+        return notes, lenght
+
+    def createSplines(self,pts):
+        axis_spline = StationCubicSpline2D(pts)
+        self.splines[len(self.axis)-1] = axis_spline.vertices
 
     def getByIdx(self, idx):
         return self.axis[idx]
@@ -50,13 +83,6 @@ class AxisManagement:
         idx = self.odm2idx[id]
         return self.axis[idx]
 
-    def readShpFile(self, shp):
-        imp = pyDM.Import.create(shp, pyDM.DataFormat.auto)
-
-        for obj in imp:
-            self.addLine(obj)
-
-        #return self.odm
 
     def polyline2linestring(self,odm_line):
         pts = []
