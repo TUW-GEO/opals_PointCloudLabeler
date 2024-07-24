@@ -43,14 +43,14 @@ class AxisManagement:
         idx = len(self.axis)
         self.odm2idx[id] = idx
         self.idx2odm[idx] = id
-        self.axis.append([line])
-        notes, lenght = self.information(line)
-        self.axisInfo[idx] = [notes, lenght]
+        self.axis.append([self.odm.getGeometry(id)])
+        notes, length = self.information(line)
+        self.axisInfo[idx] = [notes, length]
         self.save()
 
     def information(self, obj):
-        lenght = 0
-        pts =  self.polyline2linestring(obj)
+        length = 0
+        pts = self.polyline2linestring(obj)
         self.createSplines(pts)
         notes = len(pts)
         for idx in range(1, len(pts)):
@@ -58,8 +58,8 @@ class AxisManagement:
             pt2 = pts[idx]
             dx = pt2[0]-pt1[0]
             dy = pt2[1]-pt1[1]
-            lenght =+ (dx ** 2 + dy ** 2) ** 0.5
-        return notes, lenght
+            length += (dx ** 2 + dy ** 2) ** 0.5
+        return notes, length
 
     def createSplines(self,pts):
         axis_spline = StationCubicSpline2D(pts)
