@@ -82,6 +82,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.classificationData = CLASSIFICATION_DATA
         self.prediction = PREDICTION
         self.classHisto = {}  # class histogram of the current section
+        self.axis_manager = None
         self.axis = []
         self.currrentaxisID = None
 
@@ -215,10 +216,10 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
 
         if os.path.isfile(axis_odm_name) == False:
-            axis_odm = pyDM.Datamanager.create(axis_odm_name, False)
-            self.axis_odm = AxisManagement(axis_odm)
-            self.Overview.setAxisODM(self.axis_odm)
-            self.Overview.setAxisManagement(self.axis_odm)
+            self.axis_manager = AxisManagement(axis_odm_name)
+            self.Overview.setAxisManagement(self.axis_manager)
+        else:
+            self.axis_manager = AxisManagement(None)
 
         self.Overview.setShading(shd_name)
         self.Overview.dataRefresh()
@@ -231,46 +232,48 @@ class ClassificationTool(QtWidgets.QMainWindow):
           #                        "Wrong file type! \nPlease choose a file with the right type. ").exec_()
 
     def load_axis(self,File=True):
+
+        pts = None
         if File:
             axis = str(self.PathToAxisShp.text()).strip()
             #if axis == "":
-            axis, _ = QFileDialog.getOpenFileName(self, "Select axis file", "",
+            axis_file, _ = QFileDialog.getOpenFileName(self, "Select axis file", "",
                                                       "OPALS Datamanager (*.odm);;Shape File (*.shp);;All Files (*.*)")
-            if axis == "":
+            if axis_file == "":
                 return
-            self.PathToAxisShp.setText(os.path.abspath(axis))
+            self.PathToAxisShp.setText(os.path.abspath(axis_file))
 
-            _, data = os.path.split(axis)
+            _, data = os.path.split(axis_file)
             name, _ = os.path.splitext(data)
 
             if _ != '.shp' and _ != '.odm':
                 QtWidgets.QMessageBox(QtWidgets.QMessageBox.Warning, "Warning!",
                                       "Wrong file type! \nFile has to be a shape-file.").exec_()
-                self.FalseAxis = True
 
             elif _ == '.shp':
-                self.FalseAxis = False
+                axis_odm_name = name + ".odm"
+                self.axis_manager = AxisManagement(axis_odm_name, overwrite=True)
+                self.axis_manager.readShpFile(axis_file)
+                self.Overview.setAxisManagement(self.axis_manager)
 
-                self.axis_odm.readShpFile(axis)
-
-                self.axis_manager = self.axis_odm._read_odm
-                self.Overview.setAxisManagement(self.axis_odm)
-
-                pts = self.axis_odm.polyline2linestring(self.axis_odm.axis[0][0])
+                if not self.axis_manager.empty():
+                    pts = self.axis_manager.polyline2linestring(self.axis_manager.axis[0][0])
 
             elif _ == '.odm':
-                axis_odm = pyDM.Datamanager.load(axis, readOnly=False, threadSafety=False)
-                self.axis_odm = AxisManagement(axis_odm)
-                self.axis_manager = self.axis_odm._read_odm()
+                self.axis_manager = AxisManagement(axis_file)
+                self.Overview.setAxisManagement(self.axis_manager)
 
-                self.Overview.setAxisManagement(self.axis_odm)
-
-                pts = self.axis_odm.polyline2linestring(self.axis_odm.axis[0][0])
-
+                if not self.axis_manager.empty():
+                    pts = self.axis_manager.polyline2linestring(self.axis_manager.axis[0][0])
 
         else:
             pts = self.axis
 
+        if not pts:
+            self.FalseAxis = True
+            return
+
+        self.FalseAxis = False
         self.polygonSize()
 
         # maximal extrapolation distance at start and end of axis

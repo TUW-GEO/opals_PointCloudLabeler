@@ -40,9 +40,6 @@ class OverviewWidget(QSvgWidget):
         self.AxisList = listWidget
         self.AxisList.itemChanged.connect(self.handleItemChanged)
 
-    def setAxisODM(self,odm):
-        self.axis_odm = odm
-
     def setAxisManagement(self,axis_manager):
         self.AxisManager = axis_manager
         self.odm2idx = axis_manager.odm2idx

@@ -1,42 +1,54 @@
+import os.path
+
 from StationUtilities import StationCubicSpline2D
 from opals import pyDM
 
 class AxisManagement:
-    def __init__(self,odm):
-        self.odm = odm
-        #self.result = None
-       # self._createlayout()
+    def __init__(self, odm_filename, overwrite=False):
+        self.odm = None
+        if odm_filename:
+            if os.path.exists(odm_filename) and not overwrite:
+                self.odm = pyDM.Datamanager.load(odm_filename, readOnly=False, threadSafety=False)
+            else:
+                self.odm = pyDM.Datamanager.create(odm_filename, threadSafety=False)
+        self._createlayout()
         self.odm2idx = {}
         self.idx2odm = {}
         self.axis = []
         self.axisInfo = {}
         self.splines = {}
-        #self._read_odm()
+        self._dataRefresh()
 
     def _createlayout(self):
         lf = pyDM.AddInfoLayoutFactory()
-        type, inDM = lf.addColumn(self.odm, 'Id', True);assert inDM == True
+        lf.addColumn(pyDM.ColumnSemantic.Id)
         self.layout = lf.getLayout()
 
-    def _read_odm(self):
-        self._createlayout()
+    def _dataRefresh(self):
+        self.odm2idx = {}
+        self.idx2odm = {}
+        self.axisInfo = {}
+        if not self.odm or not self.odm.sizeGeometry():
+            return
         for obj in self.odm.geometries(self.layout):
             id = obj.info().get(0)
             idx = len(self.axis)
             self.odm2idx[id] = idx
             self.idx2odm[idx] = id
             self.axis.append([obj])
-            notes, lenght = self.information(obj)
-            self.axisInfo[idx] = [notes, lenght]
-        i=0
+            notes, length = self.information(obj)
+            self.axisInfo[idx] = [notes, length]
 
     def readShpFile(self, shp):
         imp = pyDM.Import.create(shp, pyDM.DataFormat.auto)
 
         for obj in imp:
-            self.addLine(obj)
+            self.odm.addPolyline(obj)
 
-        # return self.odm
+        self._dataRefresh()
+
+    def empty(self):
+        return len(self.axis) == 0
 
     def addLine(self, line):
         id = self.odm.addPolyline(line)
@@ -98,4 +110,5 @@ class AxisManagement:
         del self.odm2idx[id]
 
     def save(self):
-        self.odm.save()
+        if self.odm:
+            self.odm.save()
