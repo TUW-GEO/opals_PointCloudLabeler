@@ -15,6 +15,7 @@ class AxisManagement:
         self.odm2idx = {}
         self.idx2odm = {}
         self.axis = []
+        self.axis_pts = []
         self.axisInfo = {}
         self.splines = {}
         self._dataRefresh()
@@ -39,6 +40,15 @@ class AxisManagement:
             notes, length = self.information(obj)
             self.axisInfo[idx] = [notes, length]
 
+            pts = self.polyline2linestring(obj)
+            self.axis_pts.append(pts)
+
+
+    def set_filename(self, odm_filename):
+        if self.odm:
+            self.odm.save()
+        self.odm = pyDM.Datamanager.create(odm_filename, threadSafety=False)
+
     def readShpFile(self, shp):
         imp = pyDM.Import.create(shp, pyDM.DataFormat.auto)
 
@@ -58,6 +68,8 @@ class AxisManagement:
         self.axis.append([self.odm.getGeometry(id)])
         notes, length = self.information(line)
         self.axisInfo[idx] = [notes, length]
+        pts = self.polyline2linestring(line)
+        self.axis_pts.append(pts)
         self.save()
 
     def information(self, obj):

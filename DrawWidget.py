@@ -134,8 +134,11 @@ class DrawWidget(QGLWidget):
         glEndList()
 
     def setPointSize(self, value):
-        self.PointSize = value
-        self.dataRefresh()
+        try:
+            self.PointSize = value
+            self.dataRefresh()
+        except Exception as e:
+         return
 
     def createColorlist(self):
         glNewList(self.ptList, GL_COMPILE)

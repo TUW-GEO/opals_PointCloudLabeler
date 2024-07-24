@@ -2,7 +2,7 @@ import numpy
 from opals import Import, Grid, Shade, pyDM, Info
 from PyQt5 import QtWidgets,uic, QtCore
 from PyQt5.QtGui import *
-from PyQt5.QtWidgets import QFileDialog, QApplication
+from PyQt5.QtWidgets import QFileDialog, QApplication, QDialog, QLineEdit, QPushButton, QFormLayout
 import os
 import opals
 import numpy as np
@@ -41,6 +41,28 @@ CLASSIFICATION_DATA = {0: ['0 unclassified', [210, 210, 210]],
                        45: ['45 volume backscatter', [60, 130, 130]]}
 
 PREDICTION = {0:'no prediction', 1:'predict next', 2:'predict previous', 3:'always predict'}
+
+
+class CustomDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.initUI()
+
+    def initUI(self):
+        self.setWindowTitle('Axis Generation - Parameter Setting')
+
+        self.rotation = QLineEdit(self)
+        self.distance = QLineEdit(self)
+
+        self.ok_button = QPushButton('OK', self)
+        self.ok_button.clicked.connect(self.accept)
+
+        form_layout = QFormLayout()
+        form_layout.addRow('Rotaion Angle:', self.rotation)
+        form_layout.addRow('Distance between the Axis:', self.distance)
+        form_layout.addRow(self.ok_button)
+
+        self.setLayout(form_layout)
 
 class ClassificationTool(QtWidgets.QMainWindow):
     def __init__(self):
@@ -83,24 +105,8 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.prediction = PREDICTION
         self.classHisto = {}  # class histogram of the current section
         self.axis_manager = None
-        self.axis = []
+        self.axis_pts = None
         self.currrentaxisID = None
-
-
-        #Test data
-        #self.PathToFile.setText(r"C:\Users\felix\OneDrive\Dokumente\TU Wien\Bachelorarbeit\Classificationtool\Test_Data\Fluss_110736_0_loos_528600_533980_Klassifiziert.las")
-        #self.PathToAxisShp.setText(r"C:\Users\felix\OneDrive\Dokumente\TU Wien\Bachelorarbeit\Classificationtool\Test_Data\Fluss_110736_0_loos_528600_533980_Klassifiziert_axis.shp")
-
-        #self.PathToFile.setText(r"X:\students\fmeixner\PointCloudLabeler\Data\Fluss_110736_0_loos_528600_533980_Klassifiziert.las")
-        #self.PathToAxisShp.setText(r"X:\students\fmeixner\PointCloudLabeler\Data\Fluss_110736_0_loos_528600_533980_Klassifiziert_axis.shp")
-
-        # Test data jo
-        #self.PathToFile.setText(r"C:\projects\bugs\felix_pydm_290224\Fluss_110736_0_loos_528600_533980_Klassifiziert.las")
-        #self.PathToFile.setText(r"C:\projects\bugs\felix_pydm_290224\test.odm")
-        #self.PathToAxisShp.setText(r"C:\projects\bugs\felix_pydm_290224\Fluss_110736_0_loos_528600_533980_Klassifiziert_axis.shp")
-
-        #self.PathToFile.setText(r"C:\Users\felix\Documents\Test_Data\Fluss_110736_0_loos_528600_533980_Klassifiziert.las")
-        #self.PathToAxisShp.setText(r"C:\Users\felix\Documents\Test_Data\Fluss_110736_0_loos_528600_533980_Klassifiziert_axis.shp")
 
         self.initUI()
 
@@ -171,6 +177,13 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.DrawMode.clicked.connect(self.DigitalAxis)
         self.SelectionMode.clicked.connect(self.DigitalAxis)
 
+        self.EditMode.toggled.connect(self.activateEditing)
+        self.Insert.toggled.connect(self.EditButtonsToggled)
+        self.Delete.toggled.connect(self.EditButtonsToggled)
+        self.Move.toggled.connect(self.EditButtonsToggled)
+
+        self.Generate.clicked.connect(self.GenerateAxis)
+
     def load_pointcloud(self, path=None):
        #path = str(self.PathToFile.text()).strip()
 
@@ -220,6 +233,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
             self.Overview.setAxisManagement(self.axis_manager)
         else:
             self.axis_manager = AxisManagement(None)
+            self.Overview.setAxisManagement(self.axis_manager)
 
         self.Overview.setShading(shd_name)
         self.Overview.dataRefresh()
@@ -267,7 +281,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
                     pts = self.axis_manager.polyline2linestring(self.axis_manager.axis[0][0])
 
         else:
-            pts = self.axis
+            pts = self.axis_pts
 
         if not pts:
             self.FalseAxis = True
@@ -283,7 +297,6 @@ class ClassificationTool(QtWidgets.QMainWindow):
             self.station_axis = StationPolyline2D(pts)
         else:
             self.station_axis = StationCubicSpline2D(pts)
-            #self.station_axis = StationPolyline2D(pts)
 
         self.current_station = 0
         self.min_station = self.station_axis.min_station()-extrapolation_distance   # min allowed station value
@@ -292,7 +305,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.PathToAxisShp.setEnabled(False)
 
         # self.Overview.setAxis(self.station_axis.vertices)
-        self.Overview.drawAxis()
+        #self.Overview.drawAxis()
 
 
     def polygon(self):
@@ -411,14 +424,9 @@ class ClassificationTool(QtWidgets.QMainWindow):
             self.Section.setStretchAxis(coords1, coords2)
 
     def handlePickedPolyline(self, polyline):
-        # Process the received polyline
-        self.axis = []
-        for idx, l in enumerate(polyline):
-            for idx, part in enumerate(l.parts()):
-                for p in part.points():
-                    self.axis.append([p.x,p.y])
-        self.Overview.axis = self.axis
+        self.axis_pts = polyline
         self.viewFirstSection(False)
+        self.axis_pts = []
 
     def viewFirstSection(self,File=True):
         if not self.odm:
@@ -446,6 +454,36 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
         self.overlap = float(self.overlap_section.text().strip())/100
 
+    def activateEditing(self):
+        self.Insert.setChecked(False)
+        self.Delete.setChecked(False)
+        self.Move.setChecked(False)
+        isChecked = self.EditMode.isChecked()
+        self.Insert.setEnabled(isChecked)
+        self.Delete.setEnabled(isChecked)
+        self.Move.setEnabled(isChecked)
+        if isChecked:
+            self.Overview.DrawAxis = False
+
+    def EditButtonsToggled(self):
+        sender = self.sender()
+        if sender.isChecked():
+            if sender == self.Insert:
+                self.Delete.setChecked(False)
+                self.Move.setChecked(False)
+            elif sender == self.Delete:
+                self.Insert.setChecked(False)
+                self.Move.setChecked(False)
+            elif sender == self.Move:
+                self.Insert.setChecked(False)
+                self.Delete.setChecked(False)
+
+    def GenerateAxis(self):
+        dialog = CustomDialog(self)
+        if dialog.exec_() == QDialog.Accepted:
+            input1 = dialog.line_edit1.text()
+            input2 = dialog.line_edit2.text()
+
     def changePolygonSize(self):
         if not self.station_axis:
             return
@@ -456,6 +494,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.polygon()
         self.ptsInSection()
         self.Section.dataRefresh()
+        self.Overview.dataRefresh()
         self.showMessages()
 
     def setOrthoView(self):
@@ -540,6 +579,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
         self.ptsInSection()
         self.Section.dataRefresh()
+        self.Overview.dataRefresh()
         self.showMessages()
 
     def previousSection(self):
@@ -602,21 +642,27 @@ class ClassificationTool(QtWidgets.QMainWindow):
             self.Section.SelectRectangle = False
 
     def ClassColoring(self):
-        if self.firstSection:
-            if self.HightColor.isChecked():
-                self.HightColor.setChecked(False)
+        try:
+            if self.firstSection:
+                if self.HightColor.isChecked():
+                    self.HightColor.setChecked(False)
 
-            if self.ClassColor.isChecked():
-                self.Section.currentColor = 1
-                self.Section.dataRefresh()
+                if self.ClassColor.isChecked():
+                    self.Section.currentColor = 1
+                    self.Section.dataRefresh()
+        except Exception as e:
+            return
 
     def HightColoring(self):
-        if self.ClassColor.isChecked():
-            self.ClassColor.setChecked(False)
+        try:
+            if self.ClassColor.isChecked():
+                self.ClassColor.setChecked(False)
 
-        if self.HightColor.isChecked():
-            self.Section.currentColor = 2
-            self.Section.dataRefresh()
+            if self.HightColor.isChecked():
+                self.Section.currentColor = 2
+                self.Section.dataRefresh()
+        except Exception as e:
+            return
 
     def showMessages(self):
         self.StatusMessageModel.clear()
