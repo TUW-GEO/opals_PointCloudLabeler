@@ -15,7 +15,7 @@ class AxisManagement:
         self.odm2idx = {}
         self.idx2odm = {}
         self.axis = []
-        self.axis_pts = []
+        self.allAxisPts = []
         self.axisInfo = {}
         self.splines = {}
         self._dataRefresh()
@@ -41,7 +41,7 @@ class AxisManagement:
             self.axisInfo[idx] = [notes, length]
 
             pts = self.polyline2linestring(obj)
-            self.axis_pts.append(pts)
+            self.allAxisPts.append(pts)
 
 
     def set_filename(self, odm_filename):
@@ -69,7 +69,7 @@ class AxisManagement:
         notes, length = self.information(line)
         self.axisInfo[idx] = [notes, length]
         pts = self.polyline2linestring(line)
-        self.axis_pts.append(pts)
+        self.allAxisPts.append(pts)
         self.save()
 
     def information(self, obj):

@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>1347</width>
-    <height>1100</height>
+    <height>1136</height>
    </rect>
   </property>
   <property name="font">
@@ -396,6 +396,9 @@
               <horstretch>0</horstretch>
               <verstretch>0</verstretch>
              </sizepolicy>
+            </property>
+            <property name="toolTip">
+             <string>Change the linewidth of the shown axis and section</string>
             </property>
             <property name="minimum">
              <number>1</number>
@@ -845,6 +848,9 @@ color: rgb(0, 255, 255);</string>
             </item>
             <item row="2" column="0">
              <widget class="QRadioButton" name="SelectionMode">
+              <property name="toolTip">
+               <string>Change of the active axis</string>
+              </property>
               <property name="text">
                <string>Selection Modus</string>
               </property>
@@ -927,6 +933,9 @@ color: rgb(0, 255, 255);</string>
                 <width>10</width>
                 <height>0</height>
                </size>
+              </property>
+              <property name="toolTip">
+               <string>Draw and add a new axis</string>
               </property>
               <property name="text">
                <string>Draw Modus</string>

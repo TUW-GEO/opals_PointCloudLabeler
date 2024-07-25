@@ -10,7 +10,7 @@ from opals import pyDM, Info
 import sys
 from datetime import datetime
 
-class CustomDialog(QDialog):
+class CreateODMFile(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.initUI()
@@ -57,6 +57,7 @@ class OverviewWidget(QSvgWidget):
         self.createCrossCursor()
         self.AxisManager = None
         self.stroke_width = 0.5
+        self.is_loading = False
 
     def setAxisList(self, listWidget):
         self.AxisList = listWidget
@@ -113,8 +114,6 @@ class OverviewWidget(QSvgWidget):
         return wx, wy
 
     def dataRefresh(self):
-        dt = datetime.now()
-        sys.stderr.write("dataRefresh - start\n")
         self.svg = svgwrite.Drawing()
 
         # svg coordinate origin is upper left of shading
@@ -141,7 +140,7 @@ class OverviewWidget(QSvgWidget):
             for line in self.AxisManager.axis:
                 self.color = 'lightblue'
 
-                self.axis_pts = self.AxisManager.axis_pts[self.odm2idx[line[0].info().get(0)]]
+                self.axis_pts = self.AxisManager.allAxisPts[self.odm2idx[line[0].info().get(0)]]
 
                 self.drawAxis()
 
@@ -156,9 +155,9 @@ class OverviewWidget(QSvgWidget):
         except Exception as e:
             pass
 
-        sys.stderr.write(f"dataRefresh -  before update s={(datetime.now()-dt).total_seconds()}\n")
+        self.axis_pts = []
         self.update_svg()
-        sys.stderr.write(f"dataRefresh -  finished s={(datetime.now()-dt).total_seconds()}\n")
+
 
 
     def drawAxis(self, nodes = True , firstPoint=False):
@@ -188,19 +187,6 @@ class OverviewWidget(QSvgWidget):
 
         self.update_svg()
 
-    def remove_line(self, pt1, pt2):
-        # Remove the line from SVG structure
-        svg_lines = self.svg.elements
-        for element in svg_lines:
-            if isinstance(element, svgwrite.shapes.Line):
-                x1, y1 = element.attribs['x1'], element.attribs['y1']
-                x2, y2 = element.attribs['x2'], element.attribs['y2']
-                if (x1, y1) == pt1 and (x2, y2) == pt2:
-                    svg_lines.remove(element)
-                    break
-
-        self.update_svg()
-
     def update_svg(self):
         # Update the SVG in the widget
         svg_xml = self.svg.tostring()
@@ -214,6 +200,9 @@ class OverviewWidget(QSvgWidget):
         self.dataRefresh()
 
     def handleItemChanged(self, item):
+        if self.is_loading:
+            return
+
         if item.checkState() == QtCore.Qt.Checked:
             for i in range(self.AxisList.count()):
                 list_item = self.AxisList.item(i)
@@ -221,7 +210,8 @@ class OverviewWidget(QSvgWidget):
                     list_item.setCheckState(QtCore.Qt.Unchecked)
 
             self.activeLineIdx = self.AxisList.row(item)
-           # self.polylinePicked.emit(self.AxisManager.axis_pts[self.activeLineIdx])
+            self.polylinePicked.emit(self.AxisManager.allAxisPts[self.activeLineIdx])
+            self.dataRefresh()
 
         else:
             self.selected_line_idx = None
@@ -236,6 +226,8 @@ class OverviewWidget(QSvgWidget):
                 item.setCheckState(QtCore.Qt.Unchecked)
 
     def addAxisItem(self):
+        self.is_loading = True
+
         for i, line in enumerate(self.AxisManager.axis):
             item = QtWidgets.QListWidgetItem(f"Axis {i + 1}: {{Nodes : {self.AxisManager.axisInfo[i][0]}, Length : {round(self.AxisManager.axisInfo[i][1], 2)}}}")
             self.AxisList.addItem(item)
@@ -247,7 +239,11 @@ class OverviewWidget(QSvgWidget):
             else:
                 item.setCheckState(QtCore.Qt.Unchecked)
 
+        self.is_loading = False
+
     def addItem(self):
+        self.is_loading = True
+
         item = QtWidgets.QListWidgetItem(f"Axis {len(self.AxisManager.axis)}: {{Nodes : {self.AxisManager.axisInfo[len(self.AxisManager.axis) - 1][0]}, Length : {round(self.AxisManager.axisInfo[len(self.AxisManager.axis) - 1][1], 2)}}}")
 
         item.setFlags(item.flags() | QtCore.Qt.ItemIsUserCheckable)
@@ -258,6 +254,7 @@ class OverviewWidget(QSvgWidget):
             item.setCheckState(QtCore.Qt.Unchecked)
 
         self.AxisList.addItem(item)
+        self.is_loading = False
 
     def linestring2polylineobj(self):
         f = pyDM.PolylineFactory()
@@ -269,7 +266,7 @@ class OverviewWidget(QSvgWidget):
 
     def addLineToODM(self,line):
         if not self.AxisManager.odm:
-            dialog = CustomDialog(self)
+            dialog = CreateODMFile(self)
             if dialog.exec_() == QDialog.Accepted:
                 odm_filename = dialog.axis_odm_name.text()
 
@@ -307,7 +304,7 @@ class OverviewWidget(QSvgWidget):
             self.currentaxis = self.AxisManager.axis[0]
 
             if len(self.AxisManager.axis) == 1:
-                self.polylinePicked.emit(self.AxisManager.axis_pts[0])
+                self.polylinePicked.emit(self.AxisManager.allAxisPts[0])
 
             self.axis_pts = []
             self.addItem()
@@ -318,7 +315,7 @@ class OverviewWidget(QSvgWidget):
                 line = self.AxisManager.getByCoords(pt[0],pt[1])
                 self.activeLineIdx = self.odm2idx[line[0].info().get(0)]
                 self.setItemChecked(self.activeLineIdx)
-                self.polylinePicked.emit(self.AxisManager.axis_pts[self.activeLineIdx])
+                self.polylinePicked.emit(self.AxisManager.allAxisPts[self.activeLineIdx])
                 self.dataRefresh()
 
             except Exception as e:

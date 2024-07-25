@@ -481,8 +481,9 @@ class ClassificationTool(QtWidgets.QMainWindow):
     def GenerateAxis(self):
         dialog = CustomDialog(self)
         if dialog.exec_() == QDialog.Accepted:
-            input1 = dialog.line_edit1.text()
-            input2 = dialog.line_edit2.text()
+            return
+            #input1 = dialog.line_edit1.text()
+            #input2 = dialog.line_edit2.text()
 
     def changePolygonSize(self):
         if not self.station_axis:
