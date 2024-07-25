@@ -86,8 +86,11 @@ class DrawWidget(QGLWidget):
         self.dataRefresh()
 
     def setData(self, data):
-        self.Data = data
-        self.reset = copy.deepcopy(data['Classification'])
+        try:
+            self.Data = data
+            self.reset = copy.deepcopy(data['Classification'])
+        except Exception as e:
+            return
 
     def _minmax(self, min, max, coords):
         for i, v in enumerate(coords):

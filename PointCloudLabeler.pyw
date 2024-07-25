@@ -429,23 +429,26 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.axis_pts = []
 
     def viewFirstSection(self,File=True):
-        if not self.odm:
+        try:
+            if not self.odm:
+                return
+
+            if not File:
+                self.load_axis(File=File)
+            else:
+                self.load_axis()
+
+            if self.FalseAxis:
+                return
+
+            self.createPolygon()
+            self.ptsInSection()
+            self.Section.setOrthoView(self.rot_camera)
+            self.Section.dataRefresh()
+            self.firstSection = True
+            self.showMessages()
+        except Exception as e:
             return
-
-        if not File:
-            self.load_axis(File=File)
-        else:
-            self.load_axis()
-
-        if self.FalseAxis:
-            return
-
-        self.createPolygon()
-        self.ptsInSection()
-        self.Section.setOrthoView(self.rot_camera)
-        self.Section.dataRefresh()
-        self.firstSection = True
-        self.showMessages()
 
     def overlapPolygons(self):
         # self.disableButtonFunctions()

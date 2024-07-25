@@ -38,22 +38,16 @@ class OverviewWidget(QSvgWidget):
         self.setMouseTracking(True)
         self.shd_filename = None
         self.shd_geotrafo = None
-        #self.shd_rasterSize = None
         self.scale_pixel2svg = None
         self.shd_bbox = None
         self.axis_pts = []
         self.linestring = None
-        self.lines = []
-        self.pis = []
         self.selection = None
         self.width = None
         self.height = None
         self.DrawAxis = False
         self.SelectAxis = None
-        self.selected_line_idx_new = 0
-        self.selected_line_idx_old = 0
         self.AxisList = None
-        self.oldSelection = None
         self.createCrossCursor()
         self.AxisManager = None
         self.stroke_width = 0.5
