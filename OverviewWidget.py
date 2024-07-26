@@ -1,33 +1,34 @@
 from PyQt5 import QtCore, QtWidgets, QtGui, uic
 from PyQt5.QtSvg import QSvgWidget
-from PyQt5.QtWidgets import  QDialog, QLineEdit, QPushButton, QFormLayout
+from PyQt5.QtWidgets import QDialog, QLineEdit, QPushButton, QFormLayout, QFileDialog
 import numpy as np
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 import svgwrite
 from osgeo import gdal
 from opals import pyDM, Info
+import os
 import sys
 from datetime import datetime
 
-class CreateODMFile(QDialog):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.initUI()
-
-    def initUI(self):
-        self.setWindowTitle('Axis-ODM Filname')
-
-        self.axis_odm_name = QLineEdit(self)
-
-        self.save_button = QPushButton('Save', self)
-        self.save_button.clicked.connect(self.accept)
-
-        form_layout = QFormLayout()
-        form_layout.addRow('Filename:', self.axis_odm_name)
-        form_layout.addRow(self.save_button)
-
-        self.setLayout(form_layout)
+# class CreateODMFile(QDialog):
+#     def __init__(self, parent=None):
+#         super().__init__(parent)
+#         self.initUI()
+#
+#     def initUI(self):
+#         self.setWindowTitle('Axis-ODM Filname')
+#
+#         self.axis_odm_name = QLineEdit(self)
+#
+#         self.save_button = QPushButton('Save', self)
+#         self.save_button.clicked.connect(self.accept)
+#
+#         form_layout = QFormLayout()
+#         form_layout.addRow('Filename:', self.axis_odm_name)
+#         form_layout.addRow(self.save_button)
+#
+#         self.setLayout(form_layout)
 
 
 class OverviewWidget(QSvgWidget):
@@ -52,6 +53,7 @@ class OverviewWidget(QSvgWidget):
         self.AxisManager = None
         self.stroke_width = 0.5
         self.is_loading = False
+        self.AxisODMPath = None
 
     def setAxisList(self, listWidget):
         self.AxisList = listWidget
@@ -259,15 +261,19 @@ class OverviewWidget(QSvgWidget):
         self.addLineToODM(f.getPolyline())
 
     def addLineToODM(self,line):
-        if not self.AxisManager.odm:
-            dialog = CreateODMFile(self)
-            if dialog.exec_() == QDialog.Accepted:
-                odm_filename = dialog.axis_odm_name.text()
+        try:
+            if not self.AxisManager.odm:
+                odm_filename, _ = QFileDialog.getSaveFileName(self, 'Save ODM File', '', 'ODM Files (*.odm)')
+                _, data = os.path.split(odm_filename)
 
-            i = 0  #save dialog öffnen
-            #odm_filename =""
-            self.AxisManager.set_filename(odm_filename)
-        self.AxisManager.addLine(line)
+                self.AxisODMPath = odm_filename
+
+                if data:
+                    self.AxisManager.set_filename(data)
+                    self.AxisManager.addLine(line)
+
+        except Exception as e:
+            return
 
     def getSelectedItems(self):
         selectedIndices = [self.AxisList.row(item) for item in self.AxisList.selectedItems()]
@@ -293,15 +299,19 @@ class OverviewWidget(QSvgWidget):
 
 
         if mouseEvent.button() == QtCore.Qt.RightButton and self.axis_pts != [] and self.DrawAxis:
-            self.linestring2polylineobj()
+            try:
+                self.linestring2polylineobj()
 
-            self.currentaxis = self.AxisManager.axis[0]
+                self.currentaxis = self.AxisManager.axis[0]
 
-            if len(self.AxisManager.axis) == 1:
-                self.polylinePicked.emit(self.AxisManager.allAxisPts[0])
+                if len(self.AxisManager.axis) == 1:
+                    self.polylinePicked.emit(self.AxisManager.allAxisPts[0])
 
-            self.axis_pts = []
-            self.addItem()
+                self.axis_pts = []
+                self.addItem()
+
+            except Exception as e:
+                return
 
         if mouseEvent.button() == QtCore.Qt.LeftButton and not self.DrawAxis:
             try:

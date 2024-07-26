@@ -246,6 +246,8 @@ class ClassificationTool(QtWidgets.QMainWindow):
           #                        "Wrong file type! \nPlease choose a file with the right type. ").exec_()
 
     def load_axis(self,File=True):
+        if self.PathToAxisShp.text() == '':
+            self.PathToAxisShp.setText(self.Overview.AxisODMPath)
 
         pts = None
         if File:
