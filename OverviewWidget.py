@@ -1,6 +1,6 @@
 from PyQt5 import QtCore, QtWidgets, QtGui, uic
 from PyQt5.QtSvg import QSvgWidget
-from PyQt5.QtWidgets import QDialog, QLineEdit, QPushButton, QFormLayout, QFileDialog
+from PyQt5.QtWidgets import QFileDialog, QMenu
 import numpy as np
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
@@ -11,24 +11,6 @@ import os
 import sys
 from datetime import datetime
 
-# class CreateODMFile(QDialog):
-#     def __init__(self, parent=None):
-#         super().__init__(parent)
-#         self.initUI()
-#
-#     def initUI(self):
-#         self.setWindowTitle('Axis-ODM Filname')
-#
-#         self.axis_odm_name = QLineEdit(self)
-#
-#         self.save_button = QPushButton('Save', self)
-#         self.save_button.clicked.connect(self.accept)
-#
-#         form_layout = QFormLayout()
-#         form_layout.addRow('Filename:', self.axis_odm_name)
-#         form_layout.addRow(self.save_button)
-#
-#         self.setLayout(form_layout)
 
 
 class OverviewWidget(QSvgWidget):
@@ -58,7 +40,9 @@ class OverviewWidget(QSvgWidget):
     def setAxisList(self, listWidget):
         self.AxisList = listWidget
         self.AxisList.itemChanged.connect(self.handleItemChanged)
-        self.AxisList.itemSelectionChanged.connect(self.getSelectedItems)
+        #self.AxisList.itemSelectionChanged.connect(self.getSelectedItems)
+        self.AxisList.installEventFilter(self)
+
 
     def setAxisManagement(self,axis_manager):
         self.AxisManager = axis_manager
@@ -153,8 +137,6 @@ class OverviewWidget(QSvgWidget):
 
         self.axis_pts = []
         self.update_svg()
-
-
 
     def drawAxis(self, nodes = True , firstPoint=False):
          if firstPoint and nodes:
@@ -258,9 +240,9 @@ class OverviewWidget(QSvgWidget):
         for pt in self.axis_pts:
             f.addPoint(pt[0], pt[1])
 
-        self.addLineToODM(f.getPolyline())
+        self.addLineToODM(f.getPolyline(), draw=True)
 
-    def addLineToODM(self,line):
+    def addLineToODM(self,line, draw=False):
         try:
             if not self.AxisManager.odm:
                 odm_filename, _ = QFileDialog.getSaveFileName(self, 'Save ODM File', '', 'ODM Files (*.odm)')
@@ -271,14 +253,26 @@ class OverviewWidget(QSvgWidget):
                 if data:
                     self.AxisManager.set_filename(data)
                     self.AxisManager.addLine(line)
+            if draw:
+                self.AxisManager.addLine(line)
 
         except Exception as e:
             return
 
-    def getSelectedItems(self):
+    def deleteSelectedItems(self):
         selectedIndices = [self.AxisList.row(item) for item in self.AxisList.selectedItems()]
+        selectedIndices.sort(reverse=True)
+        for idx in selectedIndices:
+            self.AxisManager.removeByIdx(idx)
+            self.AxisList.takeItem(idx)
+            #self.dataRefresh()
         print('Selected Indices:', selectedIndices)
-
+        self.dataRefresh()
+        self.updateItemLabels()
+    def updateItemLabels(self):
+        for i in range(self.AxisList.count()):
+            item = self.AxisList.item(i)
+            item.setText(f"Axis {i + 1}: {{Nodes : {self.AxisManager.axisInfo[i][0]}, Length : {round(self.AxisManager.axisInfo[i][1], 2)}}}")
 
     def mousePressEvent(self, mouseEvent):
         if mouseEvent.button() == QtCore.Qt.LeftButton and self.DrawAxis:
@@ -347,3 +341,14 @@ class OverviewWidget(QSvgWidget):
             self.setCursor(self.crossCursor)
         else:
             self.unsetCursor()
+    def eventFilter(self, source, event):
+        if (event.type() == QtCore.QEvent.ContextMenu and source is self.AxisList):
+            menu = QtWidgets.QMenu()
+            menu.addAction('Delete')
+            if menu.exec_(event.globalPos()):
+                self.deleteSelectedItems()
+
+            return True
+        return super(OverviewWidget, self).eventFilter(source, event)
+
+

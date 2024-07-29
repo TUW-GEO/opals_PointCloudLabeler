@@ -115,12 +115,25 @@ class AxisManagement:
                 pts.append([p.x, p.y])
         return pts
 
+    def reindex_dict(self, d):
+        return {i: value for i, (key, value) in enumerate(d.items())}
+
     def removeByIdx(self,idx):
         id = self.idx2odm[idx]
         self.odm.deletePolyline(id)
         del self.idx2odm[idx]
         del self.odm2idx[id]
+        del self.axisInfo[idx]
+        del self.splines[idx]
+        del self.allAxisPts[idx]
 
+
+        self.idx2odm = self.reindex_dict(self.idx2odm)
+        self.odm2idx = {value: key for key, value in self.idx2odm.items()}
+        self.axisInfo = self.reindex_dict(self.axisInfo)
+        self.splines = self.reindex_dict(self.splines)
+
+        #self.save()
     def save(self):
         if self.odm:
             self.odm.save()
