@@ -1,6 +1,6 @@
 from PyQt5 import QtCore, QtWidgets, QtGui, uic
 from PyQt5.QtSvg import QSvgWidget
-from PyQt5.QtWidgets import QFileDialog, QMenu
+from PyQt5.QtWidgets import QFileDialog, QMessageBox, QMenu
 import numpy as np
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
@@ -10,8 +10,6 @@ from opals import pyDM, Info
 import os
 import sys
 from datetime import datetime
-
-
 
 class OverviewWidget(QSvgWidget):
     polylinePicked = QtCore.pyqtSignal(object)
@@ -40,14 +38,12 @@ class OverviewWidget(QSvgWidget):
     def setAxisList(self, listWidget):
         self.AxisList = listWidget
         self.AxisList.itemChanged.connect(self.handleItemChanged)
-        #self.AxisList.itemSelectionChanged.connect(self.getSelectedItems)
         self.AxisList.installEventFilter(self)
-
 
     def setAxisManagement(self,axis_manager):
         self.AxisManager = axis_manager
-        self.odm2idx = axis_manager.odm2idx
-        self.idx2odm = axis_manager.idx2odm
+        self.odm2idx = self.AxisManager.odm2idx
+        self.idx2odm = self.AxisManager.idx2odm
         self.activeLineIdx = 0
         if axis_manager.axis == []:
             return
@@ -80,7 +76,6 @@ class OverviewWidget(QSvgWidget):
         return sx, sy
 
     def pixel2svg(self, px, py):
-        #self.stroke_width = self.dx / 200.
         width, height = self.size().width(), self.size().height()
         sx = (px - width/2)*self.scale_pixel2svg + self.dx/2
         sy = (py - height/2)*self.scale_pixel2svg + self.dy/2
@@ -147,7 +142,6 @@ class OverviewWidget(QSvgWidget):
              pt1 = self.world2svg(self.axis_pts[idx][0], self.axis_pts[idx][1])
              pt2 = self.world2svg(self.axis_pts[idx + 1][0], self.axis_pts[idx + 1][1])
 
-             #self.remove_line(pt1, pt2)
              self.svg.add(self.svg.line(start=pt1, end=pt2, stroke= self.color, stroke_width=self.stroke_width))
              if nodes: self.svg.add(self.svg.circle(center=pt1, r=self.stroke_width/2, stroke='orange', fill='none'))
 
@@ -193,7 +187,6 @@ class OverviewWidget(QSvgWidget):
 
         else:
             self.selected_line_idx = None
-
 
     def setItemChecked(self, index):
         for i in range(self.AxisList.count()):
@@ -263,10 +256,38 @@ class OverviewWidget(QSvgWidget):
         selectedIndices = [self.AxisList.row(item) for item in self.AxisList.selectedItems()]
         selectedIndices.sort(reverse=True)
         for idx in selectedIndices:
-            self.AxisManager.removeByIdx(idx)
-            self.AxisList.takeItem(idx)
-            #self.dataRefresh()
-        print('Selected Indices:', selectedIndices)
+            if idx == self.activeLineIdx:
+
+                message_box = QMessageBox(
+                    QMessageBox.Warning,
+                    'Confirm Deletion',
+                    'The selected item is the active line. Do you want to delete it?'
+                )
+                message_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+                reply = message_box.exec_()
+
+                if reply == QMessageBox.Yes:
+                    if len(self.AxisManager.axis) == 1:
+                        self.AxisManager.removeByIdx(idx)
+                        self.AxisList.takeItem(idx)
+                        del self.selection
+                        self.polylinePicked.emit(self.AxisManager.allAxisPts)
+
+                    else:
+                        self.AxisManager.removeByIdx(idx)
+                        self.AxisList.takeItem(idx)
+                        self.activeLineIdx = self.AxisManager.odm2idx[self.AxisManager.axis[0][0].info().get(0)]
+                        self.setItemChecked(self.activeLineIdx)
+                        self.polylinePicked.emit(self.AxisManager.allAxisPts[self.activeLineIdx])
+
+                elif reply == QMessageBox.No:
+                    return
+            else:
+                self.AxisManager.removeByIdx(idx)
+                self.AxisList.takeItem(idx)
+
+        self.odm2idx = self.AxisManager.odm2idx
+        self.idx2odm = self.AxisManager.idx2odm
         self.dataRefresh()
         self.updateItemLabels()
     def updateItemLabels(self):
@@ -300,6 +321,7 @@ class OverviewWidget(QSvgWidget):
 
                 if len(self.AxisManager.axis) == 1:
                     self.polylinePicked.emit(self.AxisManager.allAxisPts[0])
+                    self.dataRefresh()
 
                 self.axis_pts = []
                 self.addItem()
@@ -318,7 +340,6 @@ class OverviewWidget(QSvgWidget):
 
             except Exception as e:
                 return
-
 
 # Create custom cursor and change the cursor, depends on the mode in which the widget is set to:
     def createCrossCursor(self):
@@ -342,7 +363,7 @@ class OverviewWidget(QSvgWidget):
         else:
             self.unsetCursor()
     def eventFilter(self, source, event):
-        if (event.type() == QtCore.QEvent.ContextMenu and source is self.AxisList):
+        if event.type() == QtCore.QEvent.ContextMenu and source is self.AxisList:
             menu = QtWidgets.QMenu()
             menu.addAction('Delete')
             if menu.exec_(event.globalPos()):
@@ -350,5 +371,3 @@ class OverviewWidget(QSvgWidget):
 
             return True
         return super(OverviewWidget, self).eventFilter(source, event)
-
-

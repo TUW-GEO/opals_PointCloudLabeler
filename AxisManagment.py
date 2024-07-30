@@ -101,12 +101,10 @@ class AxisManagement:
         pi = self.odm.getPolylineIndex()
         searchLine = pi.searchGeometry(1, pyDM.Point(x, y, 0))
         assert( len(searchLine) == 1)
-        #searchLine[0].cloneView(self.layout)
         id = searchLine[0].info().get(0)
         assert(id in self.odm2idx)
         idx = self.odm2idx[id]
         return self.axis[idx]
-
 
     def polyline2linestring(self,odm_line):
         pts = []
@@ -121,19 +119,19 @@ class AxisManagement:
     def removeByIdx(self,idx):
         id = self.idx2odm[idx]
         self.odm.deletePolyline(id)
+        del self.axis[idx]
         del self.idx2odm[idx]
         del self.odm2idx[id]
         del self.axisInfo[idx]
         del self.splines[idx]
         del self.allAxisPts[idx]
 
-
         self.idx2odm = self.reindex_dict(self.idx2odm)
         self.odm2idx = {value: key for key, value in self.idx2odm.items()}
         self.axisInfo = self.reindex_dict(self.axisInfo)
         self.splines = self.reindex_dict(self.splines)
 
-        #self.save()
+        self.save()
     def save(self):
         if self.odm:
             self.odm.save()

@@ -12,7 +12,6 @@ from sortedcontainers import SortedDict
 from StationUtilities import StationPolyline2D, StationCubicSpline2D
 from AxisManagment import AxisManagement
 
-#ToDo: löschen von achsen
 
 
 # predefined classication dictionary, mapping class ids to class lables and colors
@@ -426,9 +425,12 @@ class ClassificationTool(QtWidgets.QMainWindow):
             self.Section.setStretchAxis(coords1, coords2)
 
     def handlePickedPolyline(self, polyline):
-        self.axis_pts = polyline
-        self.viewFirstSection(False)
-        self.axis_pts = []
+        if polyline != []:
+            self.axis_pts = polyline
+            self.viewFirstSection(False)
+            self.axis_pts = []
+        else:
+            self.Section._clear()
 
     def viewFirstSection(self,File=True):
         try:
@@ -489,6 +491,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
             return
             #input1 = dialog.line_edit1.text()
             #input2 = dialog.line_edit2.text()
+
 
     def changePolygonSize(self):
         if not self.station_axis:

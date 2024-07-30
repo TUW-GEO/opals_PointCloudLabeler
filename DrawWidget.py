@@ -12,13 +12,93 @@ import copy
 
 
 class DrawWidget(QGLWidget):
+    # def __init__(self, parent=None):
+    #     super(DrawWidget, self).__init__(parent)
+    #     self.setMouseTracking(True)
+    #     # self.setMinimumSize(500, 500)
+    #     self.camera = Camera()
+    #     self.camera.setSceneRadius(2)
+    #     self.camera.reset()
+    #     self.isPressed = False
+    #     self.oldx = self.oldy = 0
+    #     self.ptList = None
+    #     self.ptListids = None
+    #     self.axisList = None
+    #     self.Data = None
+    #     self.PointIds = None
+    #     self.Center = None
+    #     self.Scale = None
+    #     self.ChangeColoring = False
+    #     self.SelectPoint = False
+    #     self.SelectRectangle = False
+    #     self.LeftCtrlPressed = False
+    #     self.RightCtrlPressed = False
+    #     self.PointFont = QtGui.QFont("Arial", 8)
+    #     self.FaceFont = QtGui.QFont("Arial", 8)
+    #     self.AxisFont = self.PointFont
+    #     self.FontColor = QtGui.QColor(QtCore.Qt.white)
+    #     self.resetStretchData()
+    #     self.currentClass = 0
+    #     self.currentColor = 1
+    #     self.PointSize = 1
+    #     self.classificationData = None
+    #
+    #     #mouse click:
+    #     self.cicked = QtCore.pyqtSignal() #pyqtSignal()
+    #
+    #     #paint
+    #     self.start = None
+    #     self.stop = None
+    #     self.mouse = None
+    #     self.wheel = 0
+    #
+    # def _clear(self):
+    #     """Clears the widget and resets all data."""
+    #     self.Data = None
+    #     self.ptList = None
+    #     self.ptListids = None
+    #     self.axisList = None
+    #     self.PointIds = None
+    #     self.Center = None
+    #     self.Scale = None
+    #     self.ChangeColoring = False
+    #     self.SelectPoint = False
+    #     self.SelectRectangle = False
+    #     self.LeftCtrlPressed = False
+    #     self.RightCtrlPressed = False
+    #     self.PointFont = QtGui.QFont("Arial", 8)
+    #     self.FaceFont = QtGui.QFont("Arial", 8)
+    #     self.AxisFont = self.PointFont
+    #     self.FontColor = QtGui.QColor(QtCore.Qt.white)
+    #     self.resetStretchData()
+    #     self.currentClass = 0
+    #     self.currentColor = 1
+    #     self.PointSize = 1
+    #     self.classificationData = None
+    #     self.start = None
+    #     self.stop = None
+    #     self.mouse = None
+    #     self.wheel = 0
+    #     self.update()
+
     def __init__(self, parent=None):
         super(DrawWidget, self).__init__(parent)
         self.setMouseTracking(True)
-        # self.setMinimumSize(500, 500)
         self.camera = Camera()
         self.camera.setSceneRadius(2)
         self.camera.reset()
+        self.PointFont = QtGui.QFont("Arial", 8)
+        self.FaceFont = QtGui.QFont("Arial", 8)
+        self.AxisFont = self.PointFont
+        self.FontColor = QtGui.QColor(QtCore.Qt.white)
+
+        # Mouse click signal
+        self.clicked = QtCore.pyqtSignal()  # pyqtSignal()
+
+        self._reset()  # Call the reset method to initialize/reset attributes
+
+    def _reset(self):
+        """Resets the widget attributes to their initial state."""
         self.isPressed = False
         self.oldx = self.oldy = 0
         self.ptList = None
@@ -33,24 +113,21 @@ class DrawWidget(QGLWidget):
         self.SelectRectangle = False
         self.LeftCtrlPressed = False
         self.RightCtrlPressed = False
-        self.PointFont = QtGui.QFont("Arial", 8)
-        self.FaceFont = QtGui.QFont("Arial", 8)
-        self.AxisFont = self.PointFont
-        self.FontColor = QtGui.QColor(QtCore.Qt.white)
-        self.resetStretchData()
         self.currentClass = 0
         self.currentColor = 1
         self.PointSize = 1
         self.classificationData = None
-
-        #mouse click:
-        self.cicked = QtCore.pyqtSignal() #pyqtSignal()
-
-        #paint
         self.start = None
         self.stop = None
         self.mouse = None
         self.wheel = 0
+        self.resetStretchData()
+        self.update()
+
+    def _clear(self):
+        self.ptList = None
+        self.ptListids = None
+        self.update()
 
     def setClassifcationData(self, classificationData):
         self.classificationData = classificationData
