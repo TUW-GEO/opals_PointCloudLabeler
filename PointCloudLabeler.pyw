@@ -476,6 +476,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
         sender = self.sender()
         if sender.isChecked():
             if sender == self.Insert:
+                self.Overview.insert = True
                 self.Delete.setChecked(False)
                 self.Move.setChecked(False)
             elif sender == self.Delete:

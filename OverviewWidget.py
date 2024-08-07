@@ -34,6 +34,7 @@ class OverviewWidget(QSvgWidget):
         self.stroke_width = 0.5
         self.is_loading = False
         self.AxisODMPath = None
+        self.insert = False
 
     def setAxisList(self, listWidget):
         self.AxisList = listWidget
@@ -340,6 +341,12 @@ class OverviewWidget(QSvgWidget):
 
             except Exception as e:
                 return
+
+        if mouseEvent.button() == QtCore.Qt.LeftButton and self.insert:
+            pt = self.pixel2world(mouseEvent.x(), mouseEvent.y())
+            line = self.AxisManager.getByCoords(pt[0], pt[1])
+            self.AxisManager.InsertVertices(line[0],pt)
+            self.dataRefresh()
 
 # Create custom cursor and change the cursor, depends on the mode in which the widget is set to:
     def createCrossCursor(self):

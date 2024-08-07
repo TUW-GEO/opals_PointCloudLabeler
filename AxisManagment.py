@@ -1,7 +1,7 @@
 import os.path
-
 from StationUtilities import StationCubicSpline2D
 from opals import pyDM
+from CallBackObject import AnalyseDistance
 
 class AxisManagement:
     def __init__(self, odm_filename, overwrite=False):
@@ -135,3 +135,15 @@ class AxisManagement:
     def save(self):
         if self.odm:
             self.odm.save()
+
+    def InsertVertices(self,line,pt):
+        obj = AnalyseDistance()
+        #pt = pyDM.Point(pt[0], pt[1], 0)
+
+        f = pyDM.PolylineFactory()
+        f.addPoint(pt[0], pt[1])
+
+        point = f.getPolyline()
+
+        pyDM.GeometricAlgorithms.analyseDistance(base=line, callback=obj, d3=False)
+        i=0
