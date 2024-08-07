@@ -85,9 +85,13 @@ class AxisManagement:
             length += (dx ** 2 + dy ** 2) ** 0.5
         return notes, length
 
-    def createSplines(self,pts):
-        axis_spline = StationCubicSpline2D(pts)
-        self.splines[len(self.axis)-1] = axis_spline.vertices
+    def createSplines(self,pts, replace=False):
+        if replace:
+            axis_spline = StationCubicSpline2D(pts)
+            self.splines[self.idx] = axis_spline.vertices
+        else:
+            axis_spline = StationCubicSpline2D(pts)
+            self.splines[len(self.axis)-1] = axis_spline.vertices
 
     def getByIdx(self, idx):
         return self.axis[idx]
@@ -137,13 +141,16 @@ class AxisManagement:
             self.odm.save()
 
     def InsertVertices(self,line,pt):
+        id = line.info().get(0)
+        self.idx = self.odm2idx[id]
+
         obj = AnalyseDistance()
-        #pt = pyDM.Point(pt[0], pt[1], 0)
+        point = pyDM.Point(pt[0], pt[1],0)
 
-        f = pyDM.PolylineFactory()
-        f.addPoint(pt[0], pt[1])
+        pyDM.GeometricAlgorithms.analyseDistance(line=line, pt=point, callback=obj, d3=False)
 
-        point = f.getPolyline()
+        self.vertices = sorted(obj.vertices)
+        self.allAxisPts[self.idx].insert(self.vertices[-1],[pt[0], pt[1]])
+        self.createSplines(self.allAxisPts[0], replace=True)
 
-        pyDM.GeometricAlgorithms.analyseDistance(base=line, callback=obj, d3=False)
-        i=0
+        self.save()

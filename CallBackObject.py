@@ -12,15 +12,19 @@ class AnalyseDistance(pyDM.AnalyseDistance):
          self.sumDistance = 0
          self.counter = 0
          self.exceedCounter = 0
+         self.distance = None
+         self.indices = None
+         self.footpoint = None
 
      def reset(self):
          self.sumDistance = 0
          self.counter = 0
          self.exceedCounter = 0
 
-     def closest(self, distance, idx, basePt, lineIdx1, lineIdx2, minDistPt):
+     def closest(self, distance, idx, basePt, Idx1, Idx2, minDistPt):
          self.counter += 1
          self.sumDistance += distance
+         self.vertices = (Idx1, Idx2)
 
      def exceeds(self,idx):
          self.exceedCounter += 1
