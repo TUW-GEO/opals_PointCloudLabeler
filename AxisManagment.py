@@ -136,6 +136,7 @@ class AxisManagement:
         self.splines = self.reindex_dict(self.splines)
 
         self.save()
+
     def save(self):
         if self.odm:
             self.odm.save()
@@ -149,8 +150,38 @@ class AxisManagement:
 
         pyDM.GeometricAlgorithms.analyseDistance(line=line, pt=point, callback=obj, d3=False)
 
-        self.vertices = sorted(obj.vertices)
-        self.allAxisPts[self.idx].insert(self.vertices[-1],[pt[0], pt[1]])
+        vertices = sorted(obj.insertVertex)
+        self.allAxisPts[self.idx].insert(vertices[-1],[pt[0], pt[1]])
+
+        self.odm.replacePolyline(line,attributeOnly=True)
+
         self.createSplines(self.allAxisPts[0], replace=True)
 
+        notes, length = self.information(line)
+        self.axisInfo[self.idx] = [notes, length]
+
         self.save()
+
+    def DeleteVertices(self,line,pt):
+        id = line.info().get(0)
+        self.idx = self.odm2idx[id]
+
+        obj = AnalyseDistance()
+        point = pyDM.Point(pt[0], pt[1], 0)
+
+        pyDM.GeometricAlgorithms.analyseDistance(line=line, pt=point, callback=obj, maxDist=2, d3=False)
+
+        vertex = obj.pickedVertex
+        self.allAxisPts[self.idx].pop(vertex)
+        self.createSplines(self.allAxisPts[0], replace=True)
+
+    def PickVertices(self,line,pt):
+        id = line.info().get(0)
+        self.idx = self.odm2idx[id]
+
+        obj = AnalyseDistance()
+        point = pyDM.Point(pt[0], pt[1], 0)
+
+        pyDM.GeometricAlgorithms.analyseDistance(line=line, pt=point, callback=obj, maxDist=2, d3=False)
+
+        return obj.pickedVertex

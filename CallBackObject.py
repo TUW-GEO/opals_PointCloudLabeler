@@ -24,7 +24,8 @@ class AnalyseDistance(pyDM.AnalyseDistance):
      def closest(self, distance, idx, basePt, Idx1, Idx2, minDistPt):
          self.counter += 1
          self.sumDistance += distance
-         self.vertices = (Idx1, Idx2)
+         self.insertVertex = (Idx1, Idx2)
+         self.pickedVertex = Idx1
 
      def exceeds(self,idx):
          self.exceedCounter += 1

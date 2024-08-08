@@ -1,15 +1,12 @@
-from PyQt5 import QtCore, QtWidgets, QtGui, uic
+from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtSvg import QSvgWidget
-from PyQt5.QtWidgets import QFileDialog, QMessageBox, QMenu
-import numpy as np
+from PyQt5.QtWidgets import QFileDialog, QMessageBox
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 import svgwrite
 from osgeo import gdal
-from opals import pyDM, Info
+from opals import pyDM
 import os
-import sys
-from datetime import datetime
 
 class OverviewWidget(QSvgWidget):
     polylinePicked = QtCore.pyqtSignal(object)
@@ -35,6 +32,9 @@ class OverviewWidget(QSvgWidget):
         self.is_loading = False
         self.AxisODMPath = None
         self.insert = False
+        self.delete = False
+        self.move = False
+        self.pickedVertex = None
 
     def setAxisList(self, listWidget):
         self.AxisList = listWidget
@@ -114,11 +114,15 @@ class OverviewWidget(QSvgWidget):
 
         try:
             for line in self.AxisManager.axis:
-                self.color = 'lightblue'
+                if self.odm2idx[line[0].info().get(0)] == self.activeLineIdx:
+                    self.color = 'green'
+                    self.axis_pts = self.AxisManager.allAxisPts[self.odm2idx[line[0].info().get(0)]]
+                    self.drawAxis()
 
-                self.axis_pts = self.AxisManager.allAxisPts[self.odm2idx[line[0].info().get(0)]]
-
-                self.drawAxis()
+                else:
+                    self.color = 'lightblue'
+                    self.axis_pts = self.AxisManager.allAxisPts[self.odm2idx[line[0].info().get(0)]]
+                    self.drawAxis()
 
                 if self.odm2idx[line[0].info().get(0)] == self.activeLineIdx:
                     self.color = 'blue'
@@ -140,14 +144,20 @@ class OverviewWidget(QSvgWidget):
              self.svg.add(self.svg.circle(center=pt1, r=self.stroke_width / 2, stroke='orange', fill='none'))
 
          for idx in range(len(self.axis_pts) - 1):
+             if idx == self.pickedVertex and self.activeLineIdx: #ToDO: nur den vertex einfärben von der akticven achse
+                 node_color = 'magenta'
+             else:
+                 node_color = 'orange'
+
+
              pt1 = self.world2svg(self.axis_pts[idx][0], self.axis_pts[idx][1])
              pt2 = self.world2svg(self.axis_pts[idx + 1][0], self.axis_pts[idx + 1][1])
 
              self.svg.add(self.svg.line(start=pt1, end=pt2, stroke= self.color, stroke_width=self.stroke_width))
-             if nodes: self.svg.add(self.svg.circle(center=pt1, r=self.stroke_width/2, stroke='orange', fill='none'))
+             if nodes: self.svg.add(self.svg.circle(center=pt1, r=self.stroke_width/2, stroke=node_color, fill='none'))
 
              if idx == (len(self.axis_pts) - 2):
-                if nodes: self.svg.add(self.svg.circle(center=pt2, r=self.stroke_width / 2, stroke='orange', fill='none'))
+                if nodes: self.svg.add(self.svg.circle(center=pt2, r=self.stroke_width / 2, stroke=node_color, fill='none'))
 
          self.update_svg()
 
@@ -291,6 +301,7 @@ class OverviewWidget(QSvgWidget):
         self.idx2odm = self.AxisManager.idx2odm
         self.dataRefresh()
         self.updateItemLabels()
+
     def updateItemLabels(self):
         for i in range(self.AxisList.count()):
             item = self.AxisList.item(i)
@@ -345,8 +356,33 @@ class OverviewWidget(QSvgWidget):
         if mouseEvent.button() == QtCore.Qt.LeftButton and self.insert:
             pt = self.pixel2world(mouseEvent.x(), mouseEvent.y())
             line = self.AxisManager.getByCoords(pt[0], pt[1])
-            self.AxisManager.InsertVertices(line[0],pt)
+            self.AxisManager.InsertVertices(line[0], pt)
+            self.polylinePicked.emit(self.AxisManager.allAxisPts[self.activeLineIdx])
             self.dataRefresh()
+
+        elif mouseEvent.button() == QtCore.Qt.LeftButton and self.delete:
+            pt = self.pixel2world(mouseEvent.x(), mouseEvent.y())
+            line = self.AxisManager.getByCoords(pt[0], pt[1])
+            self.AxisManager.DeleteVertices(line[0], pt)
+            self.polylinePicked.emit(self.AxisManager.allAxisPts[self.activeLineIdx])
+            self.dataRefresh()
+
+        elif mouseEvent.button() == QtCore.Qt.LeftButton and self.move:
+            pt = self.pixel2world(mouseEvent.x(), mouseEvent.y())
+            line = self.AxisManager.getByCoords(pt[0], pt[1])
+            self.pickedVertex = self.AxisManager.PickVertices(line[0], pt)
+            #self.polylinePicked.emit(self.AxisManager.allAxisPts[self.activeLineIdx])
+            self.dataRefresh()
+
+    def mouseMoveEvent(self, mouseEvent):
+        if mouseEvent.button() == QtCore.Qt.LeftButton and self.move:
+            pass
+
+    def mouseReleaseEvent(self, mouseEvent):
+        if mouseEvent.button() == QtCore.Qt.LeftButton:
+            #self.polylinePicked.emit(self.AxisManager.allAxisPts[self.activeLineIdx])
+            #self.dataRefresh()
+            pass
 
 # Create custom cursor and change the cursor, depends on the mode in which the widget is set to:
     def createCrossCursor(self):

@@ -12,8 +12,7 @@ from sortedcontainers import SortedDict
 from StationUtilities import StationPolyline2D, StationCubicSpline2D
 from AxisManagment import AxisManagement
 
-#ToDo: section nach insert point wieder richtig ausrichten
-
+#ToDo: die bearbeitete Achse abspeichern
 
 # predefined classication dictionary, mapping class ids to class lables and colors
 CLASSIFICATION_DATA = {0: ['0 unclassified', [210, 210, 210]],
@@ -478,12 +477,20 @@ class ClassificationTool(QtWidgets.QMainWindow):
         if sender.isChecked():
             if sender == self.Insert:
                 self.Overview.insert = True
+                self.Overview.delete = False
+                self.Overview.move = False
                 self.Delete.setChecked(False)
                 self.Move.setChecked(False)
             elif sender == self.Delete:
+                self.Overview.delete = True
+                self.Overview.insert = False
+                self.Overview.move = False
                 self.Insert.setChecked(False)
                 self.Move.setChecked(False)
             elif sender == self.Move:
+                self.Overview.move = True
+                self.Overview.insert = False
+                self.Overview.delete = False
                 self.Insert.setChecked(False)
                 self.Delete.setChecked(False)
 
@@ -514,11 +521,15 @@ class ClassificationTool(QtWidgets.QMainWindow):
     def DigitalAxis(self):
         if self.DrawMode.isChecked():
             self.Overview.insert = False
+            self.Overview.delete = False
+            self.Overview.move = False
             self.Overview.DrawAxis = True
             self.Overview.SelectAxis = False
             self.SelectionMode.setChecked(False)
         elif self.SelectionMode.isChecked():
             self.Overview.insert = False
+            self.Overview.delete = False
+            self.Overview.move = False
             self.Overview.DrawAxis = False
             self.Overview.SelectAxis = True
             self.DrawMode.setChecked(False)
