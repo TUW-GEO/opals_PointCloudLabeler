@@ -3,10 +3,12 @@ from PyQt5.QtSvg import QSvgWidget
 from PyQt5.QtWidgets import QFileDialog, QMessageBox
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
+from OpenGL.GL import *
 import svgwrite
 from osgeo import gdal
 from opals import pyDM
 import os
+import math
 
 class OverviewWidget(QSvgWidget):
     polylinePicked = QtCore.pyqtSignal(object)
@@ -27,6 +29,7 @@ class OverviewWidget(QSvgWidget):
         self.SelectAxis = None
         self.AxisList = None
         self.createCrossCursor()
+        #self.createCircleCursor()
         self.AxisManager = None
         self.stroke_width = 0.5
         self.is_loading = False
@@ -35,6 +38,7 @@ class OverviewWidget(QSvgWidget):
         self.delete = False
         self.move = False
         self.pickedVertex = None
+        self.leftButtonPressed = False
 
     def setAxisList(self, listWidget):
         self.AxisList = listWidget
@@ -114,6 +118,7 @@ class OverviewWidget(QSvgWidget):
 
         try:
             for line in self.AxisManager.axis:
+                self.lineidx = self.odm2idx[line[0].info().get(0)]
                 if self.odm2idx[line[0].info().get(0)] == self.activeLineIdx:
                     self.color = 'green'
                     self.axis_pts = self.AxisManager.allAxisPts[self.odm2idx[line[0].info().get(0)]]
@@ -144,8 +149,8 @@ class OverviewWidget(QSvgWidget):
              self.svg.add(self.svg.circle(center=pt1, r=self.stroke_width / 2, stroke='orange', fill='none'))
 
          for idx in range(len(self.axis_pts) - 1):
-             if idx == self.pickedVertex and self.activeLineIdx: #ToDO: nur den vertex einfärben von der akticven achse
-                 node_color = 'magenta'
+             if idx == self.pickedVertex and self.activeLineIdx == self.lineidx:
+                 node_color = 'grey'
              else:
                  node_color = 'orange'
 
@@ -371,18 +376,31 @@ class OverviewWidget(QSvgWidget):
             pt = self.pixel2world(mouseEvent.x(), mouseEvent.y())
             line = self.AxisManager.getByCoords(pt[0], pt[1])
             self.pickedVertex = self.AxisManager.PickVertices(line[0], pt)
-            #self.polylinePicked.emit(self.AxisManager.allAxisPts[self.activeLineIdx])
             self.dataRefresh()
 
     def mouseMoveEvent(self, mouseEvent):
-        if mouseEvent.button() == QtCore.Qt.LeftButton and self.move:
-            pass
+        if int(mouseEvent.buttons()) & QtCore.Qt.LeftButton and self.move:
+            self.mouse = (mouseEvent.x(), mouseEvent.y())
+            self.createCircleCursor()
 
     def mouseReleaseEvent(self, mouseEvent):
-        if mouseEvent.button() == QtCore.Qt.LeftButton:
-            #self.polylinePicked.emit(self.AxisManager.allAxisPts[self.activeLineIdx])
-            #self.dataRefresh()
-            pass
+        if mouseEvent.button() == QtCore.Qt.LeftButton and self.move:
+            pt = self.pixel2world(mouseEvent.x(), mouseEvent.y())
+            line = self.AxisManager.getByCoords(pt[0], pt[1])
+            self.AxisManager.MoveVertices(line[0], self.pickedVertex, pt)
+            self.polylinePicked.emit(self.AxisManager.allAxisPts[self.activeLineIdx])
+            self.pickedVertex = None
+            #self.leftButtonPressed = False
+            self.dataRefresh()
+
+    # def createCircleCursor(self):
+    #     cursor_pixmap = QPixmap(32, 32)
+    #     cursor_pixmap.fill(Qt.transparent)
+    #     painter = QPainter(cursor_pixmap)
+    #     painter.setPen(QPen(QColor(255, 165, 0), 2))
+    #     painter.drawEllipse(0, 0, 8, 8)
+    #     painter.end()
+    #     self.circleCursor = QCursor(cursor_pixmap)
 
 # Create custom cursor and change the cursor, depends on the mode in which the widget is set to:
     def createCrossCursor(self):
@@ -403,6 +421,8 @@ class OverviewWidget(QSvgWidget):
     def updateCursor(self):
         if self.DrawAxis:
             self.setCursor(self.crossCursor)
+        #elif self.move and self.leftButtonPressed:
+         #   self.setCursor(self.circleCursor)
         else:
             self.unsetCursor()
     def eventFilter(self, source, event):

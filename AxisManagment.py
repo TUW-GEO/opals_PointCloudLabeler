@@ -141,24 +141,29 @@ class AxisManagement:
         if self.odm:
             self.odm.save()
 
-    def InsertVertices(self,line,pt):
-        id = line.info().get(0)
+    def InsertVertices(self, polyline,pt):
+        id = polyline.info().get(0)
         self.idx = self.odm2idx[id]
+
+        #lineobj = polyline.info()
+
+        pts = self.polyline2linestring(polyline)
 
         obj = AnalyseDistance()
         point = pyDM.Point(pt[0], pt[1],0)
 
-        pyDM.GeometricAlgorithms.analyseDistance(line=line, pt=point, callback=obj, d3=False)
+        pyDM.GeometricAlgorithms.analyseDistance(line=polyline, pt=point, callback=obj, d3=False)
 
         vertices = sorted(obj.insertVertex)
+        pts.insert(vertices[-1],[pt[0], pt[1]])
         self.allAxisPts[self.idx].insert(vertices[-1],[pt[0], pt[1]])
-
-        self.odm.replacePolyline(line,attributeOnly=True)
 
         self.createSplines(self.allAxisPts[0], replace=True)
 
-        notes, length = self.information(line)
-        self.axisInfo[self.idx] = [notes, length]
+        self.odm.replacePolyline(polyline,attributeOnly=False)
+
+        #notes, length = self.information(line)
+        #self.axisInfo[self.idx] = [notes, length]
 
         self.save()
 
@@ -185,3 +190,13 @@ class AxisManagement:
         pyDM.GeometricAlgorithms.analyseDistance(line=line, pt=point, callback=obj, maxDist=2, d3=False)
 
         return obj.pickedVertex
+
+    def MoveVertices(self, line, vertexId, pt):
+        id = line.info().get(0)
+        self.idx = self.odm2idx[id]
+
+        # Move the vertex to the new position
+        self.allAxisPts[self.idx][vertexId] = [pt[0], pt[1]]
+
+        # Update the spline for the polyline
+        self.createSplines(self.allAxisPts[self.idx], replace=True)
