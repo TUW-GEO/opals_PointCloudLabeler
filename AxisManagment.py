@@ -145,22 +145,38 @@ class AxisManagement:
         id = polyline.info().get(0)
         self.idx = self.odm2idx[id]
 
-        #lineobj = polyline.info()
-
-        pts = self.polyline2linestring(polyline)
-
         obj = AnalyseDistance()
         point = pyDM.Point(pt[0], pt[1],0)
 
         pyDM.GeometricAlgorithms.analyseDistance(line=polyline, pt=point, callback=obj, d3=False)
 
+        pts = self.polyline2linestring(polyline)
+
         vertices = sorted(obj.insertVertex)
         pts.insert(vertices[-1],[pt[0], pt[1]])
-        self.allAxisPts[self.idx].insert(vertices[-1],[pt[0], pt[1]])
 
-        self.createSplines(self.allAxisPts[0], replace=True)
+        # f = pyDM.PolylineFactory()
+        # # create polylines and add them to the odm
+        # for pt in pts:
+        #     f.addPoint(pt[0], pt[1])
+        # #
+        # poly = f.getPolyline()
+        #
+        # #id = self.odm.addPolyline(poly)
+        #
+        # self.addLine(poly)
 
-        self.odm.replacePolyline(polyline,attributeOnly=False)
+
+        self.odm.replacePolyline(polyline, attributeOnly=False)
+        #self.save()
+        self._dataRefresh()
+
+
+        #self.allAxisPts[self.idx].insert(vertices[-1],[pt[0], pt[1]])
+
+        #self.createSplines(self.allAxisPts[0], replace=True)
+
+        #self.odm.replacePolyline(polyline,attributeOnly=False)
 
         #notes, length = self.information(line)
         #self.axisInfo[self.idx] = [notes, length]
