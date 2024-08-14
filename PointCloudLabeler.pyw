@@ -1,18 +1,15 @@
 import numpy
-from opals import Import, Grid, Shade, pyDM, Info
+from opals import Import, Grid, Shade, pyDM
 from PyQt5 import QtWidgets,uic, QtCore
 from PyQt5.QtGui import *
-from PyQt5.QtWidgets import QFileDialog, QApplication, QDialog, QLineEdit, QPushButton, QFormLayout
+from PyQt5.QtWidgets import QFileDialog, QDialog, QLineEdit, QPushButton, QFormLayout, QCheckBox
 import os
 import opals
 import numpy as np
-import math
 import copy
-from sortedcontainers import SortedDict
 from StationUtilities import StationPolyline2D, StationCubicSpline2D
 from AxisManagment import AxisManagement
 
-#ToDo: die bearbeitete Achse abspeichern
 
 # predefined classication dictionary, mapping class ids to class lables and colors
 CLASSIFICATION_DATA = {0: ['0 unclassified', [210, 210, 210]],
@@ -43,8 +40,11 @@ PREDICTION = {0:'no prediction', 1:'predict next', 2:'predict previous', 3:'alwa
 
 
 class CustomDialog(QDialog):
-    def __init__(self, parent=None):
+    preview_clicked = QtCore.pyqtSignal()
+
+    def __init__(self, parent=None, defaultDistance='0'):
         super().__init__(parent)
+        self.defaultDistance = defaultDistance
         self.initUI()
 
     def initUI(self):
@@ -52,16 +52,29 @@ class CustomDialog(QDialog):
 
         self.rotation = QLineEdit(self)
         self.distance = QLineEdit(self)
+        self.distance.setText(self.defaultDistance)
+
+        self.shpFileExport = QCheckBox("Export to shp-File", self)
+        self.shpFileExport.setChecked(False)
+
+        self.preview_button = QPushButton('Preview', self)
+        self.preview_button.clicked.connect(self.handle_preview)
 
         self.ok_button = QPushButton('OK', self)
         self.ok_button.clicked.connect(self.accept)
 
         form_layout = QFormLayout()
-        form_layout.addRow('Rotaion Angle:', self.rotation)
+        form_layout.addRow('Rotation Angle:', self.rotation)
         form_layout.addRow('Distance between the Axis:', self.distance)
+        form_layout.addRow(self.shpFileExport)
         form_layout.addRow(self.ok_button)
+        form_layout.addRow(self.preview_button)
 
         self.setLayout(form_layout)
+
+    def handle_preview(self):
+        self.preview_clicked.emit()
+
 
 class ClassificationTool(QtWidgets.QMainWindow):
     def __init__(self):
@@ -495,12 +508,22 @@ class ClassificationTool(QtWidgets.QMainWindow):
                 self.Delete.setChecked(False)
 
     def GenerateAxis(self):
-        dialog = CustomDialog(self)
-        if dialog.exec_() == QDialog.Accepted:
-            return
-            #input1 = dialog.line_edit1.text()
-            #input2 = dialog.line_edit2.text()
+        self.polygonSize()
+        defaultDistance = str(self.across)
+        dialog = CustomDialog(self,defaultDistance=defaultDistance)
 
+
+        dialog.preview_clicked.connect(lambda: self.handlePreview(dialog))
+
+        if dialog.exec_() == QDialog.Accepted:
+            rotation = dialog.rotation.text()
+            distance = dialog.distance.text()
+            self.Overview.ArialCoverage(distance=distance, rotation=rotation, preview=True, export=dialog.shpFileExport.isChecked())
+
+    def handlePreview(self, dialog):
+        rotation = dialog.rotation.text()
+        distance = dialog.distance.text()
+        self.Overview.ArialCoverage(distance=distance, rotation=rotation, preview=True)
 
     def changePolygonSize(self):
         if not self.station_axis:

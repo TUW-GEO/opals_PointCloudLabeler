@@ -3,12 +3,11 @@ from PyQt5.QtSvg import QSvgWidget
 from PyQt5.QtWidgets import QFileDialog, QMessageBox
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
-from OpenGL.GL import *
 import svgwrite
 from osgeo import gdal
 from opals import pyDM
 import os
-import math
+from AxisGenerator import AxisGenerator
 
 class OverviewWidget(QSvgWidget):
     polylinePicked = QtCore.pyqtSignal(object)
@@ -39,6 +38,8 @@ class OverviewWidget(QSvgWidget):
         self.move = False
         self.pickedVertex = None
         self.leftButtonPressed = False
+        self.linestrings = None
+        self.preview = False
 
     def setAxisList(self, listWidget):
         self.AxisList = listWidget
@@ -136,6 +137,13 @@ class OverviewWidget(QSvgWidget):
 
             if self.selection:
                 self.drawSection()
+
+            if self.preview:
+                for line in self.linestrings:
+                    self.color = 'lightblue'
+                    self.axis_pts = line
+                    self.drawAxis()
+
 
         except Exception as e:
             pass
@@ -312,6 +320,25 @@ class OverviewWidget(QSvgWidget):
             item = self.AxisList.item(i)
             item.setText(f"Axis {i + 1}: {{Nodes : {self.AxisManager.axisInfo[i][0]}, Length : {round(self.AxisManager.axisInfo[i][1], 2)}}}")
 
+    def ArialCoverage(self, distance, rotation, preview=False, export=False):
+        if preview:
+            try:
+                polygon = AxisGenerator(self.shd_bbox, float(rotation), float(distance))
+                self.linestrings = polygon.getPolylineCoords()
+                self.preview = True
+                self.dataRefresh()
+                self.preview = False
+            except Exception as e:
+                pass
+        else:
+            if self.linestrings:
+                pass
+            else:
+                polygon = AxisGenerator(self.shd_bbox, float(rotation), float(distance))
+                self.linestrings = polygon.getPolylineCoords()
+            if export:
+                pass
+
     def mousePressEvent(self, mouseEvent):
         if mouseEvent.button() == QtCore.Qt.LeftButton and self.DrawAxis:
             self.width = self.size().width()
@@ -364,6 +391,7 @@ class OverviewWidget(QSvgWidget):
             self.AxisManager.InsertVertices(line[0], pt)
             self.polylinePicked.emit(self.AxisManager.allAxisPts[self.activeLineIdx])
             self.dataRefresh()
+            self.updateItemLabels()
 
         elif mouseEvent.button() == QtCore.Qt.LeftButton and self.delete:
             pt = self.pixel2world(mouseEvent.x(), mouseEvent.y())
@@ -371,17 +399,19 @@ class OverviewWidget(QSvgWidget):
             self.AxisManager.DeleteVertices(line[0], pt)
             self.polylinePicked.emit(self.AxisManager.allAxisPts[self.activeLineIdx])
             self.dataRefresh()
+            self.updateItemLabels()
 
         elif mouseEvent.button() == QtCore.Qt.LeftButton and self.move:
             pt = self.pixel2world(mouseEvent.x(), mouseEvent.y())
             line = self.AxisManager.getByCoords(pt[0], pt[1])
             self.pickedVertex = self.AxisManager.PickVertices(line[0], pt)
             self.dataRefresh()
+            self.updateItemLabels()
 
     def mouseMoveEvent(self, mouseEvent):
         if int(mouseEvent.buttons()) & QtCore.Qt.LeftButton and self.move:
             self.mouse = (mouseEvent.x(), mouseEvent.y())
-            self.createCircleCursor()
+            #self.createCircleCursor()
 
     def mouseReleaseEvent(self, mouseEvent):
         if mouseEvent.button() == QtCore.Qt.LeftButton and self.move:
@@ -392,6 +422,7 @@ class OverviewWidget(QSvgWidget):
             self.pickedVertex = None
             #self.leftButtonPressed = False
             self.dataRefresh()
+            self.updateItemLabels()
 
     # def createCircleCursor(self):
     #     cursor_pixmap = QPixmap(32, 32)

@@ -39,6 +39,7 @@ class AxisGenerator:
 
         shift = 0
 
+        # Linien in positive Richtung verschieben
         while True:
             # Die Linie parallel verschieben
             shifted_line = translate(rotate_line, yoff=shift)
@@ -48,14 +49,33 @@ class AxisGenerator:
                 if isinstance(intersect_pts, LineString):
                     lines.append(list(intersect_pts.coords))
                 elif hasattr(intersect_pts, "geoms"):
-                    for schnittlinie in intersect_pts.geoms:
-                        lines.append(list(schnittlinie.coords))
+                    for intersection in intersect_pts.geoms:
+                        lines.append(list(intersection.coords))
 
             shift += self.space
 
             # Überprüfung, ob die Linie das Polygon verlassen hat
-            if shifted_line.bounds[1] > self.polygon.bounds[3] + self.space or shifted_line.bounds[3] < \
-                    self.polygon.bounds[1] - self.space:
+            if shifted_line.bounds[1] > self.polygon.bounds[3] + self.space:
+                break
+
+        # Linien in negative Richtung verschieben
+        shift = -self.space  # Beginne mit dem ersten negativen Abstand
+        while True:
+            # Die Linie parallel verschieben
+            shifted_line = translate(rotate_line, yoff=shift)
+            intersect_pts = self.polygon.intersection(shifted_line)
+
+            if not intersect_pts.is_empty:
+                if isinstance(intersect_pts, LineString):
+                    lines.append(list(intersect_pts.coords))
+                elif hasattr(intersect_pts, "geoms"):
+                    for intersection in intersect_pts.geoms:
+                        lines.append(list(intersection.coords))
+
+            shift -= self.space
+
+            # Überprüfung, ob die Linie das Polygon verlassen hat
+            if shifted_line.bounds[3] < self.polygon.bounds[1] - self.space:
                 break
 
         return lines
@@ -79,18 +99,3 @@ class AxisGenerator:
     def getPolylineCoords(self):
         polylines = self.addPolylines()
         return polylines
-
-
-# # Beispielnutzung
-# eckpunkte = [(528600.0, 5339900.0), (528700.0, 5339800.0)]
-# winkel = 45
-# abstand = 30.0
-#
-# polygon = PolygonMitPolylinien(eckpunkte, winkel, abstand)
-#
-# # Ausgabe der Polylinien-Koordinaten als Liste von Koordinaten-Tuples
-# polylinien_koordinaten = polygon.get_polylinien_koordinaten()
-# print(polylinien_koordinaten)
-# i=0
-# # Optional: Exportiere die Polylinien als Shapefile
-# # polygon.exportiere_polylinien_als_shapefile("polylinien.shp")
