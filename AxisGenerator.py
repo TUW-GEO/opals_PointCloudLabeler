@@ -11,7 +11,7 @@ class AxisGenerator:
         self.corners = self.createPolygon(corners)
         self.polygon = Polygon(self.corners)
         self.angle = angle
-        self.space = space
+        self.space = space / math.cos(math.radians(angle))  # Anpassung des Abstands
         self.center = self.polygon.centroid
 
     def createPolygon(self, corners):
@@ -55,7 +55,7 @@ class AxisGenerator:
             shift += self.space
 
             # Überprüfung, ob die Linie das Polygon verlassen hat
-            if shifted_line.bounds[1] > self.polygon.bounds[3] + self.space:
+            if not self.polygon.intersects(shifted_line):
                 break
 
         # Linien in negative Richtung verschieben
@@ -75,7 +75,7 @@ class AxisGenerator:
             shift -= self.space
 
             # Überprüfung, ob die Linie das Polygon verlassen hat
-            if shifted_line.bounds[3] < self.polygon.bounds[1] - self.space:
+            if not self.polygon.intersects(shifted_line):
                 break
 
         return lines

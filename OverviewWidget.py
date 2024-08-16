@@ -256,8 +256,10 @@ class OverviewWidget(QSvgWidget):
         # create polylines and add them to the odm
         for pt in self.axis_pts:
             f.addPoint(pt[0], pt[1])
-
-        self.addLineToODM(f.getPolyline(), draw=True)
+        if self.AxisManager.odm:
+            self.addLineToODM(f.getPolyline(), draw=True)
+        else:
+            self.addLineToODM(f.getPolyline(), draw=False)
 
     def addLineToODM(self,line, draw=False):
         try:
@@ -320,24 +322,33 @@ class OverviewWidget(QSvgWidget):
             item = self.AxisList.item(i)
             item.setText(f"Axis {i + 1}: {{Nodes : {self.AxisManager.axisInfo[i][0]}, Length : {round(self.AxisManager.axisInfo[i][1], 2)}}}")
 
-    def ArialCoverage(self, distance, rotation, preview=False, export=False):
+    def ArialCoverage(self, distance, rotation, preview=False, export=False, filename=None):
         if preview:
             try:
-                polygon = AxisGenerator(self.shd_bbox, float(rotation), float(distance))
-                self.linestrings = polygon.getPolylineCoords()
+                self.generator = AxisGenerator(self.shd_bbox, float(rotation), float(distance))
+                self.linestrings = self.generator.getPolylineCoords()
                 self.preview = True
                 self.dataRefresh()
                 self.preview = False
             except Exception as e:
                 pass
         else:
-            if self.linestrings:
-                pass
-            else:
-                polygon = AxisGenerator(self.shd_bbox, float(rotation), float(distance))
-                self.linestrings = polygon.getPolylineCoords()
+            if not self.linestrings:
+                self.generator = AxisGenerator(self.shd_bbox, float(rotation), float(distance))
+                self.linestrings = self.generator.getPolylineCoords()
+            self.AxisManager.set_filename(filename)
+
+            for line in self.linestrings:
+                self.axis_pts = line
+                self.linestring2polylineobj()
+                self.addItem()
+
+            self.axis_pts = []
+            self.dataRefresh()
+
             if export:
-                pass
+                name, _ = filename.split('.')
+                self.generator.linestrings2shapefile(name+'.shp')
 
     def mousePressEvent(self, mouseEvent):
         if mouseEvent.button() == QtCore.Qt.LeftButton and self.DrawAxis:
@@ -346,10 +357,12 @@ class OverviewWidget(QSvgWidget):
 
             self.axis_pts.append(self.pixel2world(mouseEvent.x(),mouseEvent.y()))
 
-            if self.AxisManager.axis == []:
-                self.color = 'blue'
-            else:
-                self.color = 'lightblue'
+            self.color = 'lightblue'
+
+            # if self.AxisManager.axis == []:
+            #     self.color = 'blue'
+            # else:
+            #     self.color = 'lightblue'
 
             if len(self.axis_pts) == 1:
                 self.drawAxis(firstPoint=True)

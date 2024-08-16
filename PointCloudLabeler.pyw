@@ -64,7 +64,7 @@ class CustomDialog(QDialog):
         self.ok_button.clicked.connect(self.accept)
 
         form_layout = QFormLayout()
-        form_layout.addRow('Rotation Angle:', self.rotation)
+        form_layout.addRow('Rotation Angle [deg]:', self.rotation)
         form_layout.addRow('Distance between the Axis:', self.distance)
         form_layout.addRow(self.shpFileExport)
         form_layout.addRow(self.ok_button)
@@ -212,10 +212,12 @@ class ClassificationTool(QtWidgets.QMainWindow):
         name, _ = os.path.splitext(data)
 
         try:
+            self.file_name = name
             odm_name = name + '.odm'
             grid_name = name + '_z.tif'
             shd_name = name + '_shd.tif'
             axis_odm_name = name + '_axis.odm'
+            #arial_axis_odm_name = name + '_arial_axis.odm'
 
              #import into odm if needed
             if os.path.isfile(odm_name) == False:
@@ -512,13 +514,20 @@ class ClassificationTool(QtWidgets.QMainWindow):
         defaultDistance = str(self.across)
         dialog = CustomDialog(self,defaultDistance=defaultDistance)
 
-
         dialog.preview_clicked.connect(lambda: self.handlePreview(dialog))
 
         if dialog.exec_() == QDialog.Accepted:
+            arial_axis_odm_name = self.file_name + '_arial_axis.odm'
+
             rotation = dialog.rotation.text()
             distance = dialog.distance.text()
-            self.Overview.ArialCoverage(distance=distance, rotation=rotation, preview=True, export=dialog.shpFileExport.isChecked())
+            self.Overview.ArialCoverage(distance=distance, rotation=rotation, preview=False, export=dialog.shpFileExport.isChecked(), filename=arial_axis_odm_name)
+            #setAxisManagement
+
+            if not self.axis_manager.empty():
+                self.axis_pts = self.axis_manager.polyline2linestring(self.axis_manager.axis[0][0])
+
+            self.viewFirstSection(File=False)
 
     def handlePreview(self, dialog):
         rotation = dialog.rotation.text()

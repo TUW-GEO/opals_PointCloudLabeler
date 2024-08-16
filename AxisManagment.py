@@ -12,12 +12,12 @@ class AxisManagement:
             else:
                 self.odm = pyDM.Datamanager.create(odm_filename, threadSafety=False)
         self._createlayout()
-        self.odm2idx = {}
-        self.idx2odm = {}
-        self.axis = []
-        self.allAxisPts = []
-        self.axisInfo = {}
-        self.splines = {}
+        # self.odm2idx = {}
+        # self.idx2odm = {}
+        # self.axis = []
+        # self.allAxisPts = []
+        # self.axisInfo = {}
+        # self.splines = {}
         self._dataRefresh()
 
     def _createlayout(self):
@@ -29,6 +29,9 @@ class AxisManagement:
         self.odm2idx = {}
         self.idx2odm = {}
         self.axisInfo = {}
+        self.axis = []
+        self.allAxisPts = []
+        self.splines = {}
         if not self.odm or not self.odm.sizeGeometry():
             return
         for obj in self.odm.geometries(self.layout):
@@ -43,6 +46,18 @@ class AxisManagement:
             pts = self.polyline2linestring(obj)
             self.allAxisPts.append(pts)
 
+    def _updatePolyline(self, pts, id):
+        f = pyDM.PolylineFactory()
+        for pt in pts:
+            f.addPoint(pt[0], pt[1])
+
+        new_polyline = f.getPolyline()
+
+        new_polyline.setAddInfoView(self.layout, False)
+        new_polyline.info().set(0, int(id))
+
+        self.odm.replacePolyline(new_polyline, attributeOnly=False)
+        self._dataRefresh()
 
     def set_filename(self, odm_filename):
         if self.odm:
@@ -141,10 +156,6 @@ class AxisManagement:
 
         self.save()
 
-    def save(self):
-        if self.odm:
-            self.odm.save()
-
     def InsertVertices(self, polyline,pt):
         id = polyline.info().get(0)
         self.idx = self.odm2idx[id]
@@ -155,18 +166,10 @@ class AxisManagement:
         pyDM.GeometricAlgorithms.analyseDistance(line=polyline, pt=point, callback=obj, d3=False)
 
         pts = self.polyline2linestring(polyline)
-
         vertices = sorted(obj.insertVertex)
         pts.insert(vertices[-1],[pt[0], pt[1]])
 
-        self.replacePolyline(pts, id)
-
-        self.allAxisPts[self.idx].insert(vertices[-1],[pt[0], pt[1]])
-
-        self.createSplines(self.allAxisPts[0], replace=True)
-
-        notes, length = self.information(pts, new=False)
-        self.axisInfo[self.idx] = [notes, length]
+        self._updatePolyline(pts, id)
 
         self.save()
 
@@ -180,18 +183,10 @@ class AxisManagement:
         pyDM.GeometricAlgorithms.analyseDistance(line=polyline, pt=point, callback=obj, maxDist=2, d3=False)
 
         pts = self.polyline2linestring(polyline)
-
         vertex = obj.pickedVertex
-
         pts.pop(vertex)
 
-        self.replacePolyline(pts, id)
-
-        self.allAxisPts[self.idx].pop(vertex)
-        self.createSplines(self.allAxisPts[0], replace=True)
-
-        notes, length = self.information(pts, new=False)
-        self.axisInfo[self.idx] = [notes, length]
+        self._updatePolyline(pts, id)
 
         self.save()
 
@@ -211,28 +206,12 @@ class AxisManagement:
         self.idx = self.odm2idx[id]
 
         pts = self.polyline2linestring(polyline)
-
         pts[vertexId] = [pt[0], pt[1]]
 
-        self.replacePolyline(pts, id)
-
-        self.allAxisPts[self.idx][vertexId] = [pt[0], pt[1]]
-
-        self.createSplines(self.allAxisPts[self.idx], replace=True)
-
-        notes, length = self.information(pts, new=False)
-        self.axisInfo[self.idx] = [notes, length]
+        self._updatePolyline(pts, id)
 
         self.save()
 
-    def replacePolyline(self, pts, id):
-        f = pyDM.PolylineFactory()
-        for pt in pts:
-            f.addPoint(pt[0], pt[1])
-
-        new_polyline = f.getPolyline()
-
-        new_polyline.setAddInfoView(self.layout, False)
-        new_polyline.info().set(0, int(id))
-
-        self.odm.replacePolyline(new_polyline, attributeOnly=False)
+    def save(self):
+        if self.odm:
+            self.odm.save()
