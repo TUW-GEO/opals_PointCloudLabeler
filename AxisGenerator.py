@@ -11,7 +11,7 @@ class AxisGenerator:
         self.corners = self.createPolygon(corners)
         self.polygon = Polygon(self.corners)
         self.angle = angle
-        self.space = space / math.cos(math.radians(angle))  # Anpassung des Abstands
+        self.space = space / math.cos(math.radians(angle))
         self.center = self.polygon.centroid
 
     def createPolygon(self, corners):
@@ -28,20 +28,15 @@ class AxisGenerator:
         max_dist = max(self.polygon.bounds[2] - self.polygon.bounds[0],
                        self.polygon.bounds[3] - self.polygon.bounds[1]) * 2
 
-        # Startlinie erstellen, die durch den Ursprung (0, 0) geht
         basis_line = LineString([(-max_dist, 0), (max_dist, 0)])
 
-        # Linie um den spezifizierten Winkel rotieren
         rotate_line = rotate(basis_line, self.angle, origin=(0, 0), use_radians=False)
 
-        # Linie in den Mittelpunkt des Polygons verschieben
         rotate_line = translate(rotate_line, xoff=self.center.x, yoff=self.center.y)
 
         shift = 0
 
-        # Linien in positive Richtung verschieben
         while True:
-            # Die Linie parallel verschieben
             shifted_line = translate(rotate_line, yoff=shift)
             intersect_pts = self.polygon.intersection(shifted_line)
 
@@ -54,12 +49,10 @@ class AxisGenerator:
 
             shift += self.space
 
-            # Überprüfung, ob die Linie das Polygon verlassen hat
             if not self.polygon.intersects(shifted_line):
                 break
 
-        # Linien in negative Richtung verschieben
-        shift = -self.space  # Beginne mit dem ersten negativen Abstand
+        shift = -self.space
         while True:
             # Die Linie parallel verschieben
             shifted_line = translate(rotate_line, yoff=shift)
@@ -74,7 +67,6 @@ class AxisGenerator:
 
             shift -= self.space
 
-            # Überprüfung, ob die Linie das Polygon verlassen hat
             if not self.polygon.intersects(shifted_line):
                 break
 

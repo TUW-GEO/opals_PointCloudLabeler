@@ -350,6 +350,10 @@ class OverviewWidget(QSvgWidget):
                 name, _ = filename.split('.')
                 self.generator.linestrings2shapefile(name+'.shp')
 
+    def clear(self):
+        self.linestrings = None
+        self.dataRefresh()
+
     def mousePressEvent(self, mouseEvent):
         if mouseEvent.button() == QtCore.Qt.LeftButton and self.DrawAxis:
             self.width = self.size().width()
@@ -358,11 +362,6 @@ class OverviewWidget(QSvgWidget):
             self.axis_pts.append(self.pixel2world(mouseEvent.x(),mouseEvent.y()))
 
             self.color = 'lightblue'
-
-            # if self.AxisManager.axis == []:
-            #     self.color = 'blue'
-            # else:
-            #     self.color = 'lightblue'
 
             if len(self.axis_pts) == 1:
                 self.drawAxis(firstPoint=True)
@@ -424,7 +423,6 @@ class OverviewWidget(QSvgWidget):
     def mouseMoveEvent(self, mouseEvent):
         if int(mouseEvent.buttons()) & QtCore.Qt.LeftButton and self.move:
             self.mouse = (mouseEvent.x(), mouseEvent.y())
-            #self.createCircleCursor()
 
     def mouseReleaseEvent(self, mouseEvent):
         if mouseEvent.button() == QtCore.Qt.LeftButton and self.move:
@@ -465,8 +463,7 @@ class OverviewWidget(QSvgWidget):
     def updateCursor(self):
         if self.DrawAxis:
             self.setCursor(self.crossCursor)
-        #elif self.move and self.leftButtonPressed:
-         #   self.setCursor(self.circleCursor)
+
         else:
             self.unsetCursor()
     def eventFilter(self, source, event):

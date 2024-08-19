@@ -12,12 +12,6 @@ class AxisManagement:
             else:
                 self.odm = pyDM.Datamanager.create(odm_filename, threadSafety=False)
         self._createlayout()
-        # self.odm2idx = {}
-        # self.idx2odm = {}
-        # self.axis = []
-        # self.allAxisPts = []
-        # self.axisInfo = {}
-        # self.splines = {}
         self._dataRefresh()
 
     def _createlayout(self):

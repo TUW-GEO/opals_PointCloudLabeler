@@ -46,11 +46,24 @@ class CustomDialog(QDialog):
         super().__init__(parent)
         self.defaultDistance = defaultDistance
         self.initUI()
+        self.finished.connect(self._close)
 
     def initUI(self):
         self.setWindowTitle('Axis Generation - Parameter Setting')
 
+        # Textfeld für Rotation und zwei zusätzliche Buttons
         self.rotation = QLineEdit(self)
+        self.rotation.setPlaceholderText('Rotation Angle [deg]')
+
+        self.rotation_minus_button = QPushButton('-', self)
+        self.rotation_minus_button.setFixedSize(30, 25)
+        self.rotation_minus_button.clicked.connect(self.decrease_rotation)
+
+        self.rotation_plus_button = QPushButton('+', self)
+        self.rotation_plus_button.setFixedSize(30, 25)
+        self.rotation_plus_button.clicked.connect(self.increase_rotation)
+
+        # Textfeld für die Distanz
         self.distance = QLineEdit(self)
         self.distance.setText(self.defaultDistance)
 
@@ -59,12 +72,16 @@ class CustomDialog(QDialog):
 
         self.preview_button = QPushButton('Preview', self)
         self.preview_button.clicked.connect(self.handle_preview)
+        self.rotation_plus_button.clicked.connect(self.handle_preview)
+        self.rotation_minus_button.clicked.connect(self.handle_preview)
 
         self.ok_button = QPushButton('OK', self)
         self.ok_button.clicked.connect(self.accept)
 
+        # Layout
         form_layout = QFormLayout()
         form_layout.addRow('Rotation Angle [deg]:', self.rotation)
+        form_layout.addRow('', self.create_rotation_button_layout())
         form_layout.addRow('Distance between the Axis:', self.distance)
         form_layout.addRow(self.shpFileExport)
         form_layout.addRow(self.ok_button)
@@ -72,9 +89,27 @@ class CustomDialog(QDialog):
 
         self.setLayout(form_layout)
 
+    def create_rotation_button_layout(self):
+        button_layout = QtWidgets.QHBoxLayout()
+        button_layout.addWidget(self.rotation_minus_button)
+        button_layout.addWidget(self.rotation_plus_button)
+        return button_layout
+
     def handle_preview(self):
         self.preview_clicked.emit()
 
+    def _close(self):
+        self.parent().closeDialog(self)
+
+    def increase_rotation(self):
+        current_value = float(self.rotation.text() or 0)
+        self.rotation.setText(str(current_value + 1))
+
+    def decrease_rotation(self):
+        current_value = float(self.rotation.text() or 0)
+        self.rotation.setText(str(current_value - 1))
+    def _close(self):
+        self.parent().closeDialog(self)
 
 class ClassificationTool(QtWidgets.QMainWindow):
     def __init__(self):
@@ -515,6 +550,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
         dialog = CustomDialog(self,defaultDistance=defaultDistance)
 
         dialog.preview_clicked.connect(lambda: self.handlePreview(dialog))
+        dialog.finished.connect(lambda: self.closeDialog(dialog))
 
         if dialog.exec_() == QDialog.Accepted:
             arial_axis_odm_name = self.file_name + '_arial_axis.odm'
@@ -528,11 +564,17 @@ class ClassificationTool(QtWidgets.QMainWindow):
                 self.axis_pts = self.axis_manager.polyline2linestring(self.axis_manager.axis[0][0])
 
             self.viewFirstSection(File=False)
+            self.PathToAxisShp.setText(os.path.abspath(arial_axis_odm_name))
+            self.PathToAxisShp.setEnabled(False)
 
     def handlePreview(self, dialog):
         rotation = dialog.rotation.text()
         distance = dialog.distance.text()
         self.Overview.ArialCoverage(distance=distance, rotation=rotation, preview=True)
+
+    def closeDialog(self, dialog):
+        self.Overview.clear()
+
 
     def changePolygonSize(self):
         if not self.station_axis:
