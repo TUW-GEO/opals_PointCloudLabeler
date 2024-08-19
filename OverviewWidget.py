@@ -1,6 +1,6 @@
 from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtSvg import QSvgWidget
-from PyQt5.QtWidgets import QFileDialog, QMessageBox
+from PyQt5.QtWidgets import QFileDialog, QMessageBox, QVBoxLayout, QHBoxLayout, QPushButton
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 import svgwrite
@@ -28,7 +28,7 @@ class OverviewWidget(QSvgWidget):
         self.SelectAxis = None
         self.AxisList = None
         self.createCrossCursor()
-        #self.createCircleCursor()
+        # self.createCircleCursor()
         self.AxisManager = None
         self.stroke_width = 0.5
         self.is_loading = False
@@ -40,6 +40,30 @@ class OverviewWidget(QSvgWidget):
         self.leftButtonPressed = False
         self.linestrings = None
         self.preview = False
+        self.zoom_factor = 1.0
+
+    def zoomIn(self):
+        self.zoom_factor *= 1.2  # Vergrößern um 10%
+        self.dataRefresh()
+
+    def zoomOut(self):
+        self.zoom_factor /= 1.2  # Verkleinern um 10%
+        self.dataRefresh()
+
+    # def updateZoom(self):
+    #     if not self.shd_bbox:
+    #         return
+    #
+    #     # Berechnen der neuen Ansicht mit Zoom
+    #     new_dx = self.dx / self.zoom_factor
+    #     new_dy = self.dy / self.zoom_factor
+    #
+    #     minx = self.shd_bbox[0][0] - self.red_x
+    #     miny = self.red_y - self.shd_bbox[0][1]
+    #
+    #     # Aktualisieren der Viewbox mit neuen Werten
+    #     self.svg.viewbox(minx=minx, miny=miny, width=new_dx, height=new_dy)
+    #     self.dataRefresh()
 
     def setAxisList(self, listWidget):
         self.AxisList = listWidget
@@ -102,17 +126,17 @@ class OverviewWidget(QSvgWidget):
         self.red_y = self.shd_bbox[0][1]  # upper coordinate of shading
 
         minx = self.shd_bbox[0][0] - self.red_x
-        miny = self.red_y-self.shd_bbox[0][1]
+        miny = self.red_y - self.shd_bbox[0][1]
 
         self.dx = self.shd_bbox[1][0] - self.shd_bbox[0][0]
         self.dy = self.shd_bbox[0][1] - self.shd_bbox[1][1]
 
-        self.svg.viewbox(minx=minx, miny=miny, width=self.dx, height=self.dy)
-        self.svg.add(self.svg.image(href=self.shd_filename, insert=(minx,miny), size=(self.dx,self.dy)))
+        self.svg.viewbox(minx=minx, miny=miny, width=self.dx / self.zoom_factor, height=self.dy / self.zoom_factor)
+        self.svg.add(self.svg.image(href=self.shd_filename, insert=(minx, miny), size=(self.dx, self.dy)))
 
         width, height = self.size().width(), self.size().height()
 
-        # we use Qt.KeepAspectRatio for drawing so the larger svg/pixel ratio defines scale
+        # We use Qt.KeepAspectRatio for drawing so the larger svg/pixel ratio defines scale
         rx = self.dx / width
         ry = self.dy / height
         self.scale_pixel2svg = max([rx, ry])
@@ -143,7 +167,6 @@ class OverviewWidget(QSvgWidget):
                     self.color = 'lightblue'
                     self.axis_pts = line
                     self.drawAxis()
-
 
         except Exception as e:
             pass
