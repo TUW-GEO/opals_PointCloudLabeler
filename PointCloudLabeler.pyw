@@ -233,6 +233,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
         self.ZoomIn.pressed.connect(self.Overview.zoomIn)
         self.ZoomOut.pressed.connect(self.Overview.zoomOut)
+        self.ZoomAll.pressed.connect(self.Overview.zoomOnLayer)
 
     def load_pointcloud(self, path=None):
        #path = str(self.PathToFile.text()).strip()

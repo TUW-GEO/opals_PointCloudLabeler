@@ -41,29 +41,23 @@ class OverviewWidget(QSvgWidget):
         self.linestrings = None
         self.preview = False
         self.zoom_factor = 1.0
+        #self.wheel = 0
+        self.pan_active = False
+        self.last_mouse_position = None
+        self.offset_x = 0
+        self.offset_y = 0
 
     def zoomIn(self):
-        self.zoom_factor *= 1.2  # Vergrößern um 10%
+        self.zoom_factor *= 1.1
         self.dataRefresh()
 
     def zoomOut(self):
-        self.zoom_factor /= 1.2  # Verkleinern um 10%
+        self.zoom_factor /= 1.1
         self.dataRefresh()
 
-    # def updateZoom(self):
-    #     if not self.shd_bbox:
-    #         return
-    #
-    #     # Berechnen der neuen Ansicht mit Zoom
-    #     new_dx = self.dx / self.zoom_factor
-    #     new_dy = self.dy / self.zoom_factor
-    #
-    #     minx = self.shd_bbox[0][0] - self.red_x
-    #     miny = self.red_y - self.shd_bbox[0][1]
-    #
-    #     # Aktualisieren der Viewbox mit neuen Werten
-    #     self.svg.viewbox(minx=minx, miny=miny, width=new_dx, height=new_dy)
-    #     self.dataRefresh()
+    def zoomOnLayer(self):
+        self.zoom_factor = 1
+        self.dataRefresh()
 
     def setAxisList(self, listWidget):
         self.AxisList = listWidget
@@ -125,8 +119,8 @@ class OverviewWidget(QSvgWidget):
         self.red_x = self.shd_bbox[0][0]  # left coordinate of shading
         self.red_y = self.shd_bbox[0][1]  # upper coordinate of shading
 
-        minx = self.shd_bbox[0][0] - self.red_x
-        miny = self.red_y - self.shd_bbox[0][1]
+        minx = (self.shd_bbox[0][0] - self.red_x) + self.offset_x
+        miny = (self.red_y - self.shd_bbox[0][1]) + self.offset_y
 
         self.dx = self.shd_bbox[1][0] - self.shd_bbox[0][0]
         self.dy = self.shd_bbox[0][1] - self.shd_bbox[1][1]
@@ -420,6 +414,11 @@ class OverviewWidget(QSvgWidget):
             except Exception as e:
                 return
 
+        if mouseEvent.button() == QtCore.Qt.RightButton:
+            self.pan_active = True
+            self.last_mouse_position = mouseEvent.pos()
+
+
         if mouseEvent.button() == QtCore.Qt.LeftButton and self.insert:
             pt = self.pixel2world(mouseEvent.x(), mouseEvent.y())
             line = self.AxisManager.getByCoords(pt[0], pt[1])
@@ -447,6 +446,13 @@ class OverviewWidget(QSvgWidget):
         if int(mouseEvent.buttons()) & QtCore.Qt.LeftButton and self.move:
             self.mouse = (mouseEvent.x(), mouseEvent.y())
 
+        if int(mouseEvent.buttons()) & QtCore.Qt.RightButton and self.pan_active:
+            delta = mouseEvent.pos() - self.last_mouse_position
+            self.offset_x += delta.x()
+            self.offset_y += delta.y()
+            self.last_mouse_position = mouseEvent.pos()
+            self.dataRefresh()
+
     def mouseReleaseEvent(self, mouseEvent):
         if mouseEvent.button() == QtCore.Qt.LeftButton and self.move:
             pt = self.pixel2world(mouseEvent.x(), mouseEvent.y())
@@ -457,6 +463,16 @@ class OverviewWidget(QSvgWidget):
             #self.leftButtonPressed = False
             self.dataRefresh()
             self.updateItemLabels()
+
+        if mouseEvent.buttons() == QtCore.Qt.RightButton:
+            self.pan_active = False
+
+    def wheelEvent(self, event):
+        if event.angleDelta().y() > 0:
+            self.zoomIn()
+        else:
+            self.zoomOut()
+
 
     # def createCircleCursor(self):
     #     cursor_pixmap = QPixmap(32, 32)
