@@ -81,7 +81,7 @@ class CustomDialog(QDialog):
         # Layout
         form_layout = QFormLayout()
         form_layout.addRow('Rotation Angle [deg]:', self.rotation)
-        form_layout.addRow('', self.create_rotation_button_layout())
+        form_layout.addRow('', self.rotationButtons())
         form_layout.addRow('Distance between the Axis:', self.distance)
         form_layout.addRow(self.shpFileExport)
         form_layout.addRow(self.ok_button)
@@ -89,7 +89,7 @@ class CustomDialog(QDialog):
 
         self.setLayout(form_layout)
 
-    def create_rotation_button_layout(self):
+    def rotationButtons(self):
         button_layout = QtWidgets.QHBoxLayout()
         button_layout.addWidget(self.rotation_minus_button)
         button_layout.addWidget(self.rotation_plus_button)
@@ -103,6 +103,7 @@ class CustomDialog(QDialog):
 
     def increase_rotation(self):
         current_value = float(self.rotation.text() or 0)
+        #current_value = float(0)
         self.rotation.setText(str(current_value + 1))
 
     def decrease_rotation(self):

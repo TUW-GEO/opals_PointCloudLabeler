@@ -44,20 +44,31 @@ class OverviewWidget(QSvgWidget):
         #self.wheel = 0
         self.pan_active = False
         self.last_mouse_position = None
-        self.offset_x = 0
-        self.offset_y = 0
 
     def zoomIn(self):
         self.zoom_factor *= 1.1
+        self.updateBoundingBox()
         self.dataRefresh()
 
     def zoomOut(self):
         self.zoom_factor /= 1.1
+        self.updateBoundingBox()
         self.dataRefresh()
 
     def zoomOnLayer(self):
         self.zoom_factor = 1
+        self.updateBoundingBox()
         self.dataRefresh()
+
+    def updateBoundingBox(self):
+        # Recalculate the bounding box to keep the center fixed
+        #center_x = (self.shd_bbox[0][0] + self.shd_bbox[1][0]) / 2
+        #center_y = (self.shd_bbox[0][1] + self.shd_bbox[1][1]) / 2
+
+        half_width = (self.shd_bbox_copy[1][0] - self.shd_bbox_copy[0][0]) / (2 * self.zoom_factor)
+        half_height = (self.shd_bbox_copy[0][1] - self.shd_bbox_copy[1][1]) / (2 * self.zoom_factor)
+
+        self.shd_bbox = [(self.center_x - half_width, self.center_y + half_height), (self.center_x + half_width, self.center_y - half_height)]
 
     def setAxisList(self, listWidget):
         self.AxisList = listWidget
@@ -84,7 +95,10 @@ class OverviewWidget(QSvgWidget):
         self.shd_filename = filename
         ds = gdal.Open(self.shd_filename, gdal.GA_ReadOnly)
         self.shd_geotrafo = ds.GetGeoTransform()
+        self.shd_bbox_copy = [self.raster2world(0, 0), self.raster2world(ds.RasterXSize, ds.RasterYSize)]
         self.shd_bbox = [self.raster2world(0, 0), self.raster2world(ds.RasterXSize, ds.RasterYSize)]
+        self.center_x = (self.shd_bbox[0][0] + self.shd_bbox[1][0]) / 2
+        self.center_y = (self.shd_bbox[0][1] + self.shd_bbox[1][1]) / 2
         del ds
 
     def setSelectionBox(self,p1,p2,p3,p4):
@@ -107,7 +121,6 @@ class OverviewWidget(QSvgWidget):
 
     def pixel2world(self, px, py):
         sx, sy = self.pixel2svg(px, py)
-
         wx = self.red_x + sx
         wy = self.red_y - sy
         return wx, wy
@@ -119,13 +132,13 @@ class OverviewWidget(QSvgWidget):
         self.red_x = self.shd_bbox[0][0]  # left coordinate of shading
         self.red_y = self.shd_bbox[0][1]  # upper coordinate of shading
 
-        minx = (self.shd_bbox[0][0] - self.red_x) + self.offset_x
-        miny = (self.red_y - self.shd_bbox[0][1]) + self.offset_y
+        minx = (self.shd_bbox[0][0] - self.red_x) #+ self.offset_x
+        miny = (self.red_y - self.shd_bbox[0][1]) #+ self.offset_y
 
         self.dx = self.shd_bbox[1][0] - self.shd_bbox[0][0]
         self.dy = self.shd_bbox[0][1] - self.shd_bbox[1][1]
 
-        self.svg.viewbox(minx=minx, miny=miny, width=self.dx / self.zoom_factor, height=self.dy / self.zoom_factor)
+        self.svg.viewbox(minx=minx, miny=miny, width=self.dx/self.zoom_factor, height=self.dy/self.zoom_factor)
         self.svg.add(self.svg.image(href=self.shd_filename, insert=(minx, miny), size=(self.dx, self.dy)))
 
         width, height = self.size().width(), self.size().height()
@@ -443,6 +456,7 @@ class OverviewWidget(QSvgWidget):
             self.updateItemLabels()
 
     def mouseMoveEvent(self, mouseEvent):
+        print(self.pixel2world(mouseEvent.x(),mouseEvent.y()))
         if int(mouseEvent.buttons()) & QtCore.Qt.LeftButton and self.move:
             self.mouse = (mouseEvent.x(), mouseEvent.y())
 
