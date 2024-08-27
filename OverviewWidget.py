@@ -40,35 +40,42 @@ class OverviewWidget(QSvgWidget):
         self.leftButtonPressed = False
         self.linestrings = None
         self.preview = False
-        self.zoom_factor = 1.0
-        #self.wheel = 0
-        self.pan_active = False
-        self.last_mouse_position = None
+        self.aspect_ratio = None
+        self.svg_vb_minx = None
+        self.svg_vb_miny = None
+        self.svg_vb_dx = None
+        self.svg_vb_dy = None
+        self.svg_zoom = 1
+        self.svg_zoom_factor = 1.1
+        self.red_x = None
+        self.red_y = None
+
+    def zoom(self,px, py, factor):
+        widget_width = self.size().width()
+        widget_height = self.size().height()
+
+        self.svg_vb_minx = px * self.svg_vb_dx * (factor-1) / (self.svg_zoom*factor*widget_width)  + self.svg_vb_minx
+        self.svg_vb_miny = py * self.svg_vb_dy * (factor-1) / (self.svg_zoom*factor*widget_height) + self.svg_vb_miny
+
+        self.svg_zoom *= factor
+        self.dataRefresh()
+
 
     def zoomIn(self):
-        self.zoom_factor *= 1.1
-        self.updateBoundingBox()
-        self.dataRefresh()
+        self.zoom(self.size().width()/2., self.size().height()/2., 1.1)
 
     def zoomOut(self):
-        self.zoom_factor /= 1.1
-        self.updateBoundingBox()
-        self.dataRefresh()
+        self.zoom(self.size().width()/2., self.size().height()/2., 1/1.1)
 
     def zoomOnLayer(self):
-        self.zoom_factor = 1
-        self.updateBoundingBox()
+
+        self.zoom(self.size().width()/2., self.size().height()/2., 1 / self.svg_zoom)
+        self.svg_vb_minx = 0
+        self.svg_vb_miny = 0
+        self.svg_vb_dx = self.svg_vb_dx_init
+        self.svg_vb_dy = self.svg_vb_dy_init
+
         self.dataRefresh()
-
-    def updateBoundingBox(self):
-        # Recalculate the bounding box to keep the center fixed
-        #center_x = (self.shd_bbox[0][0] + self.shd_bbox[1][0]) / 2
-        #center_y = (self.shd_bbox[0][1] + self.shd_bbox[1][1]) / 2
-
-        half_width = (self.shd_bbox_copy[1][0] - self.shd_bbox_copy[0][0]) / (2 * self.zoom_factor)
-        half_height = (self.shd_bbox_copy[0][1] - self.shd_bbox_copy[1][1]) / (2 * self.zoom_factor)
-
-        self.shd_bbox = [(self.center_x - half_width, self.center_y + half_height), (self.center_x + half_width, self.center_y - half_height)]
 
     def setAxisList(self, listWidget):
         self.AxisList = listWidget
@@ -92,13 +99,30 @@ class OverviewWidget(QSvgWidget):
         return x,y
 
     def setShading(self,filename):
+        self.aspect_ratio = self.size().width() / self.size().height()
         self.shd_filename = filename
         ds = gdal.Open(self.shd_filename, gdal.GA_ReadOnly)
         self.shd_geotrafo = ds.GetGeoTransform()
-        self.shd_bbox_copy = [self.raster2world(0, 0), self.raster2world(ds.RasterXSize, ds.RasterYSize)]
         self.shd_bbox = [self.raster2world(0, 0), self.raster2world(ds.RasterXSize, ds.RasterYSize)]
-        self.center_x = (self.shd_bbox[0][0] + self.shd_bbox[1][0]) / 2
-        self.center_y = (self.shd_bbox[0][1] + self.shd_bbox[1][1]) / 2
+        self.svg_vb_minx = 0
+        self.svg_vb_miny = 0
+        dx = self.shd_bbox[1][0]-self.shd_bbox[0][0]
+        dy = self.shd_bbox[0][1]-self.shd_bbox[1][1]
+        if dx > dy*self.aspect_ratio:
+            size = dx
+        else:
+            size = dy*self.aspect_ratio
+        self.svg_zoom = 1
+        self.svg_vb_dx = size
+        self.svg_vb_dy = size/self.aspect_ratio
+
+        self.svg_vb_dx_init = size
+        self.svg_vb_dy_init = size/self.aspect_ratio
+        self.svg_vb_minx_init = 0
+        self.svg_vb_miny_init = 0
+
+        self.red_x = self.shd_bbox[0][0]
+        self.red_y = self.shd_bbox[0][1]
         del ds
 
     def setSelectionBox(self,p1,p2,p3,p4):
@@ -114,13 +138,20 @@ class OverviewWidget(QSvgWidget):
         return sx, sy
 
     def pixel2svg(self, px, py):
-        width, height = self.size().width(), self.size().height()
-        sx = (px - width/2)*self.scale_pixel2svg + self.dx/2
-        sy = (py - height/2)*self.scale_pixel2svg + self.dy/2
+        widget_width = self.size().width()
+        widget_height = self.size().height()
+
+        scale_x = self.svg_vb_dx / (self.svg_zoom * widget_width)
+        scale_y = self.svg_vb_dy / (self.svg_zoom * widget_height)
+
+        sx = px * scale_x + self.svg_vb_minx
+        sy = py * scale_y + self.svg_vb_miny
+
         return sx, sy
 
     def pixel2world(self, px, py):
         sx, sy = self.pixel2svg(px, py)
+
         wx = self.red_x + sx
         wy = self.red_y - sy
         return wx, wy
@@ -128,25 +159,10 @@ class OverviewWidget(QSvgWidget):
     def dataRefresh(self):
         self.svg = svgwrite.Drawing()
 
-        # svg coordinate origin is upper left of shading
-        self.red_x = self.shd_bbox[0][0]  # left coordinate of shading
-        self.red_y = self.shd_bbox[0][1]  # upper coordinate of shading
-
-        minx = (self.shd_bbox[0][0] - self.red_x) #+ self.offset_x
-        miny = (self.red_y - self.shd_bbox[0][1]) #+ self.offset_y
-
-        self.dx = self.shd_bbox[1][0] - self.shd_bbox[0][0]
-        self.dy = self.shd_bbox[0][1] - self.shd_bbox[1][1]
-
-        self.svg.viewbox(minx=minx, miny=miny, width=self.dx/self.zoom_factor, height=self.dy/self.zoom_factor)
-        self.svg.add(self.svg.image(href=self.shd_filename, insert=(minx, miny), size=(self.dx, self.dy)))
-
-        width, height = self.size().width(), self.size().height()
-
-        # We use Qt.KeepAspectRatio for drawing so the larger svg/pixel ratio defines scale
-        rx = self.dx / width
-        ry = self.dy / height
-        self.scale_pixel2svg = max([rx, ry])
+        self.svg.viewbox(minx=self.svg_vb_minx, miny=self.svg_vb_miny, width=self.svg_vb_dx/self.svg_zoom, height=self.svg_vb_dy/self.svg_zoom)
+        dx = self.shd_bbox[1][0] - self.shd_bbox[0][0]
+        dy = self.shd_bbox[0][1] - self.shd_bbox[1][1]
+        self.svg.add(self.svg.image(href=self.shd_filename, insert=(0, 0), size=(dx, dy)))
 
         try:
             for line in self.AxisManager.axis:
@@ -218,7 +234,8 @@ class OverviewWidget(QSvgWidget):
         svg_xml = self.svg.tostring()
         svg_bytes = bytearray(svg_xml, encoding='utf-8')
         self.renderer().load(svg_bytes)
-        self.renderer().setAspectRatioMode(QtCore.Qt.KeepAspectRatio)
+        # self.renderer().setAspectRatioMode(QtCore.Qt.KeepAspectRatio)
+
         self.update()
 
     def changeLineWidth(self,value):
@@ -398,7 +415,6 @@ class OverviewWidget(QSvgWidget):
             elif len(self.axis_pts) > 1:
                 self.drawAxis()
 
-
         if mouseEvent.button() == QtCore.Qt.RightButton and self.axis_pts != [] and self.DrawAxis:
             try:
                 self.linestring2polylineobj()
@@ -427,11 +443,6 @@ class OverviewWidget(QSvgWidget):
             except Exception as e:
                 return
 
-        if mouseEvent.button() == QtCore.Qt.RightButton:
-            self.pan_active = True
-            self.last_mouse_position = mouseEvent.pos()
-
-
         if mouseEvent.button() == QtCore.Qt.LeftButton and self.insert:
             pt = self.pixel2world(mouseEvent.x(), mouseEvent.y())
             line = self.AxisManager.getByCoords(pt[0], pt[1])
@@ -455,17 +466,23 @@ class OverviewWidget(QSvgWidget):
             self.dataRefresh()
             self.updateItemLabels()
 
+        elif mouseEvent.button() == QtCore.Qt.RightButton:
+            self.last_pos = (mouseEvent.x(), mouseEvent.y())
+
     def mouseMoveEvent(self, mouseEvent):
-        print(self.pixel2world(mouseEvent.x(),mouseEvent.y()))
+        self.pos = (mouseEvent.x(), mouseEvent.y())
+
         if int(mouseEvent.buttons()) & QtCore.Qt.LeftButton and self.move:
             self.mouse = (mouseEvent.x(), mouseEvent.y())
 
-        if int(mouseEvent.buttons()) & QtCore.Qt.RightButton and self.pan_active:
-            delta = mouseEvent.pos() - self.last_mouse_position
-            self.offset_x += delta.x()
-            self.offset_y += delta.y()
-            self.last_mouse_position = mouseEvent.pos()
+        elif int(mouseEvent.buttons()) & QtCore.Qt.RightButton:
+            dx = self.last_pos[0]-mouseEvent.x()
+            dy = self.last_pos[1]-mouseEvent.y()
+            svg_dx, svg_dy = self.pixel2svg(dx, dy)
+            self.svg_vb_minx = svg_dx
+            self.svg_vb_miny = svg_dy
             self.dataRefresh()
+            self.last_pos = (mouseEvent.x(), mouseEvent.y())
 
     def mouseReleaseEvent(self, mouseEvent):
         if mouseEvent.button() == QtCore.Qt.LeftButton and self.move:
@@ -478,17 +495,17 @@ class OverviewWidget(QSvgWidget):
             self.dataRefresh()
             self.updateItemLabels()
 
-        if mouseEvent.buttons() == QtCore.Qt.RightButton:
-            self.pan_active = False
+        elif mouseEvent.button() == QtCore.Qt.LeftButton:
+            self.stop = (mouseEvent.x(),mouseEvent.y())
+            self.delta = (0,0)
 
     def wheelEvent(self, event):
         if event.angleDelta().y() > 0:
-            self.zoomIn()
+            self.zoom(self.pos[0],self.pos[1],1.1)
         else:
-            self.zoomOut()
+            self.zoom(self.pos[0],self.pos[1],1/1.1)
 
-
-    # def createCircleCursor(self):
+        # def createCircleCursor(self):
     #     cursor_pixmap = QPixmap(32, 32)
     #     cursor_pixmap.fill(Qt.transparent)
     #     painter = QPainter(cursor_pixmap)
