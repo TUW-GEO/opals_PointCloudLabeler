@@ -2,7 +2,7 @@ import numpy
 from opals import Import, Grid, Shade, pyDM
 from PyQt5 import QtWidgets,uic, QtCore
 from PyQt5.QtGui import *
-from PyQt5.QtWidgets import QFileDialog, QDialog, QLineEdit, QPushButton, QFormLayout, QCheckBox
+from PyQt5.QtWidgets import QFileDialog, QDialog, QLineEdit, QPushButton, QFormLayout, QCheckBox, QHBoxLayout
 import os
 import opals
 import numpy as np
@@ -46,46 +46,51 @@ class CustomDialog(QDialog):
         super().__init__(parent)
         self.defaultDistance = defaultDistance
         self.initUI()
+        QtCore.QTimer.singleShot(0, self.handle_preview)
         self.finished.connect(self._close)
 
     def initUI(self):
         self.setWindowTitle('Axis Generation - Parameter Setting')
 
-        # Textfeld für Rotation und zwei zusätzliche Buttons
         self.rotation = QLineEdit(self)
-        self.rotation.setPlaceholderText('Rotation Angle [deg]')
-
-        self.rotation_minus_button = QPushButton('-', self)
-        self.rotation_minus_button.setFixedSize(30, 25)
-        self.rotation_minus_button.clicked.connect(self.decrease_rotation)
+        self.rotation.setText('0')
+        self.rotation.setFixedSize(50, 25)
 
         self.rotation_plus_button = QPushButton('+', self)
         self.rotation_plus_button.setFixedSize(30, 25)
         self.rotation_plus_button.clicked.connect(self.increase_rotation)
+        self.rotation_plus_button.setFocusPolicy(QtCore.Qt.NoFocus)
 
-        # Textfeld für die Distanz
+        self.rotation_minus_button = QPushButton('-', self)
+        self.rotation_minus_button.setFixedSize(30, 25)
+        self.rotation_minus_button.clicked.connect(self.decrease_rotation)
+        self.rotation_minus_button.setFocusPolicy(QtCore.Qt.NoFocus)
+
+        rotation_layout = QHBoxLayout()
+        rotation_layout.addWidget(self.rotation)
+        rotation_layout.addWidget(self.rotation_plus_button)
+        rotation_layout.addWidget(self.rotation_minus_button)
+
         self.distance = QLineEdit(self)
         self.distance.setText(self.defaultDistance)
+        self.distance.setFixedSize(50, 25)
 
         self.shpFileExport = QCheckBox("Export to shp-File", self)
         self.shpFileExport.setChecked(False)
 
-        self.preview_button = QPushButton('Preview', self)
-        self.preview_button.clicked.connect(self.handle_preview)
         self.rotation_plus_button.clicked.connect(self.handle_preview)
         self.rotation_minus_button.clicked.connect(self.handle_preview)
 
         self.ok_button = QPushButton('OK', self)
         self.ok_button.clicked.connect(self.accept)
+        self.ok_button.setDefault(True)
+        self.ok_button.setFocusPolicy(QtCore.Qt.NoFocus)
 
-        # Layout
         form_layout = QFormLayout()
-        form_layout.addRow('Rotation Angle [deg]:', self.rotation)
-        form_layout.addRow('', self.rotationButtons())
+        form_layout.addRow('Rotation Angle [deg]:', rotation_layout)
         form_layout.addRow('Distance between the Axis:', self.distance)
         form_layout.addRow(self.shpFileExport)
         form_layout.addRow(self.ok_button)
-        form_layout.addRow(self.preview_button)
 
         self.setLayout(form_layout)
 
@@ -103,7 +108,6 @@ class CustomDialog(QDialog):
 
     def increase_rotation(self):
         current_value = float(self.rotation.text() or 0)
-        #current_value = float(0)
         self.rotation.setText(str(current_value + 1))
 
     def decrease_rotation(self):
@@ -111,6 +115,9 @@ class CustomDialog(QDialog):
         self.rotation.setText(str(current_value - 1))
     def _close(self):
         self.parent().closeDialog(self)
+    def keyReleaseEvent(self, event):
+        if event.key() == QtCore.Qt.Key_Return:
+            self.handle_preview()
 
 class ClassificationTool(QtWidgets.QMainWindow):
     def __init__(self):
@@ -193,6 +200,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.PathToAxisShp.setEnabled(False)
 
         self.LoadButton.pressed.connect(self.load_pointcloud)
+        self.LoadAxis.pressed.connect(self.clearAxisView)
         self.LoadAxis.pressed.connect(self.viewFirstSection)
 
         self.Next.pressed.connect(self.nextSection)
@@ -281,23 +289,25 @@ class ClassificationTool(QtWidgets.QMainWindow):
             QtWidgets.QMessageBox(QtWidgets.QMessageBox.Warning, "Warning",
                                   "Wrong file type! \nPlease choose a file with the right type. ").exec_()
 
+        try:
+            if os.path.isfile(axis_odm_name) == False:
+                self.axis_manager = AxisManagement(axis_odm_name)
+                self.Overview.setAxisManagement(self.axis_manager)
+                self.Overview.AxisODMPath = os.path.abspath(axis_odm_name)
+            else:
+                self.axis_manager = AxisManagement(None)
+                self.Overview.setAxisManagement(self.axis_manager)
+                #self.Overview.AxisODMPath = os.path.abspath(axis_odm_name)
 
-        if os.path.isfile(axis_odm_name) == False:
-            self.axis_manager = AxisManagement(axis_odm_name)
-            self.Overview.setAxisManagement(self.axis_manager)
-        else:
-            self.axis_manager = AxisManagement(None)
-            self.Overview.setAxisManagement(self.axis_manager)
+            self.Overview.setShading(shd_name)
+            self.Overview.dataRefresh()
+            self.Overview.SelectAxis = True
 
-        self.Overview.setShading(shd_name)
-        self.Overview.dataRefresh()
+            self.PathToFile.setEnabled(False)
+            self.PathToAxisShp.setEnabled(True)
 
-        self.PathToFile.setEnabled(False)
-        self.PathToAxisShp.setEnabled(True)
-
-        #except Exception as e:
-         #   QtWidgets.QMessageBox(QtWidgets.QMessageBox.Warning, "Warning",
-          #                        "Wrong file type! \nPlease choose a file with the right type. ").exec_()
+        except Exception as e:
+            return
 
     def load_axis(self,File=True):
         if self.PathToAxisShp.text() == '':
@@ -390,7 +400,6 @@ class ClassificationTool(QtWidgets.QMainWindow):
         # create the polygon
         polygon = create_polygon(p1, p2, p3, p4)
         self.Overview.setSelectionBox(p1, p2, p3, p4)
-        #self.Overview.dataRefresh()
         self.Overview.drawSection()
 
         # extract the points inside of the polygon
@@ -487,15 +496,25 @@ class ClassificationTool(QtWidgets.QMainWindow):
         else:
             self.Section._clear()
 
+    def clearAxisView(self):
+        self.AxisView.clear()
+
     def viewFirstSection(self,File=True):
         try:
             if not self.odm:
                 return
+            if self.Overview.AxisView:
+                self.clearAxisView()
+                del self.Overview.selection
+
+            #if self.LoadAxis.isChecked():
+             #   self.AxisView.clear()
 
             if not File:
                 self.load_axis(File=File)
             else:
                 self.load_axis()
+                #self.AxisView.clear()
 
             if self.FalseAxis:
                 return
@@ -579,7 +598,6 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
     def closeDialog(self, dialog):
         self.Overview.clear()
-
 
     def changePolygonSize(self):
         if not self.station_axis:

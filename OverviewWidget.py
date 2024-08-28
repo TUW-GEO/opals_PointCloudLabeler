@@ -28,11 +28,11 @@ class OverviewWidget(QSvgWidget):
         self.SelectAxis = None
         self.AxisList = None
         self.createCrossCursor()
-        # self.createCircleCursor()
         self.AxisManager = None
         self.stroke_width = 0.5
         self.is_loading = False
         self.AxisODMPath = None
+        self.AxisView = False
         self.insert = False
         self.delete = False
         self.move = False
@@ -62,10 +62,10 @@ class OverviewWidget(QSvgWidget):
 
 
     def zoomIn(self):
-        self.zoom(self.size().width()/2., self.size().height()/2., 1.1)
+        self.zoom(self.size().width()/2., self.size().height()/2., self.svg_zoom_factor)
 
     def zoomOut(self):
-        self.zoom(self.size().width()/2., self.size().height()/2., 1/1.1)
+        self.zoom(self.size().width()/2., self.size().height()/2., 1/self.svg_zoom_factor)
 
     def zoomOnLayer(self):
 
@@ -234,8 +234,6 @@ class OverviewWidget(QSvgWidget):
         svg_xml = self.svg.tostring()
         svg_bytes = bytearray(svg_xml, encoding='utf-8')
         self.renderer().load(svg_bytes)
-        # self.renderer().setAspectRatioMode(QtCore.Qt.KeepAspectRatio)
-
         self.update()
 
     def changeLineWidth(self,value):
@@ -313,6 +311,8 @@ class OverviewWidget(QSvgWidget):
             if not self.AxisManager.odm:
                 odm_filename, _ = QFileDialog.getSaveFileName(self, 'Save ODM File', '', 'ODM Files (*.odm)')
                 _, data = os.path.split(odm_filename)
+
+                self.AxisView = True
 
                 self.AxisODMPath = odm_filename
 
@@ -427,11 +427,14 @@ class OverviewWidget(QSvgWidget):
 
                 self.axis_pts = []
                 self.addItem()
+                self.AxisView = False
+
+
 
             except Exception as e:
                 return
 
-        if mouseEvent.button() == QtCore.Qt.LeftButton and not self.DrawAxis:
+        if mouseEvent.button() == QtCore.Qt.LeftButton and self.SelectAxis:
             try:
                 pt = self.pixel2world(mouseEvent.x(), mouseEvent.y())
                 line = self.AxisManager.getByCoords(pt[0],pt[1])
@@ -466,7 +469,7 @@ class OverviewWidget(QSvgWidget):
             self.dataRefresh()
             self.updateItemLabels()
 
-        elif mouseEvent.button() == QtCore.Qt.RightButton:
+        elif mouseEvent.button() == QtCore.Qt.RightButton and self.SelectAxis:
             self.last_pos = (mouseEvent.x(), mouseEvent.y())
 
     def mouseMoveEvent(self, mouseEvent):
@@ -475,7 +478,7 @@ class OverviewWidget(QSvgWidget):
         if int(mouseEvent.buttons()) & QtCore.Qt.LeftButton and self.move:
             self.mouse = (mouseEvent.x(), mouseEvent.y())
 
-        elif int(mouseEvent.buttons()) & QtCore.Qt.RightButton:
+        elif int(mouseEvent.buttons()) & QtCore.Qt.RightButton and self.SelectAxis:
             dx = self.last_pos[0]-mouseEvent.x()
             dy = self.last_pos[1]-mouseEvent.y()
             svg_dx, svg_dy = self.pixel2svg(dx, dy)
@@ -494,16 +497,11 @@ class OverviewWidget(QSvgWidget):
             #self.leftButtonPressed = False
             self.dataRefresh()
             self.updateItemLabels()
-
-        elif mouseEvent.button() == QtCore.Qt.LeftButton:
-            self.stop = (mouseEvent.x(),mouseEvent.y())
-            self.delta = (0,0)
-
     def wheelEvent(self, event):
-        if event.angleDelta().y() > 0:
-            self.zoom(self.pos[0],self.pos[1],1.1)
-        else:
-            self.zoom(self.pos[0],self.pos[1],1/1.1)
+        if event.angleDelta().y() > 0 and self.SelectAxis:
+            self.zoom(self.pos[0],self.pos[1],self.svg_zoom_factor)
+        elif event.angleDelta().y() < 0 and self.SelectAxis:
+            self.zoom(self.pos[0],self.pos[1], (1/self.svg_zoom_factor))
 
         # def createCircleCursor(self):
     #     cursor_pixmap = QPixmap(32, 32)
