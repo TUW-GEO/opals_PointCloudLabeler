@@ -27,20 +27,28 @@ class AxisGenerator:
         width = maxx - minx
         height = maxy - miny
 
+        # Vergrößerte Bounding Box
         enlarged_box = box(minx - width * scale, miny - height * scale,
                            maxx + width * scale, maxy + height * scale)
         return enlarged_box
 
     def addPolylines(self):
         lines = []
+        seen_lines = set()  # Set zum Verfolgen der bereits hinzugefügten Linien
+
+        # Vergrößerte Bounding Box erstellen
         enlarged_box = self.createBoundingBox()
 
+        # Basislinie entlang der x-Achse erstellen
         basis_line = LineString([(-enlarged_box.bounds[2], 0), (enlarged_box.bounds[2], 0)])
 
+        # Linie rotieren um den Winkel self.angle
         rotate_line = rotate(basis_line, self.angle, origin=(0, 0), use_radians=False)
 
+        # Linie zur Polygonmitte verschieben
         rotate_line = translate(rotate_line, xoff=self.center.x, yoff=self.center.y)
 
+        # Linien oberhalb und unterhalb der Mittelachse generieren
         for direction in [1, -1]:
             shift = 0
             while True:
@@ -49,10 +57,16 @@ class AxisGenerator:
 
                 if not intersect_pts.is_empty:
                     if isinstance(intersect_pts, LineString):
-                        lines.append(list(intersect_pts.coords))
+                        line_coords = tuple(intersect_pts.coords)
+                        if line_coords not in seen_lines:
+                            lines.append(list(intersect_pts.coords))
+                            seen_lines.add(line_coords)
                     elif hasattr(intersect_pts, "geoms"):
                         for intersection in intersect_pts.geoms:
-                            lines.append(list(intersection.coords))
+                            line_coords = tuple(intersection.coords)
+                            if line_coords not in seen_lines:
+                                lines.append(list(intersection.coords))
+                                seen_lines.add(line_coords)
 
                 shift += direction * self.space
 

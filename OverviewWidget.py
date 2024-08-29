@@ -25,7 +25,7 @@ class OverviewWidget(QSvgWidget):
         self.selection = None
         self.sections = None
         self.section_color = 'red'
-        self.axis_color = 'lightblue'
+        self.axis_color = 'blue'
         self.node_color = 'orange'
         self.width = None
         self.height = None
