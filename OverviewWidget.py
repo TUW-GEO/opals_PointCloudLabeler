@@ -1,6 +1,6 @@
 from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtSvg import QSvgWidget
-from PyQt5.QtWidgets import QFileDialog, QMessageBox, QVBoxLayout, QHBoxLayout, QPushButton
+from PyQt5.QtWidgets import QFileDialog, QMessageBox
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 import svgwrite
@@ -8,6 +8,7 @@ from osgeo import gdal
 from opals import pyDM
 import os
 from AxisGenerator import AxisGenerator
+import numpy as np
 
 class OverviewWidget(QSvgWidget):
     polylinePicked = QtCore.pyqtSignal(object)
@@ -22,9 +23,13 @@ class OverviewWidget(QSvgWidget):
         self.axis_pts = []
         self.linestring = None
         self.selection = None
+        self.sections = None
+        self.section_color = 'red'
+        self.axis_color = 'lightblue'
+        self.node_color = 'orange'
         self.width = None
         self.height = None
-        self.DrawAxis = False
+        self.Draw = False
         self.SelectAxis = None
         self.AxisList = None
         self.createCrossCursor()
@@ -51,14 +56,17 @@ class OverviewWidget(QSvgWidget):
         self.red_y = None
 
     def zoom(self,px, py, factor):
-        widget_width = self.size().width()
-        widget_height = self.size().height()
+        try:
+            widget_width = self.size().width()
+            widget_height = self.size().height()
 
-        self.svg_vb_minx = px * self.svg_vb_dx * (factor-1) / (self.svg_zoom*factor*widget_width)  + self.svg_vb_minx
-        self.svg_vb_miny = py * self.svg_vb_dy * (factor-1) / (self.svg_zoom*factor*widget_height) + self.svg_vb_miny
+            self.svg_vb_minx = px * self.svg_vb_dx * (factor-1) / (self.svg_zoom*factor*widget_width)  + self.svg_vb_minx
+            self.svg_vb_miny = py * self.svg_vb_dy * (factor-1) / (self.svg_zoom*factor*widget_height) + self.svg_vb_miny
 
-        self.svg_zoom *= factor
-        self.dataRefresh()
+            self.svg_zoom *= factor
+            self.dataRefresh()
+        except Exception as e:
+            return
 
 
     def zoomIn(self):
@@ -68,14 +76,16 @@ class OverviewWidget(QSvgWidget):
         self.zoom(self.size().width()/2., self.size().height()/2., 1/self.svg_zoom_factor)
 
     def zoomOnLayer(self):
+        try:
+            self.zoom(self.size().width()/2., self.size().height()/2., 1 / self.svg_zoom)
+            self.svg_vb_minx = 0
+            self.svg_vb_miny = 0
+            self.svg_vb_dx = self.svg_vb_dx_init
+            self.svg_vb_dy = self.svg_vb_dy_init
 
-        self.zoom(self.size().width()/2., self.size().height()/2., 1 / self.svg_zoom)
-        self.svg_vb_minx = 0
-        self.svg_vb_miny = 0
-        self.svg_vb_dx = self.svg_vb_dx_init
-        self.svg_vb_dy = self.svg_vb_dy_init
-
-        self.dataRefresh()
+            self.dataRefresh()
+        except Exception as e:
+            return
 
     def setAxisList(self, listWidget):
         self.AxisList = listWidget
@@ -168,28 +178,36 @@ class OverviewWidget(QSvgWidget):
             for line in self.AxisManager.axis:
                 self.lineidx = self.odm2idx[line[0].info().get(0)]
                 if self.odm2idx[line[0].info().get(0)] == self.activeLineIdx:
-                    self.color = 'green'
+                    self.axis_color = 'green'
                     self.axis_pts = self.AxisManager.allAxisPts[self.odm2idx[line[0].info().get(0)]]
                     self.drawAxis()
 
                 else:
-                    self.color = 'lightblue'
+                    self.axis_color = 'lightblue'
                     self.axis_pts = self.AxisManager.allAxisPts[self.odm2idx[line[0].info().get(0)]]
                     self.drawAxis()
 
                 if self.odm2idx[line[0].info().get(0)] == self.activeLineIdx:
-                    self.color = 'blue'
+                    self.axis_color = 'blue'
                     self.axis_pts = self.AxisManager.splines[self.activeLineIdx]
                     self.drawAxis(nodes=False)
 
             if self.selection:
+                self.section_color = 'red'
                 self.drawSection()
 
             if self.preview:
-                for line in self.linestrings:
-                    self.color = 'lightblue'
-                    self.axis_pts = line
+                for i in range(len(self.linestrings)):
+                    self.axis_color = 'lightblue'
+                    self.section_color = 'lightcoral'
+                    self.axis_pts = self.linestrings[i]
+                    p1 = self.sections[i][0]
+                    p2 = self.sections[i][1]
+                    p3 = self.sections[i][2]
+                    p4 = self.sections[i][3]
+                    self.setSelectionBox(p1, p2, p3, p4)
                     self.drawAxis()
+                    self.drawSection()
 
         except Exception as e:
             pass
@@ -200,23 +218,23 @@ class OverviewWidget(QSvgWidget):
     def drawAxis(self, nodes = True , firstPoint=False):
          if firstPoint and nodes:
              pt1 = self.world2svg(self.axis_pts[0][0], self.axis_pts[0][1])
-             self.svg.add(self.svg.circle(center=pt1, r=self.stroke_width / 2, stroke='orange', fill='none'))
+             self.svg.add(self.svg.circle(center=pt1, r=self.stroke_width / 2, stroke=self.node_color, fill='none'))
 
          for idx in range(len(self.axis_pts) - 1):
              if idx == self.pickedVertex and self.activeLineIdx == self.lineidx:
-                 node_color = 'grey'
+                 self.node_color = 'grey'
              else:
-                 node_color = 'orange'
+                 self.node_color = 'orange'
 
 
              pt1 = self.world2svg(self.axis_pts[idx][0], self.axis_pts[idx][1])
              pt2 = self.world2svg(self.axis_pts[idx + 1][0], self.axis_pts[idx + 1][1])
 
-             self.svg.add(self.svg.line(start=pt1, end=pt2, stroke= self.color, stroke_width=self.stroke_width))
-             if nodes: self.svg.add(self.svg.circle(center=pt1, r=self.stroke_width/2, stroke=node_color, fill='none'))
+             self.svg.add(self.svg.line(start=pt1, end=pt2, stroke=self.axis_color, stroke_width=self.stroke_width))
+             if nodes: self.svg.add(self.svg.circle(center=pt1, r=self.stroke_width/2, stroke=self.node_color, fill='none'))
 
              if idx == (len(self.axis_pts) - 2):
-                if nodes: self.svg.add(self.svg.circle(center=pt2, r=self.stroke_width / 2, stroke=node_color, fill='none'))
+                if nodes: self.svg.add(self.svg.circle(center=pt2, r=self.stroke_width / 2, stroke=self.node_color, fill='none'))
 
          self.update_svg()
 
@@ -225,7 +243,7 @@ class OverviewWidget(QSvgWidget):
             pt1 = self.world2svg(self.selection[idx][0], self.selection[idx][1])
             pt2 = self.world2svg(self.selection[idx + 1][0], self.selection[idx + 1][1])
 
-            self.svg.add(self.svg.line(start=pt1, end=pt2, stroke='red', stroke_width=self.stroke_width))
+            self.svg.add(self.svg.line(start=pt1, end=pt2, stroke=self.section_color, stroke_width=self.stroke_width))
 
         self.update_svg()
 
@@ -237,8 +255,11 @@ class OverviewWidget(QSvgWidget):
         self.update()
 
     def changeLineWidth(self,value):
-        self.stroke_width = value / 2.
-        self.dataRefresh()
+        try:
+            self.stroke_width = value / 2.
+            self.dataRefresh()
+        except Exception as e:
+            return
 
     def handleItemChanged(self, item):
         if self.is_loading:
@@ -369,11 +390,13 @@ class OverviewWidget(QSvgWidget):
             item = self.AxisList.item(i)
             item.setText(f"Axis {i + 1}: {{Nodes : {self.AxisManager.axisInfo[i][0]}, Length : {round(self.AxisManager.axisInfo[i][1], 2)}}}")
 
-    def ArialCoverage(self, distance, rotation, preview=False, export=False, filename=None):
+    def ArialCoverage(self, distance, width, rotation, preview=False, export=False, filename=None):
         if preview:
             try:
                 self.generator = AxisGenerator(self.shd_bbox, float(rotation), float(distance))
                 self.linestrings = self.generator.getPolylineCoords()
+                #for line in self.linestrings:
+                self.sections = self.previewSections(self.linestrings, width, distance)
                 self.preview = True
                 self.dataRefresh()
                 self.preview = False
@@ -396,26 +419,50 @@ class OverviewWidget(QSvgWidget):
             if export:
                 name, _ = filename.split('.')
                 self.generator.linestrings2shapefile(name+'.shp')
+    def previewSections(self,linestrings, width, length):
+        length = float(length)
+        sections = []
+        for line in linestrings:
+            start_point = np.array([line[0]]).reshape(1, 2)
+
+            dx = line[1][0] - line[0][0]
+            dy = line[1][1] - line[0][1]
+            slen = (dx ** 2 + dy ** 2) ** 0.5
+            if slen == 0:
+                raise Exception("Identical subsequent 2d points are not allowed")
+            dir = [dx / slen, dy / slen]
+
+            rot_vector = np.array([-dir[1], dir[0]]).reshape(1, 2)
+            vector = np.array([dir[0], dir[1]]).reshape(1, 2)
+            p1 = start_point + (rot_vector * length / 2)
+            p2 = start_point + (-rot_vector * length / 2)
+            p3 = p2 + (width * vector)
+            p4 = p1 + (width * vector)
+
+            sections.append([p1,p2,p3,p4])
+        return sections
 
     def clear(self):
         self.linestrings = None
+        self.sections = None
+        self.selection = None
         self.dataRefresh()
 
     def mousePressEvent(self, mouseEvent):
-        if mouseEvent.button() == QtCore.Qt.LeftButton and self.DrawAxis:
+        if mouseEvent.button() == QtCore.Qt.LeftButton and self.Draw and self.shd_filename:
             self.width = self.size().width()
             self.height = self.size().height()
 
             self.axis_pts.append(self.pixel2world(mouseEvent.x(),mouseEvent.y()))
 
-            self.color = 'lightblue'
+            self.axis_color = 'lightblue'
 
             if len(self.axis_pts) == 1:
                 self.drawAxis(firstPoint=True)
             elif len(self.axis_pts) > 1:
                 self.drawAxis()
 
-        if mouseEvent.button() == QtCore.Qt.RightButton and self.axis_pts != [] and self.DrawAxis:
+        if mouseEvent.button() == QtCore.Qt.RightButton and self.axis_pts != [] and self.Draw:
             try:
                 self.linestring2polylineobj()
 
@@ -428,8 +475,6 @@ class OverviewWidget(QSvgWidget):
                 self.axis_pts = []
                 self.addItem()
                 self.AxisView = False
-
-
 
             except Exception as e:
                 return
@@ -447,27 +492,36 @@ class OverviewWidget(QSvgWidget):
                 return
 
         if mouseEvent.button() == QtCore.Qt.LeftButton and self.insert:
-            pt = self.pixel2world(mouseEvent.x(), mouseEvent.y())
-            line = self.AxisManager.getByCoords(pt[0], pt[1])
-            self.AxisManager.InsertVertices(line[0], pt)
-            self.polylinePicked.emit(self.AxisManager.allAxisPts[self.activeLineIdx])
-            self.dataRefresh()
-            self.updateItemLabels()
+            try:
+                pt = self.pixel2world(mouseEvent.x(), mouseEvent.y())
+                line = self.AxisManager.getByCoords(pt[0], pt[1])
+                self.AxisManager.InsertVertices(line[0], pt)
+                self.polylinePicked.emit(self.AxisManager.allAxisPts[self.activeLineIdx])
+                self.dataRefresh()
+                self.updateItemLabels()
+            except Exception as e:
+                return
 
         elif mouseEvent.button() == QtCore.Qt.LeftButton and self.delete:
-            pt = self.pixel2world(mouseEvent.x(), mouseEvent.y())
-            line = self.AxisManager.getByCoords(pt[0], pt[1])
-            self.AxisManager.DeleteVertices(line[0], pt)
-            self.polylinePicked.emit(self.AxisManager.allAxisPts[self.activeLineIdx])
-            self.dataRefresh()
-            self.updateItemLabels()
+            try:
+                pt = self.pixel2world(mouseEvent.x(), mouseEvent.y())
+                line = self.AxisManager.getByCoords(pt[0], pt[1])
+                self.AxisManager.DeleteVertices(line[0], pt)
+                self.polylinePicked.emit(self.AxisManager.allAxisPts[self.activeLineIdx])
+                self.dataRefresh()
+                self.updateItemLabels()
+            except Exception as e:
+                return
 
         elif mouseEvent.button() == QtCore.Qt.LeftButton and self.move:
-            pt = self.pixel2world(mouseEvent.x(), mouseEvent.y())
-            line = self.AxisManager.getByCoords(pt[0], pt[1])
-            self.pickedVertex = self.AxisManager.PickVertices(line[0], pt)
-            self.dataRefresh()
-            self.updateItemLabels()
+            try:
+                pt = self.pixel2world(mouseEvent.x(), mouseEvent.y())
+                line = self.AxisManager.getByCoords(pt[0], pt[1])
+                self.pickedVertex = self.AxisManager.PickVertices(line[0], pt)
+                self.dataRefresh()
+                self.updateItemLabels()
+            except Exception as e:
+                return
 
         elif mouseEvent.button() == QtCore.Qt.RightButton and self.SelectAxis:
             self.last_pos = (mouseEvent.x(), mouseEvent.y())
@@ -489,19 +543,21 @@ class OverviewWidget(QSvgWidget):
 
     def mouseReleaseEvent(self, mouseEvent):
         if mouseEvent.button() == QtCore.Qt.LeftButton and self.move:
-            pt = self.pixel2world(mouseEvent.x(), mouseEvent.y())
-            line = self.AxisManager.getByCoords(pt[0], pt[1])
-            self.AxisManager.MoveVertices(line[0], self.pickedVertex, pt)
-            self.polylinePicked.emit(self.AxisManager.allAxisPts[self.activeLineIdx])
-            self.pickedVertex = None
-            #self.leftButtonPressed = False
-            self.dataRefresh()
-            self.updateItemLabels()
+            try:
+                pt = self.pixel2world(mouseEvent.x(), mouseEvent.y())
+                line = self.AxisManager.getByCoords(pt[0], pt[1])
+                self.AxisManager.MoveVertices(line[0], self.pickedVertex, pt)
+                self.polylinePicked.emit(self.AxisManager.allAxisPts[self.activeLineIdx])
+                self.pickedVertex = None
+                self.dataRefresh()
+                self.updateItemLabels()
+            except Exception as e:
+                return
     def wheelEvent(self, event):
         if event.angleDelta().y() > 0 and self.SelectAxis:
-            self.zoom(self.pos[0],self.pos[1],self.svg_zoom_factor)
+            self.zoom(self.pos[0], self.pos[1], self.svg_zoom_factor)
         elif event.angleDelta().y() < 0 and self.SelectAxis:
-            self.zoom(self.pos[0],self.pos[1], (1/self.svg_zoom_factor))
+            self.zoom(self.pos[0], self.pos[1], (1/self.svg_zoom_factor))
 
         # def createCircleCursor(self):
     #     cursor_pixmap = QPixmap(32, 32)
@@ -529,7 +585,7 @@ class OverviewWidget(QSvgWidget):
         super().enterEvent(event)
 
     def updateCursor(self):
-        if self.DrawAxis:
+        if self.Draw:
             self.setCursor(self.crossCursor)
 
         else:

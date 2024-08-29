@@ -7,7 +7,7 @@ import os
 import opals
 import numpy as np
 import copy
-from StationUtilities import StationPolyline2D, StationCubicSpline2D
+from StationUtilities import StationCubicSpline2D
 from AxisManagment import AxisManagement
 
 
@@ -83,7 +83,7 @@ class CustomDialog(QDialog):
 
         self.ok_button = QPushButton('OK', self)
         self.ok_button.clicked.connect(self.accept)
-        self.ok_button.setDefault(True)
+        #self.ok_button.setDefault(True)
         self.ok_button.setFocusPolicy(QtCore.Qt.NoFocus)
 
         form_layout = QFormLayout()
@@ -151,6 +151,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.FalseAxis = False
         self.Rectangle = False
         self.firstSection = None
+        self.meanPtDistance = None
         self.ptsLoad = 0
         self.ptsClass = 0
         self.ptsNoClass = 0
@@ -245,8 +246,6 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.ZoomAll.pressed.connect(self.Overview.zoomOnLayer)
 
     def load_pointcloud(self, path=None):
-       #path = str(self.PathToFile.text()).strip()
-
         if path is None:
             path, _ = QFileDialog.getOpenFileName(self, "Select point cloud file", "",
                                                   "OPALS Datamanager (*.odm);;LAS Files (*.las *laz);;All Files (*.*)")
@@ -265,7 +264,6 @@ class ClassificationTool(QtWidgets.QMainWindow):
             grid_name = name + '_z.tif'
             shd_name = name + '_shd.tif'
             axis_odm_name = name + '_axis.odm'
-            #arial_axis_odm_name = name + '_arial_axis.odm'
 
              #import into odm if needed
             if os.path.isfile(odm_name) == False:
@@ -297,7 +295,6 @@ class ClassificationTool(QtWidgets.QMainWindow):
             else:
                 self.axis_manager = AxisManagement(None)
                 self.Overview.setAxisManagement(self.axis_manager)
-                #self.Overview.AxisODMPath = os.path.abspath(axis_odm_name)
 
             self.Overview.setShading(shd_name)
             self.Overview.dataRefresh()
@@ -316,7 +313,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
         pts = None
         if File:
             axis = str(self.PathToAxisShp.text()).strip()
-            #if axis == "":
+
             axis_file, _ = QFileDialog.getOpenFileName(self, "Select axis file", "",
                                                       "OPALS Datamanager (*.odm);;Shape File (*.shp);;All Files (*.*)")
             if axis_file == "":
@@ -359,20 +356,13 @@ class ClassificationTool(QtWidgets.QMainWindow):
         # maximal extrapolation distance at start and end of axis
         extrapolation_distance = float(self.along_section.text().strip())*5
 
-        if len(pts) == 1:
-            self.station_axis = StationPolyline2D(pts)
-        else:
-            self.station_axis = StationCubicSpline2D(pts)
+        self.station_axis = StationCubicSpline2D(pts)
 
         self.current_station = 0
         self.min_station = self.station_axis.min_station()-extrapolation_distance   # min allowed station value
         self.max_station = self.station_axis.max_station()+extrapolation_distance   # max allowed station value
 
         self.PathToAxisShp.setEnabled(False)
-
-        # self.Overview.setAxis(self.station_axis.vertices)
-        #self.Overview.drawAxis()
-
 
     def polygon(self):
         def poly_points(start, vector, length, width):
@@ -400,6 +390,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
         # create the polygon
         polygon = create_polygon(p1, p2, p3, p4)
         self.Overview.setSelectionBox(p1, p2, p3, p4)
+        self.Overview.section_color = 'red'
         self.Overview.drawSection()
 
         # extract the points inside of the polygon
@@ -467,19 +458,22 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.polygon()
 
     def polygonSize(self):
-        meanPtDistance = 1 / np.sqrt(self.ptsDensity)
+        if not self.meanPtDistance:
+            self.meanPtDistance = 1 / np.sqrt(self.ptsDensity)
 
-        self.across = 1000 * meanPtDistance
+            self.across = 1000 * self.meanPtDistance
 
-        if self.across > 30:
-            self.across = 30.0
+            if self.across > 30:
+                self.across = 30.0
+            else:
+                self.across = round(1000 * self.meanPtDistance,2)
+
+            self.along = round(5 * self.meanPtDistance,2)
+
+            self.along_section.setText(str(self.along))
+            self.across_section.setText(str(self.across))
         else:
-            self.across = round(1000 * meanPtDistance,2)
-
-        self.along = round(5 * meanPtDistance,2)
-
-        self.along_section.setText(str(self.along))
-        self.across_section.setText(str(self.across))
+            return
 
     def ptsInSection(self):
         self.Section.setData(self.result)
@@ -507,14 +501,10 @@ class ClassificationTool(QtWidgets.QMainWindow):
                 self.clearAxisView()
                 del self.Overview.selection
 
-            #if self.LoadAxis.isChecked():
-             #   self.AxisView.clear()
-
             if not File:
                 self.load_axis(File=File)
             else:
                 self.load_axis()
-                #self.AxisView.clear()
 
             if self.FalseAxis:
                 return
@@ -532,7 +522,6 @@ class ClassificationTool(QtWidgets.QMainWindow):
         # self.disableButtonFunctions()
         if not self.station_axis:
             return
-
         self.overlap = float(self.overlap_section.text().strip())/100
 
     def activateEditing(self):
@@ -544,7 +533,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.Delete.setEnabled(isChecked)
         self.Move.setEnabled(isChecked)
         if isChecked:
-            self.Overview.DrawAxis = False
+            self.Overview.Draw = False
 
     def EditButtonsToggled(self):
         sender = self.sender()
@@ -569,32 +558,39 @@ class ClassificationTool(QtWidgets.QMainWindow):
                 self.Delete.setChecked(False)
 
     def GenerateAxis(self):
-        self.polygonSize()
-        defaultDistance = str(self.across)
-        dialog = CustomDialog(self,defaultDistance=defaultDistance)
+        try:
+            self.polygonSize()
+            defaultDistance = str(self.across)
+            defaultWidth = str(self.along)
+            dialog = CustomDialog(self,defaultDistance=defaultDistance)
 
-        dialog.preview_clicked.connect(lambda: self.handlePreview(dialog))
-        dialog.finished.connect(lambda: self.closeDialog(dialog))
+            dialog.preview_clicked.connect(lambda: self.handlePreview(dialog))
+            dialog.finished.connect(lambda: self.closeDialog(dialog))
 
-        if dialog.exec_() == QDialog.Accepted:
-            arial_axis_odm_name = self.file_name + '_arial_axis.odm'
+            if dialog.exec_() == QDialog.Accepted:
+                arial_axis_odm_name = self.file_name + '_arial_axis.odm'
 
-            rotation = dialog.rotation.text()
-            distance = dialog.distance.text()
-            self.Overview.ArialCoverage(distance=distance, rotation=rotation, preview=False, export=dialog.shpFileExport.isChecked(), filename=arial_axis_odm_name)
-            #setAxisManagement
+                rotation = dialog.rotation.text()
+                distance = dialog.distance.text()
+                self.Overview.ArialCoverage(distance=distance, width=self.along, rotation=rotation, preview=False, export=dialog.shpFileExport.isChecked(), filename=arial_axis_odm_name)
 
-            if not self.axis_manager.empty():
-                self.axis_pts = self.axis_manager.polyline2linestring(self.axis_manager.axis[0][0])
+                if not self.axis_manager.empty():
+                    self.axis_pts = self.axis_manager.polyline2linestring(self.axis_manager.axis[0][0])
 
-            self.viewFirstSection(File=False)
-            self.PathToAxisShp.setText(os.path.abspath(arial_axis_odm_name))
-            self.PathToAxisShp.setEnabled(False)
+                self.across = float(dialog.distance.text())
+
+                self.viewFirstSection(File=False)
+                self.across_section.setText(str(self.across))
+                self.PathToAxisShp.setText(os.path.abspath(arial_axis_odm_name))
+                self.PathToAxisShp.setEnabled(False)
+        except Exception as e:
+            return
 
     def handlePreview(self, dialog):
         rotation = dialog.rotation.text()
         distance = dialog.distance.text()
-        self.Overview.ArialCoverage(distance=distance, rotation=rotation, preview=True)
+        self.Overview.clear()
+        self.Overview.ArialCoverage(distance=distance, width=self.along, rotation=rotation, preview=True)
 
     def closeDialog(self, dialog):
         self.Overview.clear()
@@ -613,21 +609,24 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.showMessages()
 
     def setOrthoView(self):
-        self.Section.setOrthoView(self.rot_camera)
+        try:
+            self.Section.setOrthoView(self.rot_camera)
+        except Exception as e:
+            return
 
     def DigitalAxis(self):
         if self.DrawMode.isChecked():
             self.Overview.insert = False
             self.Overview.delete = False
             self.Overview.move = False
-            self.Overview.DrawAxis = True
+            self.Overview.Draw = True
             self.Overview.SelectAxis = False
             self.SelectionMode.setChecked(False)
         elif self.SelectionMode.isChecked():
             self.Overview.insert = False
             self.Overview.delete = False
             self.Overview.move = False
-            self.Overview.DrawAxis = False
+            self.Overview.Draw = False
             self.Overview.SelectAxis = True
             self.DrawMode.setChecked(False)
 
@@ -696,7 +695,6 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
         if self.knnPrediction.currentText() == 'predict next' or self.knnPrediction.currentText() == 'always predict':
             self.knn()
-
 
         self.ptsInSection()
         self.Section.dataRefresh()

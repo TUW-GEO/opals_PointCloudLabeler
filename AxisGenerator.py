@@ -1,5 +1,5 @@
 import fiona
-from shapely.geometry import Polygon, LineString, mapping
+from shapely.geometry import Polygon, LineString, box, mapping
 from shapely.affinity import rotate, translate
 import math
 
@@ -22,53 +22,42 @@ class AxisGenerator:
         pts.sort(key=lambda p: math.atan2(p[1] - center_y, p[0] - center_x), reverse=True)
         return pts
 
+    def createBoundingBox(self, scale=1.5):
+        minx, miny, maxx, maxy = self.polygon.bounds
+        width = maxx - minx
+        height = maxy - miny
+
+        enlarged_box = box(minx - width * scale, miny - height * scale,
+                           maxx + width * scale, maxy + height * scale)
+        return enlarged_box
+
     def addPolylines(self):
         lines = []
+        enlarged_box = self.createBoundingBox()
 
-        max_dist = max(self.polygon.bounds[2] - self.polygon.bounds[0],
-                       self.polygon.bounds[3] - self.polygon.bounds[1]) * 2
-
-        basis_line = LineString([(-max_dist, 0), (max_dist, 0)])
+        basis_line = LineString([(-enlarged_box.bounds[2], 0), (enlarged_box.bounds[2], 0)])
 
         rotate_line = rotate(basis_line, self.angle, origin=(0, 0), use_radians=False)
 
         rotate_line = translate(rotate_line, xoff=self.center.x, yoff=self.center.y)
 
-        shift = 0
+        for direction in [1, -1]:
+            shift = 0
+            while True:
+                shifted_line = translate(rotate_line, yoff=shift)
+                intersect_pts = self.polygon.intersection(shifted_line)
 
-        while True:
-            shifted_line = translate(rotate_line, yoff=shift)
-            intersect_pts = self.polygon.intersection(shifted_line)
+                if not intersect_pts.is_empty:
+                    if isinstance(intersect_pts, LineString):
+                        lines.append(list(intersect_pts.coords))
+                    elif hasattr(intersect_pts, "geoms"):
+                        for intersection in intersect_pts.geoms:
+                            lines.append(list(intersection.coords))
 
-            if not intersect_pts.is_empty:
-                if isinstance(intersect_pts, LineString):
-                    lines.append(list(intersect_pts.coords))
-                elif hasattr(intersect_pts, "geoms"):
-                    for intersection in intersect_pts.geoms:
-                        lines.append(list(intersection.coords))
+                shift += direction * self.space
 
-            shift += self.space
-
-            if not self.polygon.intersects(shifted_line):
-                break
-
-        shift = -self.space
-        while True:
-            # Die Linie parallel verschieben
-            shifted_line = translate(rotate_line, yoff=shift)
-            intersect_pts = self.polygon.intersection(shifted_line)
-
-            if not intersect_pts.is_empty:
-                if isinstance(intersect_pts, LineString):
-                    lines.append(list(intersect_pts.coords))
-                elif hasattr(intersect_pts, "geoms"):
-                    for intersection in intersect_pts.geoms:
-                        lines.append(list(intersection.coords))
-
-            shift -= self.space
-
-            if not self.polygon.intersects(shifted_line):
-                break
+                if not self.polygon.intersects(shifted_line):
+                    break
 
         return lines
 
