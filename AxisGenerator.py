@@ -34,21 +34,16 @@ class AxisGenerator:
 
     def addPolylines(self):
         lines = []
-        seen_lines = set()  # Set zum Verfolgen der bereits hinzugefügten Linien
+        seen_lines = set()
 
-        # Vergrößerte Bounding Box erstellen
         enlarged_box = self.createBoundingBox()
 
-        # Basislinie entlang der x-Achse erstellen
         basis_line = LineString([(-enlarged_box.bounds[2], 0), (enlarged_box.bounds[2], 0)])
 
-        # Linie rotieren um den Winkel self.angle
         rotate_line = rotate(basis_line, self.angle, origin=(0, 0), use_radians=False)
 
-        # Linie zur Polygonmitte verschieben
         rotate_line = translate(rotate_line, xoff=self.center.x, yoff=self.center.y)
 
-        # Linien oberhalb und unterhalb der Mittelachse generieren
         for direction in [1, -1]:
             shift = 0
             while True:
