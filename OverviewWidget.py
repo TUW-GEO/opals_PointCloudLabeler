@@ -12,7 +12,6 @@ import numpy as np
 
 class OverviewWidget(QSvgWidget):
     polylinePicked = QtCore.pyqtSignal(object)
-
     def __init__(self, *args):
         QSvgWidget.__init__(self, *args)
         self.setMouseTracking(True)
