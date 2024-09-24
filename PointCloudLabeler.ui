@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1347</width>
+    <width>1337</width>
     <height>1172</height>
    </rect>
   </property>
@@ -777,8 +777,8 @@
             </property>
             <property name="minimumSize">
              <size>
-              <width>600</width>
-              <height>600</height>
+              <width>500</width>
+              <height>500</height>
              </size>
             </property>
             <property name="maximumSize">
@@ -791,7 +791,7 @@
              <cursorShape>CrossCursor</cursorShape>
             </property>
             <property name="autoFillBackground">
-             <bool>false</bool>
+             <bool>true</bool>
             </property>
             <property name="styleSheet">
              <string notr="true">border-color: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:0, stop:0 rgba(219, 88, 104, 255), stop:1 rgba(255, 255, 255, 255));
@@ -1302,8 +1302,8 @@ color: rgb(0, 255, 255);</string>
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1347</width>
-     <height>21</height>
+     <width>1337</width>
+     <height>18</height>
     </rect>
    </property>
   </widget>
