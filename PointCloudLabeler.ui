@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1337</width>
+    <width>1347</width>
     <height>1172</height>
    </rect>
   </property>
@@ -223,7 +223,7 @@
               </property>
               <property name="font">
                <font>
-                <pointsize>9</pointsize>
+                <pointsize>10</pointsize>
                </font>
               </property>
               <property name="text">
@@ -327,6 +327,11 @@
               <horstretch>0</horstretch>
               <verstretch>0</verstretch>
              </sizepolicy>
+            </property>
+            <property name="font">
+             <font>
+              <pointsize>10</pointsize>
+             </font>
             </property>
             <property name="text">
              <string>Line Size</string>
@@ -483,15 +488,15 @@
              <bool>true</bool>
             </property>
             <property name="sizePolicy">
-             <sizepolicy hsizetype="Fixed" vsizetype="Minimum">
+             <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
               <horstretch>0</horstretch>
               <verstretch>0</verstretch>
              </sizepolicy>
             </property>
             <property name="minimumSize">
              <size>
-              <width>56</width>
-              <height>30</height>
+              <width>50</width>
+              <height>25</height>
              </size>
             </property>
             <property name="maximumSize">
@@ -791,7 +796,7 @@
              <cursorShape>CrossCursor</cursorShape>
             </property>
             <property name="autoFillBackground">
-             <bool>true</bool>
+             <bool>false</bool>
             </property>
             <property name="styleSheet">
              <string notr="true">border-color: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:0, stop:0 rgba(219, 88, 104, 255), stop:1 rgba(255, 255, 255, 255));
@@ -1302,8 +1307,8 @@ color: rgb(0, 255, 255);</string>
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1337</width>
-     <height>18</height>
+     <width>1347</width>
+     <height>21</height>
     </rect>
    </property>
   </widget>
