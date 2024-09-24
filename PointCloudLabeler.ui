@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1347</width>
+    <width>1337</width>
     <height>1172</height>
    </rect>
   </property>
@@ -770,15 +770,15 @@
           <item>
            <widget class="OverviewWidget" name="Overview" native="true">
             <property name="sizePolicy">
-             <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+             <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
               <horstretch>0</horstretch>
               <verstretch>0</verstretch>
              </sizepolicy>
             </property>
             <property name="minimumSize">
              <size>
-              <width>600</width>
-              <height>600</height>
+              <width>500</width>
+              <height>500</height>
              </size>
             </property>
             <property name="maximumSize">
@@ -791,7 +791,7 @@
              <cursorShape>CrossCursor</cursorShape>
             </property>
             <property name="autoFillBackground">
-             <bool>false</bool>
+             <bool>true</bool>
             </property>
             <property name="styleSheet">
              <string notr="true">border-color: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:0, stop:0 rgba(219, 88, 104, 255), stop:1 rgba(255, 255, 255, 255));
@@ -805,23 +805,35 @@ color: rgb(0, 255, 255);</string>
              <enum>Qt::Vertical</enum>
             </property>
             <property name="sizeType">
-             <enum>QSizePolicy::Expanding</enum>
+             <enum>QSizePolicy::Fixed</enum>
             </property>
             <property name="sizeHint" stdset="0">
              <size>
               <width>20</width>
-              <height>40</height>
+              <height>10</height>
              </size>
             </property>
            </spacer>
           </item>
           <item>
-           <layout class="QVBoxLayout" name="verticalLayout_6"/>
-          </item>
-          <item>
            <layout class="QGridLayout" name="gridLayout_6">
+            <property name="spacing">
+             <number>2</number>
+            </property>
             <item row="4" column="0">
              <widget class="QRadioButton" name="EditMode">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="minimumSize">
+               <size>
+                <width>10</width>
+                <height>0</height>
+               </size>
+              </property>
               <property name="text">
                <string>Edit Modus</string>
               </property>
@@ -846,7 +858,7 @@ color: rgb(0, 255, 255);</string>
                <bool>false</bool>
               </property>
               <property name="sizePolicy">
-               <sizepolicy hsizetype="Fixed" vsizetype="Minimum">
+               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
                 <horstretch>0</horstretch>
                 <verstretch>0</verstretch>
                </sizepolicy>
@@ -875,7 +887,7 @@ color: rgb(0, 255, 255);</string>
             <item row="3" column="0">
              <widget class="QRadioButton" name="DrawMode">
               <property name="sizePolicy">
-               <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
+               <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
                 <horstretch>0</horstretch>
                 <verstretch>0</verstretch>
                </sizepolicy>
@@ -955,7 +967,7 @@ color: rgb(0, 255, 255);</string>
             <item row="0" column="3">
              <widget class="QToolButton" name="ZoomIn">
               <property name="sizePolicy">
-               <sizepolicy hsizetype="Fixed" vsizetype="Minimum">
+               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
                 <horstretch>0</horstretch>
                 <verstretch>0</verstretch>
                </sizepolicy>
@@ -1289,8 +1301,8 @@ color: rgb(0, 255, 255);</string>
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1347</width>
-     <height>21</height>
+     <width>1337</width>
+     <height>18</height>
     </rect>
    </property>
   </widget>
