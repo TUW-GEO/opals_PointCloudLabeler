@@ -480,6 +480,8 @@ class OverviewWidget(QSvgWidget):
 
         if mouseEvent.button() == QtCore.Qt.LeftButton and self.SelectAxis:
             try:
+                QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.WaitCursor)
+
                 pt = self.pixel2world(mouseEvent.x(), mouseEvent.y())
                 line = self.AxisManager.getByCoords(pt[0],pt[1])
                 self.activeLineIdx = self.odm2idx[line[0].info().get(0)]
@@ -489,6 +491,9 @@ class OverviewWidget(QSvgWidget):
 
             except Exception as e:
                 return
+
+            finally:
+                QtWidgets.QApplication.restoreOverrideCursor()
 
         if mouseEvent.button() == QtCore.Qt.LeftButton and self.insert:
             try:

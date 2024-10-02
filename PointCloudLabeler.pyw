@@ -166,7 +166,6 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
         self.initUI()
 
-
     def refeshClassComboBox(self):
         #first remove all entries from combo box
         currSelection = self.ClassList.currentText()
@@ -259,20 +258,22 @@ class ClassificationTool(QtWidgets.QMainWindow):
         name, _ = os.path.splitext(data)
 
         try:
+            QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.WaitCursor)
+
             self.file_name = name
             odm_name = name + '.odm'
             grid_name = name + '_z.tif'
             shd_name = name + '_shd.tif'
             axis_odm_name = name + '_axis.odm'
 
-             #import into odm if needed
+                #import into odm if needed
             if os.path.isfile(odm_name) == False:
                 Import.Import(inFile=data, outFile=odm_name).run()
 
-            #Extract the header of the odm to get the point density
+                #Extract the header of the odm to get the point density
             self.ptsDensity = pyDM.Datamanager.getHeaderODM(odm_name).estimatedPointDensity()
 
-            #create shading
+                #create shading
             if os.path.isfile(grid_name) == False:
                 Grid.Grid(inFile=odm_name, outFile=grid_name, filter='echo[last]',
                       interpolation=opals.Types.GridInterpolator.movingPlanes, gridSize=0.5).run()
@@ -280,7 +281,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
             if os.path.isfile(shd_name) == False:
                 Shade.Shade(inFile=grid_name, outFile=shd_name).run()
 
-            # load the opals datamanager in read and write
+                # load the opals datamanager in read and write
             self.odm = pyDM.Datamanager.load(odm_name, readOnly=False, threadSafety=False)
 
         except Exception as e:
@@ -305,6 +306,9 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
         except Exception as e:
             return
+
+        finally:
+            QtWidgets.QApplication.restoreOverrideCursor()
 
     def load_axis(self,File=True):
         if self.PathToAxisShp.text() == '':
