@@ -492,17 +492,28 @@ class OverviewWidget(QSvgWidget):
 
         if mouseEvent.button() == QtCore.Qt.LeftButton and self.insert:
             try:
+                QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.WaitCursor)
+
                 pt = self.pixel2world(mouseEvent.x(), mouseEvent.y())
                 line = self.AxisManager.getByCoords(pt[0], pt[1])
                 self.AxisManager.InsertVertices(line[0], pt)
+
+
+
                 self.polylinePicked.emit(self.AxisManager.allAxisPts[self.activeLineIdx])
                 self.dataRefresh()
                 self.updateItemLabels()
+
             except Exception as e:
                 return
 
+            finally:
+                QtWidgets.QApplication.restoreOverrideCursor()
+
         elif mouseEvent.button() == QtCore.Qt.LeftButton and self.delete:
             try:
+                QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.WaitCursor)
+
                 pt = self.pixel2world(mouseEvent.x(), mouseEvent.y())
                 line = self.AxisManager.getByCoords(pt[0], pt[1])
                 self.AxisManager.DeleteVertices(line[0], pt)
@@ -511,6 +522,9 @@ class OverviewWidget(QSvgWidget):
                 self.updateItemLabels()
             except Exception as e:
                 return
+
+            finally:
+                QtWidgets.QApplication.restoreOverrideCursor()
 
         elif mouseEvent.button() == QtCore.Qt.LeftButton and self.move:
             try:
@@ -543,6 +557,8 @@ class OverviewWidget(QSvgWidget):
     def mouseReleaseEvent(self, mouseEvent):
         if mouseEvent.button() == QtCore.Qt.LeftButton and self.move:
             try:
+                QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.WaitCursor)
+
                 pt = self.pixel2world(mouseEvent.x(), mouseEvent.y())
                 line = self.AxisManager.getByCoords(pt[0], pt[1])
                 self.AxisManager.MoveVertices(line[0], self.pickedVertex, pt)
@@ -552,20 +568,14 @@ class OverviewWidget(QSvgWidget):
                 self.updateItemLabels()
             except Exception as e:
                 return
+
+            finally:
+                QtWidgets.QApplication.restoreOverrideCursor()
     def wheelEvent(self, event):
         if event.angleDelta().y() > 0 and self.SelectAxis:
             self.zoom(self.pos[0], self.pos[1], self.svg_zoom_factor)
         elif event.angleDelta().y() < 0 and self.SelectAxis:
             self.zoom(self.pos[0], self.pos[1], (1/self.svg_zoom_factor))
-
-        # def createCircleCursor(self):
-    #     cursor_pixmap = QPixmap(32, 32)
-    #     cursor_pixmap.fill(Qt.transparent)
-    #     painter = QPainter(cursor_pixmap)
-    #     painter.setPen(QPen(QColor(255, 165, 0), 2))
-    #     painter.drawEllipse(0, 0, 8, 8)
-    #     painter.end()
-    #     self.circleCursor = QCursor(cursor_pixmap)
 
 # Create custom cursor and change the cursor, depends on the mode in which the widget is set to:
     def createCrossCursor(self):

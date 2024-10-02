@@ -1,0 +1,128 @@
+
+
+/*! \page pcl_main PointCloudLabeler
+The Opals Point Cloud Labeler (PCL) is an Addon for Opals. The PCL allows the manual classification of 3D Pointclouds. 
+
+\tableofcontents
+
+\section License
+For the usage of the PCL a license of Opals is required.
+
+\section pcl_run Installation and Running
+To use the PCL the installation of some python packages is required. The installation of those packages is done via the following command line:
+
+    pip install -r requirements.txt
+	
+For running the PointCloudLabeler please type:
+
+    python PointCloudLabeler.pyw
+	
+\section pcl_description General Description
+In order to gain an overview of the entire area of the point cloud, a shading is displayed. This shading enables the definition of multiple axes.
+These axes can be used to navigate the point cloud (1). The PCL sequentially displays a portion of the full point cloud that can be classified (2).  
+
+The different axes are listed with the corresponding information. The currently active axis is shown. An axis can be deleted by right-clicking on it (3).
+The various axes, accompanied by the pertinent information, are enumerated. The currently active axis is indicated. The deletion of an axis is initiated by right-clicking on the relevant item (4).
+In order to classify a point cloud, it is necessary to load the dataset. All data types that the Opals Datamanger can process are allowed. Once the data has been read in, it is possible to read in an existing axis datamanger (5). The panel can be used for classification, navigation and to display a greater or lesser number of points. The displayed section can be coloured either by class or by height. The different classes can be selected from a drop-down menu. When a section is classified, the classes of the following section can be predicted via a KNN tree (\ref knn "kNN - k Nearest Neighbors"). The number of points displayed can be modified by adjusting the section geometry using the "Across" and "Along" numeric fields. The "Overlap" numeric field allows the user to define the degree of overlap between each section and its neighbours (6).
+
+To give a general overview of the displayed section of the total point cloud, some information is displayed. First, the current station of the section is displayed. The other information is about the points themselves (loaded points, classified points, unclassified points and a histogram of the classes) (7). It is possible to cover the whole area of interest with an axis (\ref generating "Axis Generation") (8). 
+
+\image html Tool.PNG "Fig.1: PCL - PointCloudLabeler"
+
+\section Data Read in Data and define Axis
+
+\image html Path.PNG "Fig.2: Read in the Data"
+
+The first line is the path to the laser scan data. The data can be in any format accepted by opalsImport. Once the point cloud has been imported and a shading is displayed 
+we can now define the axes needed to navigate through the point cloud. This can be done in several ways:
+
+1. QGIS:
+The axis can be defined in QGIS. In this case the axis needs to be saved as a shape file in the correct reference system. The path to the shape-file must then be entered in the second line.
+
+2. Draw in shading:
+An axis can be drawn directly in shading. To do this, select the Draw mode. In the drawing mode we can easily draw the axis by clicking inside the shading.
+To confirm the axis, simply press the right mouse button. In the case of the first axis, a Save dialogue box opens. In this window the file name is required. The file is saved as an odm file. Once the file has been initialised, several axes can be added to the ODM. The ODM is automatically saved each time a new axis is confirmed.
+
+3. Load ODM:
+An existing axis odm can be loaded directly. To do this, specify the path to the odm file in the second line.
+
+4. Generate axis:
+If the whole area is to be covered, the generate option can be used. This will generate a large number of straight lines. First in a preview. In this preview
+and the distance between the axes can be adjusted. The desired configurations must be confirmed. The generated axis is automatically saved as an 
+odm file in the working directory.
+
+
+\section Functions
+\subsection knn kNN - k Nearest Neighbors
+Once all points of the current section have been classified, you can select whether a prediction with prediction with kNN from the classes of the next section.
+For a prediction, an empty kdtree object is created with PointIndexLeaf, which represents a spatial leaf with a point index, is created. This kdTree object is filled 
+with the points of the previous section. In the next step, the parameters are defined for how the prediction is to be carried out:
+
+<table>
+<caption id="knnprameters">Parameters for kdtree object</caption>
+<tr><th>Parameter                     <th>Value        
+<tr><td rowspan="1">nnCount<td>1
+<tr><td rowspan="1">searchPoint<td>Coordinates of a point in the new section
+<tr><td rowspan="1">searchMode<td>nearest
+<tr><td rowspan="1">maxSearchDist<td>-1       
+</table>
+
+
+With the point for which the class is to be predicted, the kdtree object is searched for its nearest neighbor. The maximum search radius is defined as -1.
+This means that the search continues until a nearest neighbor is found. If a neighbor is found, the class of the neighbor is assigned to the point. A prediction should only 
+be made for those points that are not yet assigned to a class. For this purpose each point whether the current class corresponds to the value zero. To perform the prediction, select the different options (predict next, predict previous, always predict, no prediction) out of a dropdown menu.
+
+\subsection editingAxis Axis editing
+For the editing of an axis the "Edit Modus" has to be turned on:
+
+\image html Editing.PNG  "Fig.3: Active Edit Mode"
+
+The axis is stored as a linestring of coordinate tuples: [[x1,y1],[x2,y2],...]
+- Delete Vertices: To delete a vertex, click on or near the desired vertex. After the click, the mouse position is analysed to find the nearest vertex. When the nearest vertex is found, the pair of coordinates whose index is equal to the vertex number is removed from the linestring of the polyline.
+- Insert Vertices: To insert a new vertex, select the desired position in the shading. After the position has been selected, it is analysed which two vertices of the active axis are the nearest. If the two closest vertices are found, the coordinates of the new vertex are inserted into the line string of the polyline between the two vertices. Once the new vertex has been added, the splines for that axis are recalculated and the axis is redrawn in the overview graphics.
+- Move Vertices: To move a vertex, click and hold at or near the desired vertex. The click marks the vertex. To move the vertex to its new position, drag the mouse to any position on the shading and release the mouse button. The old coordinate tuple of the vertex is then replaced by the x,y coordinates of the mouse position where the mouse button was released.
+
+\image html EditAxis.png  "Fig.4: Editing an Axis (from left to right): Original Axis, Delete of a Vetex, Insert of a Vertex, Move of a Vertex"
+
+<b>Note</b>: It is only possible to edit the active axis! 
+
+\subsection generating Generate Axis
+By generating axes, the entire area of interest can be covered. To do this, a polygon is created whose corner coordinates correspond to the coordinates of the corners of the area. In the next step, the centre point of this polygon will be evaluated. Once the centre point has been determined, the polygon is intersected by polylines. The distance between the polylines and the angle of rotation of the polylines can be adjusted. Each adjustment results in a preview for a first look at the area coverage. Note that the rotation angles are in degrees! Once the desired configuration has been selected it must be confirmed. It is also possible to export the polylines to a shape file.
+\image html GenerationParameter.PNG  "Fig.5: Parameters for the arial coverage"
+
+\image html GenerationPreview.PNG  "Fig.6: Preview of the arial coverage"
+
+
+\section Examples
+The data (strip149.laz) used in the following example is contained in the demo directory and read in.
+
+\subsection classify Example 1: Classification
+1. Single Point Classification / Painter:
+With this classification method, it is possible to classify single points, or paint multiple points. The thickness of the painter can be adjusted via the mousewheel.
+
+\image html DynamicPicker.PNG  "Fig.7: Single Point Classification or Paint Multiple Points" 
+
+2. Multipoint Classification:
+To classify a certain area at once, it is possible to drag over this area to classifiy it. The aread is marked with a rectangle.
+
+\image html Multipoint.PNG  "Fig.8: Multiple Point Classification" 
+
+\subsection knnpred Example 2: kNN Prediction
+As mentioned before, it is possible to predict the classification for an unclassified section. This prediction is shown in Figure 9. On the left hand side <i>no prediction</i> has been selected. The predicted classification is shown on the right.
+\image html Pred.png  "Fig.9: Next Section without Prediction (left), Next Section with Prediction (right)" 
+
+\section Troubleshooting
+The PCL is still in active development, therefore it can happend that the tool crashes sometimes. If you have trouble getting the PCL to run at all, here are couple of hints:
+- Use the most recent PCL version
+- Update OPALS to the latest nightly build
+- Check that your OPALS license is valid and in the cfg directory
+- Make sure that the axis are in the correct reference system
+
+\subsection Bugreports
+Bug reports can be sent to the OPALS Team. Please include a short description of what you were trying to achieve, using what type of files, and the text from the error message. Copy-and-paste the messages printed to the console and include them in the bug report. Thank you!
+
+\author fmeixner
+\date   06.11.2024
+
+*/
+

@@ -775,21 +775,21 @@
           <item>
            <widget class="OverviewWidget" name="Overview" native="true">
             <property name="sizePolicy">
-             <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
+             <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
               <horstretch>0</horstretch>
               <verstretch>0</verstretch>
              </sizepolicy>
             </property>
             <property name="minimumSize">
              <size>
-              <width>500</width>
-              <height>500</height>
+              <width>600</width>
+              <height>600</height>
              </size>
             </property>
             <property name="maximumSize">
              <size>
               <width>900</width>
-              <height>600</height>
+              <height>900</height>
              </size>
             </property>
             <property name="cursor">
@@ -822,6 +822,9 @@ color: rgb(0, 255, 255);</string>
           </item>
           <item>
            <layout class="QGridLayout" name="gridLayout_6">
+            <property name="sizeConstraint">
+             <enum>QLayout::SetMaximumSize</enum>
+            </property>
             <property name="spacing">
              <number>2</number>
             </property>
@@ -1041,7 +1044,7 @@ color: rgb(0, 255, 255);</string>
           <item>
            <widget class="QListWidget" name="AxisView">
             <property name="sizePolicy">
-             <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
+             <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
               <horstretch>0</horstretch>
               <verstretch>0</verstretch>
              </sizepolicy>
@@ -1049,7 +1052,13 @@ color: rgb(0, 255, 255);</string>
             <property name="minimumSize">
              <size>
               <width>600</width>
-              <height>120</height>
+              <height>200</height>
+             </size>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>16777215</width>
+              <height>200</height>
              </size>
             </property>
             <property name="selectionMode">
@@ -1266,13 +1275,13 @@ color: rgb(0, 255, 255);</string>
             <property name="minimumSize">
              <size>
               <width>600</width>
-              <height>120</height>
+              <height>100</height>
              </size>
             </property>
             <property name="maximumSize">
              <size>
               <width>600</width>
-              <height>120</height>
+              <height>100</height>
              </size>
             </property>
             <property name="font">
