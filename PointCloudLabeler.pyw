@@ -395,6 +395,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
         polygon = create_polygon(p1, p2, p3, p4)
         self.Overview.setSelectionBox(p1, p2, p3, p4)
         self.Overview.section_color = 'red'
+        self.Overview.overlap = self.overlap
         self.Overview.drawSection()
 
         # extract the points inside of the polygon
