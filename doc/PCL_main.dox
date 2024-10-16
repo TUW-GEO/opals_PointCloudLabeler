@@ -27,11 +27,11 @@ In order to classify a point cloud, it is necessary to load the dataset. All dat
 
 To give a general overview of the displayed section of the total point cloud, some information is displayed. First, the current station of the section is displayed. The other information is about the points themselves (loaded points, classified points, unclassified points and a histogram of the classes) (7). It is possible to cover the whole area of interest with an axis (\ref generating "Axis Generation") (8). 
 
-\image html Tool.PNG "Fig.1: PCL - PointCloudLabeler"
+\image html Tool.png "Fig.1: PCL - PointCloudLabeler"
 
 \section Data Read in Data and define Axis
 
-\image html Path.PNG "Fig.2: Read in the Data"
+\image html Path.png "Fig.2: Read in the Data"
 
 The first line is the path to the laser scan data. The data can be in any format accepted by opalsImport. Once the point cloud has been imported and a shading is displayed 
 we can now define the axes needed to navigate through the point cloud. This can be done in several ways:
@@ -75,7 +75,7 @@ be made for those points that are not yet assigned to a class. For this purpose 
 \subsection editingAxis Axis editing
 For the editing of an axis the "Edit Modus" has to be turned on:
 
-\image html Editing.PNG  "Fig.3: Active Edit Mode"
+\image html Editing.png  "Fig.3: Active Edit Mode"
 
 The axis is stored as a linestring of coordinate tuples: [[x1,y1],[x2,y2],...]
 - Delete Vertices: To delete a vertex, click on or near the desired vertex. After the click, the mouse position is analysed to find the nearest vertex. When the nearest vertex is found, the pair of coordinates whose index is equal to the vertex number is removed from the linestring of the polyline.
@@ -88,21 +88,23 @@ The axis is stored as a linestring of coordinate tuples: [[x1,y1],[x2,y2],...]
 
 \subsection generating Generate Axis
 By generating axes, the entire area of interest can be covered. To do this, a polygon is created whose corner coordinates correspond to the coordinates of the corners of the area. In the next step, the centre point of this polygon will be evaluated. Once the centre point has been determined, the polygon is intersected by polylines. The distance between the polylines and the angle of rotation of the polylines can be adjusted. Each adjustment results in a preview for a first look at the area coverage. Note that the rotation angles are in degrees! Once the desired configuration has been selected it must be confirmed. It is also possible to export the polylines to a shape file.
-\image html GenerationParameter.PNG  "Fig.5: Parameters for the arial coverage"
+\image html GenerationParameter.png  "Fig.5: Parameters for the arial coverage"
 
-\image html GenerationPreview.PNG  "Fig.6: Preview of the arial coverage"
+\image html GenerationPreview.png  "Fig.6: Preview of the arial coverage"
 
 \section Examples
 The data (strip149.laz) used in the following example is contained in the demo directory and read in.
 
 \subsection classify Example 1: Classification
-1. Dynamic Picker: The dynamic picker initially has a size of one pixel. If the mouse wheel is moved, the area of the mouse pointer is enlarged both horizontally and vertically in one step. A square is drawn around the pointer at the position where the mouse pointer is located. The size of the square depends on how often and in which direction the mouse wheel was moved. The square is displayed graphically in the widget. Once the appropriate size has been selected, it can be classified by left-clicking. All points within the square are assigned to the selected class. Another feature of this picker is that by holding down the left mouse button and left mouse button and moving the spanned square over points to classify them as with a brush. The area that is classified is the same as the spanned square. \image html DynamicPicker.PNG  "Fig.7: Single Point Classification or Paint Multiple Points" 
+1. Dynamic Picker: The dynamic picker initially has a size of one pixel. If the mouse wheel is moved, the area of the mouse pointer is enlarged both horizontally and vertically in one step. A square is drawn around the pointer at the position where the mouse pointer is located. The size of the square depends on how often and in which direction the mouse wheel was moved. The square is displayed graphically in the widget. Once the appropriate size has been selected, it can be classified by left-clicking. All points within the square are assigned to the selected class. Another feature of this picker is that by holding down the left mouse button and left mouse button and moving the spanned square over points to classify them as with a brush. The area that is classified is the same as the spanned square.
+\image html DynamicPicker.png  "Fig.7: Single Point Classification or Paint Multiple Points"
 
-2. Multipoint Picker: Marking several points is similar to the concept of the dynamic picker. The main difference is that the rectangle is drawn by holding down the left mouse button and moving the mouse. The current position of the mouse pointer on the widget is saved as the starting point. As long as the left mouse button is pressed and the mouse is moved, the rectangle changes size. If the left mouse button is released, the position of the mouse pointer is saved as the end position of the rectangle and all points within the rectangle are assigned to the selected classes. Like the dynamic picker, the rectangle is also displayed graphically. \image html Multipoint.PNG  "Fig.8: Multiple Point Classification" 
+2. Multipoint Picker: Marking several points is similar to the concept of the dynamic picker. The main difference is that the rectangle is drawn by holding down the left mouse button and moving the mouse. The current position of the mouse pointer on the widget is saved as the starting point. As long as the left mouse button is pressed and the mouse is moved, the rectangle changes size. If the left mouse button is released, the position of the mouse pointer is saved as the end position of the rectangle and all points within the rectangle are assigned to the selected classes. Like the dynamic picker, the rectangle is also displayed graphically.
+\image html Multipoint.png  "Fig.8: Multiple Point Classification"
 
 \subsection knnpred Example 2: kNN Prediction
 As mentioned before, it is possible to predict the classification for an unclassified section. This prediction is shown in Figure 9. On the left hand side <i>no prediction</i> has been selected. The predicted classification is shown on the right.
-\image html Pred.png  "Fig.9: Next Section without Prediction (left), Next Section with Prediction (right)" 
+\image html Pred.png  "Fig.9: Next Section without Prediction (left), Next Section with Prediction (right)"
 
 \section Troubleshooting
 The PCL is still in active development, therefore it can happend that the tool crashes sometimes. If you have trouble getting the PCL to run at all, here are couple of hints:
