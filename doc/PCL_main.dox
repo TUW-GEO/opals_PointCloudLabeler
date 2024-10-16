@@ -92,20 +92,13 @@ By generating axes, the entire area of interest can be covered. To do this, a po
 
 \image html GenerationPreview.PNG  "Fig.6: Preview of the arial coverage"
 
-
 \section Examples
 The data (strip149.laz) used in the following example is contained in the demo directory and read in.
 
 \subsection classify Example 1: Classification
-1. Single Point Classification / Painter:
-With this classification method, it is possible to classify single points, or paint multiple points. The thickness of the painter can be adjusted via the mousewheel.
+1. Dynamic Picker: The dynamic picker initially has a size of one pixel. If the mouse wheel is moved, the area of the mouse pointer is enlarged both horizontally and vertically in one step. A square is drawn around the pointer at the position where the mouse pointer is located. The size of the square depends on how often and in which direction the mouse wheel was moved. The square is displayed graphically in the widget. Once the appropriate size has been selected, it can be classified by left-clicking. All points within the square are assigned to the selected class. Another feature of this picker is that by holding down the left mouse button and left mouse button and moving the spanned square over points to classify them as with a brush. The area that is classified is the same as the spanned square. \image html DynamicPicker.PNG  "Fig.7: Single Point Classification or Paint Multiple Points" 
 
-\image html DynamicPicker.PNG  "Fig.7: Single Point Classification or Paint Multiple Points" 
-
-2. Multipoint Classification:
-To classify a certain area at once, it is possible to drag over this area to classifiy it. The aread is marked with a rectangle.
-
-\image html Multipoint.PNG  "Fig.8: Multiple Point Classification" 
+2. Multipoint Picker: Marking several points is similar to the concept of the dynamic picker. The main difference is that the rectangle is drawn by holding down the left mouse button and moving the mouse. The current position of the mouse pointer on the widget is saved as the starting point. As long as the left mouse button is pressed and the mouse is moved, the rectangle changes size. If the left mouse button is released, the position of the mouse pointer is saved as the end position of the rectangle and all points within the rectangle are assigned to the selected classes. Like the dynamic picker, the rectangle is also displayed graphically. \image html Multipoint.PNG  "Fig.8: Multiple Point Classification" 
 
 \subsection knnpred Example 2: kNN Prediction
 As mentioned before, it is possible to predict the classification for an unclassified section. This prediction is shown in Figure 9. On the left hand side <i>no prediction</i> has been selected. The predicted classification is shown on the right.
@@ -117,6 +110,9 @@ The PCL is still in active development, therefore it can happend that the tool c
 - Update OPALS to the latest nightly build
 - Check that your OPALS license is valid and in the cfg directory
 - Make sure that the axis are in the correct reference system
+
+More inforamtion about the PCL can be find here: <a href="https://github.com/TUW-GEO/opals_PointCloudLabeler/tree/main">PCL Git Hub</a>
+
 
 \subsection Bugreports
 Bug reports can be sent to the OPALS Team. Please include a short description of what you were trying to achieve, using what type of files, and the text from the error message. Copy-and-paste the messages printed to the console and include them in the bug report. Thank you!
