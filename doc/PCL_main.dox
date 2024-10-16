@@ -113,7 +113,7 @@ The PCL is still in active development, therefore it can happend that the tool c
 - Check that your OPALS license is valid and in the cfg directory
 - Make sure that the axis are in the correct reference system
 
-More inforamtion about the PCL can be find here: <a href="https://github.com/TUW-GEO/opals_PointCloudLabeler/tree/main">PCL Git Hub</a>
+More information about the PCL can be find here: <a href="https://github.com/TUW-GEO/opals_PointCloudLabeler/tree/main">PCL Git Hub</a>
 
 
 \subsection Bugreports
