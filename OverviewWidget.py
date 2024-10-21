@@ -1,4 +1,4 @@
-from PyQt5 import QtCore, QtWidgets, QtWebEngineWidgets
+from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtSvg import QSvgWidget
 from PyQt5.QtWidgets import QFileDialog, QMessageBox
 from PyQt5.QtGui import *
