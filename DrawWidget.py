@@ -12,74 +12,6 @@ import copy
 
 
 class DrawWidget(QGLWidget):
-    # def __init__(self, parent=None):
-    #     super(DrawWidget, self).__init__(parent)
-    #     self.setMouseTracking(True)
-    #     # self.setMinimumSize(500, 500)
-    #     self.camera = Camera()
-    #     self.camera.setSceneRadius(2)
-    #     self.camera.reset()
-    #     self.isPressed = False
-    #     self.oldx = self.oldy = 0
-    #     self.ptList = None
-    #     self.ptListids = None
-    #     self.axisList = None
-    #     self.Data = None
-    #     self.PointIds = None
-    #     self.Center = None
-    #     self.Scale = None
-    #     self.ChangeColoring = False
-    #     self.SelectPoint = False
-    #     self.SelectRectangle = False
-    #     self.LeftCtrlPressed = False
-    #     self.RightCtrlPressed = False
-    #     self.PointFont = QtGui.QFont("Arial", 8)
-    #     self.FaceFont = QtGui.QFont("Arial", 8)
-    #     self.AxisFont = self.PointFont
-    #     self.FontColor = QtGui.QColor(QtCore.Qt.white)
-    #     self.resetStretchData()
-    #     self.currentClass = 0
-    #     self.currentColor = 1
-    #     self.PointSize = 1
-    #     self.classificationData = None
-    #
-    #     #mouse click:
-    #     self.cicked = QtCore.pyqtSignal() #pyqtSignal()
-    #
-    #     #paint
-    #     self.start = None
-    #     self.stop = None
-    #     self.mouse = None
-    #     self.wheel = 0
-    #
-    # def _clear(self):
-    #     """Clears the widget and resets all data."""
-    #     self.Data = None
-    #     self.ptList = None
-    #     self.ptListids = None
-    #     self.axisList = None
-    #     self.PointIds = None
-    #     self.Center = None
-    #     self.Scale = None
-    #     self.ChangeColoring = False
-    #     self.SelectPoint = False
-    #     self.SelectRectangle = False
-    #     self.LeftCtrlPressed = False
-    #     self.RightCtrlPressed = False
-    #     self.PointFont = QtGui.QFont("Arial", 8)
-    #     self.FaceFont = QtGui.QFont("Arial", 8)
-    #     self.AxisFont = self.PointFont
-    #     self.FontColor = QtGui.QColor(QtCore.Qt.white)
-    #     self.resetStretchData()
-    #     self.currentClass = 0
-    #     self.currentColor = 1
-    #     self.PointSize = 1
-    #     self.classificationData = None
-    #     self.start = None
-    #     self.stop = None
-    #     self.mouse = None
-    #     self.wheel = 0
-    #     self.update()
 
     def __init__(self, parent=None):
         super(DrawWidget, self).__init__(parent)
@@ -105,6 +37,7 @@ class DrawWidget(QGLWidget):
         self.ptListids = None
         self.axisList = None
         self.Data = None
+        self.vertices = None
         self.PointIds = None
         self.Center = None
         self.Scale = None
@@ -121,7 +54,6 @@ class DrawWidget(QGLWidget):
         self.stop = None
         self.mouse = None
         self.wheel = 0
-        self.resetStretchData()
         self.update()
 
     def _clear(self):
@@ -141,26 +73,6 @@ class DrawWidget(QGLWidget):
     def setGroundView(self):
         self.camera.setGroundView()
         self.update()
-
-    def resetStretchData(self):
-        self.StrechRefPt = [0, 0 ,0]
-        self.StrechVecA  = [1, 0, 0]
-        self.StrechVecN  = [0, 1, 0]
-        self.StrechFactor = 1
-
-    def setStretchAxis(self,coor1,coor2):
-        self.StrechRefPt = [coor1[0],coor1[1],0]
-        self.StrechVecA  = [coor2[0]-coor1[0],   coor2[1]-coor1[1],  0]
-        len = math.sqrt(sum([math.pow(self.StrechVecA[i],2) for i in range(3)]))
-        for i in range(3):
-            self.StrechVecA[i] /= len
-        self.StrechVecN  = [-self.StrechVecA[1], self.StrechVecA[0], 0]
-        self.dataRefresh()
-
-    def setStretch(self,value):
-        # set stretch factor -> self.StrechFactor
-        self.StrechFactor = math.pow(10, value/5.)
-        self.dataRefresh()
 
     def setData(self, data):
         try:
@@ -185,15 +97,9 @@ class DrawWidget(QGLWidget):
             return min, max
 
     def _normalize(self, coor):
-        #transform coordinates based on strech axis
-        vec = [ coor[i]-self.StrechRefPt[i] for i in range(3) ]
-        dz = [0, 0, vec[2]]
-        a =  sum([vec[i] * self.StrechVecA[i] for i in range(3)])
-        n =  sum([vec[i] * self.StrechVecN[i] for i in range(3)]) * self.StrechFactor
-        vec = [ self.StrechRefPt[i] + a*self.StrechVecA[i] + n*self.StrechVecN[i] + dz[i] for i in range(3) ]
-
         #normalize coordinates for better viewing
-        return [(vec[i] - self.Center[i]) * self.Scale for i in range(3)]
+        return [(coor[i] - self.Center[i]) * self.Scale for i in range(3)    ]
+
 
     def initAxis(self):
         self.axisList = glGenLists(2)
@@ -302,6 +208,12 @@ class DrawWidget(QGLWidget):
             self.Scale = 1.
         else:
             self.Scale = 1. / maxdist
+
+        # normalize coordinates
+        coord_x = ((self.Data["x"]-self.Center[0])*self.Scale).astype(np.float32)
+        coord_y = ((self.Data["y"]-self.Center[1])*self.Scale).astype(np.float32)
+        coord_z = ((self.Data["z"]-self.Center[2])*self.Scale).astype(np.float32)
+        self.vertices = np.hstack((coord_x.reshape(-1, 1), coord_y.reshape(-1, 1), coord_z.reshape(-1, 1)))
 
         self.ptList = glGenLists(1)
         self.ptListids = glGenLists(3)

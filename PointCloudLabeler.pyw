@@ -482,10 +482,6 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
     def ptsInSection(self):
         self.Section.setData(self.result)
-        if len(self.result["x"]) > 2:
-            coords1 = [self.result["x"][0], self.result["y"][0], self.result["z"][0]]
-            coords2 = [coords1[0] + 10., coords1[1] + 10., coords1[2] + 10.]
-            self.Section.setStretchAxis(coords1, coords2)
 
     def handlePickedPolyline(self, polyline):
         if polyline != []:
