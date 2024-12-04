@@ -5,8 +5,6 @@ import numpy as np
 import ctypes
 import sys, random
 
-classMapSize = 256
-
 vertex_shader = """
 #version 330
 layout(location = 0) in vec3 position;
@@ -15,8 +13,8 @@ layout(location = 2) in int   classId;
 layout(location = 3) in int   index;
 
 uniform int attrMode;
-uniform float minAmp; 
-uniform float maxAmp;
+uniform float minAttr; 
+uniform float maxAttr;
 uniform vec3 classMap[256];    
 
 #define ATT_MODE_AMP    0
@@ -36,9 +34,9 @@ vec3 Index2Color(int i) {
 
 vec3 Amp2Color(float a) {
     float range = 1;
-    if (maxAmp != minAmp)
-        range = maxAmp-minAmp;
-    float v = (clamp(a,minAmp,maxAmp)-minAmp)/range;
+    if (maxAttr != minAttr)
+        range = maxAttr-minAttr;
+    float v = (clamp(a,minAttr,maxAttr)-minAttr)/range;
     return vec3(v, v, v);
 }
 
@@ -89,41 +87,52 @@ vertices = np.array(vertices, dtype=np.float32)
 amp = np.array([30, 56, 14, 80, 43, 16], dtype=np.float32)
 classIds = np.array([2, 2, 0, 4, 0, 2], dtype=np.int32)
 
+
 class glPointCloud:
-    classMapSize = 256
+
+    classMapSize = 256  # number of supported class ids
 
     def __init__(self):
         self.vao = None     # vertex array object
         self.vbo = None
         self.shader = None
         self.idxDisplayMode = None
-        self.idxMinAmp = None
-        self.idxMaxAmp = None
+        self.idxMinAttr = None
+        self.idxMaxAttr = None
         self.idxClassMap = None
 
         self.ptCount = None
         self.vertices = None
-        self.amplitudes = None
+        self.attrValues = None
         self.classIds = None
         self.ptIds = None   # one based vertex indices
 
-    def _upload_data(self, vertices, amplitudes, classIds, ptIds):
+    def _upload_data(self, vertices, attrValues, classIds, ptIds):
         # Generate buffers to hold our vertices ----------------------------------------------------------------------------
-        data = np.hstack((vertices, amplitudes.reshape(-1, 1), classIds.reshape(-1, 1).view('float32'),
+        data = np.hstack((vertices, attrValues.reshape(-1, 1), classIds.reshape(-1, 1).view('float32'),
                           ptIds.reshape(-1, 1).view('float32')))
         GL.glBindBuffer(GL.GL_ARRAY_BUFFER, self.vbo)
         GL.glBufferData(GL.GL_ARRAY_BUFFER, data.nbytes, data, GL.GL_STATIC_DRAW)
 
-    def set_data(self, vertices, amplitudes, classIds):
-        assert isinstance(vertices, np.ndarray) and isinstance(amplitudes, np.ndarray) and isinstance(classIds, np.ndarray)
+    def set_data(self, vertices, attrValues, classIds):
+        assert isinstance(vertices, np.ndarray) and isinstance(attrValues, np.ndarray) and isinstance(classIds, np.ndarray)
         assert vertices.shape[1] == 3
         self.ptCount = vertices.shape[0]
-        assert amplitudes.shape[0] == self.ptCount and classIds.shape[0] == self.ptCount
+        assert attrValues.shape[0] == self.ptCount and classIds.shape[0] == self.ptCount
         self.ptIds = np.arange(1, self.ptCount+1, 1, dtype=int)
         self.vertices = vertices
-        self.amplitudes = amplitudes
+        self.attrValues = attrValues
         self.classIds = classIds
         pass
+
+    @staticmethod
+    def generate_color_map():
+        colorMap = np.empty(shape=(glPointCloud.classMapSize, 3), dtype=np.float32)
+        for r in range(glPointCloud.classMapSize):
+            colorMap[r, 0] = random.random()
+            colorMap[r, 1] = random.random()
+            colorMap[r, 2] = random.random()
+        return colorMap
 
     @property
     def displayMode(self):
@@ -135,31 +144,36 @@ class glPointCloud:
     def displayMode(self, mode):
         GL.glUseProgram(self.shader)
         GL.glUniform1i(self.idxDisplayMode, mode)
+        GL.glUseProgram(0)
 
     @property
-    def amplitudeRange(self):
+    def attributeRange(self):
         min = ctypes.c_float(0)
         max = ctypes.c_float(0)
-        GL.glGetUniformiv(self.shader, self.idxMinAmp, min)
-        GL.glGetUniformiv(self.shader, self.idxMaxAmp, max)
+        GL.glGetUniformiv(self.shader, self.idxMinAttr, min)
+        GL.glGetUniformiv(self.shader, self.idxMaxAttr, max)
+        GL.glUseProgram(0)
         return (min, max)
 
-    @amplitudeRange.setter
-    def amplitudeRange(self, range):
+    @attributeRange.setter
+    def attributeRange(self, range):
         GL.glUseProgram(self.shader)
-        GL.glUniform1f(self.idxMinAmp, range[0])
-        GL.glUniform1f(self.idxMaxAmp, range[1])
+        GL.glUniform1f(self.idxMinAttr, range[0])
+        GL.glUniform1f(self.idxMaxAttr, range[1])
+        GL.glUseProgram(0)
 
     @property
     def classColorMap(self):
         GL.glUseProgram(self.shader)
-        map = np.empty(shape=(classMapSize, 3), dtype=np.float32)
-        GL.glGetUniformfv(self.idxClassMap, classMapSize*3, map)
+        map = np.empty(shape=(glPointCloud.classMapSize, 3), dtype=np.float32)
+        GL.glGetUniformfv(self.idxClassMap, glPointCloud.classMapSize*3, map)
+        GL.glUseProgram(0)
 
     @classColorMap.setter
     def classColorMap(self, map):
         GL.glUseProgram(self.shader)
-        GL.glUniform3fv(self.idxClassMap, classMapSize, map)
+        GL.glUniform3fv(self.idxClassMap, glPointCloud.classMapSize, map)
+        GL.glUseProgram(0)
 
     def initíalize(self, vs=vertex_shader, fs=fragment_shader):
         self.shader = OpenGL.GL.shaders.compileProgram(
@@ -169,8 +183,8 @@ class glPointCloud:
 
         # get index of uniform variables
         self.idxDisplayMode = GL.glGetUniformLocation(self.shader, "attrMode")
-        self.idxMinAmp = GL.glGetUniformLocation(self.shader, "minAmp")
-        self.idxMaxAmp = GL.glGetUniformLocation(self.shader, "maxAmp")
+        self.idxMinAttr = GL.glGetUniformLocation(self.shader, "minAttr")
+        self.idxMaxAttr = GL.glGetUniformLocation(self.shader, "maxAttr")
         self.idxClassMap = GL.glGetUniformLocation(self.shader, "classMap")
 
         # Create a new VAO (Vertex Array Object) and bind it
@@ -179,7 +193,7 @@ class glPointCloud:
 
         # Generate buffers to hold our vertices
         self.vbo = GL.glGenBuffers(1)
-        self._upload_data(self.vertices, self.amplitudes, self.classIds, self.ptIds)
+        self._upload_data(self.vertices, self.attrValues, self.classIds, self.ptIds)
 
         # Set attribute pointers
         stride = 6 * vertices.itemsize
@@ -233,12 +247,12 @@ class glPointCloud:
                 break
             selectedPts.extend(idxPtList)
             ptIdsTemp[idxPtArray - 1] = 0
-            self._upload_data(self.vertices, self.amplitudes, self.classIds, ptIdsTemp)
+            self._upload_data(self.vertices, self.attrValues, self.classIds, ptIdsTemp)
             iter += 1
 
         #print(f"selected ids {selectedPts}")
         # restore old ptIds and display mode
-        self._upload_data(self.vertices, self.amplitudes, self.classIds, self.ptIds)
+        self._upload_data(self.vertices, self.attrValues, self.classIds, self.ptIds)
         self.displayMode = old_mode
         return selectedPts
 

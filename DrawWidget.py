@@ -7,6 +7,7 @@ import math
 import numpy as np
 from sortedcontainers import SortedDict
 from Camera import Camera
+from glPointCloud import glPointCloud
 import struct
 import copy
 
@@ -24,6 +25,9 @@ class DrawWidget(QGLWidget):
         self.AxisFont = self.PointFont
         self.FontColor = QtGui.QColor(QtCore.Qt.white)
 
+        self.PointCloud = glPointCloud()
+        self.ClassColorMap = glPointCloud.generate_color_map()
+
         # Mouse click signal
         self.clicked = QtCore.pyqtSignal()  # pyqtSignal()
 
@@ -37,7 +41,8 @@ class DrawWidget(QGLWidget):
         self.ptListids = None
         self.axisList = None
         self.Data = None
-        self.vertices = None
+        self.glVertices = None    # for drawing in opengl
+        self.glAttrValues = None  # for drawing in opengl
         self.PointIds = None
         self.Center = None
         self.Scale = None
@@ -63,6 +68,13 @@ class DrawWidget(QGLWidget):
 
     def setClassifcationData(self, classificationData):
         self.classificationData = classificationData
+        for id, value in classificationData.items():
+            color = value[1]
+            if id >= self.ClassColorMap.shape[0]:
+                raise Exception(f"class id {id} exceeds number of currently supported color map entries ({self.ClassColorMap.shape[0]})")
+            self.ClassColorMap[id][0] = color[0]
+            self.ClassColorMap[id][1] = color[1]
+            self.ClassColorMap[id][2] = color[2]
 
     def setOrthoView(self,rotation):
         x = rotation[0,0]
@@ -213,7 +225,8 @@ class DrawWidget(QGLWidget):
         coord_x = ((self.Data["x"]-self.Center[0])*self.Scale).astype(np.float32)
         coord_y = ((self.Data["y"]-self.Center[1])*self.Scale).astype(np.float32)
         coord_z = ((self.Data["z"]-self.Center[2])*self.Scale).astype(np.float32)
-        self.vertices = np.hstack((coord_x.reshape(-1, 1), coord_y.reshape(-1, 1), coord_z.reshape(-1, 1)))
+        self.glVertices = np.hstack((coord_x.reshape(-1, 1), coord_y.reshape(-1, 1), coord_z.reshape(-1, 1)))
+        self.glVertices = coord_z  # we could use a different attribute as wll
 
         self.ptList = glGenLists(1)
         self.ptListids = glGenLists(3)
@@ -377,6 +390,8 @@ class DrawWidget(QGLWidget):
     def initializeGL(self):
         glClearColor(0.0, 0.0, 0.0, 1.0)
         glClearDepth(1.0)
+
+
 
     def mousePressEvent(self, mouseEvent):
         self.oldx = mouseEvent.x()
