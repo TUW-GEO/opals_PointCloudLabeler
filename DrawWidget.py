@@ -7,7 +7,7 @@ import math
 import numpy as np
 from sortedcontainers import SortedDict
 from Camera import Camera
-from glPointCloud import glPointCloud
+from glPointCloud import glPointCloud, COLOR_MODE_ATTR, COLOR_MODE_CLASS, COLOR_MODE_INDEX
 import struct
 import copy
 
@@ -25,7 +25,7 @@ class DrawWidget(QGLWidget):
         self.AxisFont = self.PointFont
         self.FontColor = QtGui.QColor(QtCore.Qt.white)
 
-        self.PointCloud = glPointCloud()
+        self.glPointCloud = glPointCloud()
         self.ClassColorMap = glPointCloud.generate_color_map()
 
         # Mouse click signal
@@ -72,9 +72,9 @@ class DrawWidget(QGLWidget):
             color = value[1]
             if id >= self.ClassColorMap.shape[0]:
                 raise Exception(f"class id {id} exceeds number of currently supported color map entries ({self.ClassColorMap.shape[0]})")
-            self.ClassColorMap[id][0] = color[0]
-            self.ClassColorMap[id][1] = color[1]
-            self.ClassColorMap[id][2] = color[2]
+            self.ClassColorMap[id][0] = color[0]/255.
+            self.ClassColorMap[id][1] = color[1]/255.
+            self.ClassColorMap[id][2] = color[2]/255.
 
     def setOrthoView(self,rotation):
         x = rotation[0,0]
@@ -226,7 +226,12 @@ class DrawWidget(QGLWidget):
         coord_y = ((self.Data["y"]-self.Center[1])*self.Scale).astype(np.float32)
         coord_z = ((self.Data["z"]-self.Center[2])*self.Scale).astype(np.float32)
         self.glVertices = np.hstack((coord_x.reshape(-1, 1), coord_y.reshape(-1, 1), coord_z.reshape(-1, 1)))
-        self.glVertices = coord_z  # we could use a different attribute as wll
+        self.glAttrValues = coord_z  # we could use a different attribute as wll
+        self.glPointCloud.set_data(self.glVertices, self.glAttrValues, self.Data['Classification'] )
+
+        # upload class color map
+        self.glPointCloud.classColorMap = self.ClassColorMap
+        self.glPointCloud.displayMode = COLOR_MODE_CLASS
 
         self.ptList = glGenLists(1)
         self.ptListids = glGenLists(3)
@@ -318,7 +323,10 @@ class DrawWidget(QGLWidget):
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
 
         if renderScreen and self.ptList:
-            glCallList(self.ptList)
+            #glCallList(self.ptList)
+            viewMat = self.camera.getViewMatrix()
+            projMat = self.camera.getProjectionMatrix()
+            self.glPointCloud.draw(pointSize=self.PointSize, projMat=projMat, viewMat=viewMat)
 
             glMatrixMode(GL_MODELVIEW);
             glLoadIdentity();
@@ -390,7 +398,7 @@ class DrawWidget(QGLWidget):
     def initializeGL(self):
         glClearColor(0.0, 0.0, 0.0, 1.0)
         glClearDepth(1.0)
-
+        self.glPointCloud.initíalize()
 
 
     def mousePressEvent(self, mouseEvent):

@@ -7,22 +7,25 @@ import sys, random
 
 vertex_shader = """
 #version 330
-layout(location = 0) in vec3 position;
-layout(location = 1) in float amp;
+layout(location = 0) in vec3  position;
+layout(location = 1) in float attr;
 layout(location = 2) in int   classId;
 layout(location = 3) in int   index;
 
 uniform int attrMode;
-uniform float minAttr; 
+uniform float minAttr;
 uniform float maxAttr;
-uniform vec3 classMap[256];    
+uniform vec3 classMap[256];
+uniform mat4 viewMat;
+uniform mat4 projMat;
 
-#define ATT_MODE_AMP    0
-#define ATT_MODE_CLASS  1
-#define ATT_MODE_INDEX  2
+#define COLOR_MODE_ATTR    0
+#define COLOR_MODE_CLASS  1
+#define COLOR_MODE_INDEX  2
 
 vec3 Class2Color(int c) {
     return vec3(classMap[c]);
+    //return vec3(1.f,0,0);
 }
 
 vec3 Index2Color(int i) {
@@ -32,7 +35,7 @@ vec3 Index2Color(int i) {
                );
 }
 
-vec3 Amp2Color(float a) {
+vec3 Attr2Color(float a) {
     float range = 1;
     if (maxAttr != minAttr)
         range = maxAttr-minAttr;
@@ -44,19 +47,19 @@ out vec3  color;
 void main()
 {
    float z = 1.0f;
-   if(attrMode == ATT_MODE_AMP) {
-      color = Amp2Color(amp);
-   } else if(attrMode == ATT_MODE_CLASS) {
+   if(attrMode == COLOR_MODE_ATTR) {
+      color = Attr2Color(attr);
+   } else if(attrMode == COLOR_MODE_CLASS) {
       color = Class2Color(classId);	
-   }  else if(attrMode == ATT_MODE_INDEX) {
+   }  else if(attrMode == COLOR_MODE_INDEX) {
       if (index == 0) {
-         z = -1000f; // disables point
+         z = -1000; // disables point
          color = vec3(0,0,0);
       } else {
         color = Index2Color(index);
       }	
    }   
-   gl_Position = vec4(position, z);
+   gl_Position = projMat*viewMat*vec4(position, z);
 }
 """
 
@@ -70,9 +73,9 @@ void main()
 """
 
 
-ATT_MODE_AMP   = 0
-ATT_MODE_CLASS = 1
-ATT_MODE_INDEX = 2
+COLOR_MODE_ATTR  = 0
+COLOR_MODE_CLASS = 1
+COLOR_MODE_INDEX = 2
 
 
 vertices = [[0.6, 0.6, 0.0],
@@ -100,21 +103,35 @@ class glPointCloud:
         self.idxMinAttr = None
         self.idxMaxAttr = None
         self.idxClassMap = None
+        self.idxViewMat = None
+        self.idxProjMat = None
 
         self.ptCount = None
         self.vertices = None
         self.attrValues = None
         self.classIds = None
         self.ptIds = None   # one based vertex indices
+        self._initialized = False
 
     def _upload_data(self, vertices, attrValues, classIds, ptIds):
+        if vertices is None:
+            # in case vertices is none we still need to bind an empty array, otherwise
+            # subsequent glVertexAttribPointer calls will fail
+            empty = np.empty( shape=(0,0), dtype=np.float32)
+            GL.glBindBuffer(GL.GL_ARRAY_BUFFER, self.vbo)
+            GL.glBufferData(GL.GL_ARRAY_BUFFER, empty.nbytes, empty, GL.GL_STATIC_DRAW)
+            return
+
         # Generate buffers to hold our vertices ----------------------------------------------------------------------------
-        data = np.hstack((vertices, attrValues.reshape(-1, 1), classIds.reshape(-1, 1).view('float32'),
+        classIds_int32 = classIds
+        if classIds_int32.itemsize != 4:               # we need classIds as 4 byte integer (to allow float32 cast)
+            classIds_int32 = classIds.astype(np.int32)
+        data = np.hstack((vertices, attrValues.reshape(-1, 1), classIds_int32.reshape(-1, 1).view('float32'),
                           ptIds.reshape(-1, 1).view('float32')))
         GL.glBindBuffer(GL.GL_ARRAY_BUFFER, self.vbo)
         GL.glBufferData(GL.GL_ARRAY_BUFFER, data.nbytes, data, GL.GL_STATIC_DRAW)
 
-    def set_data(self, vertices, attrValues, classIds):
+    def set_data(self, vertices, attrValues, classIds, upload=True):
         assert isinstance(vertices, np.ndarray) and isinstance(attrValues, np.ndarray) and isinstance(classIds, np.ndarray)
         assert vertices.shape[1] == 3
         self.ptCount = vertices.shape[0]
@@ -123,6 +140,8 @@ class glPointCloud:
         self.vertices = vertices
         self.attrValues = attrValues
         self.classIds = classIds
+        if upload:
+            self._upload_data(self.vertices, self.attrValues, self.classIds, self.ptIds)
         pass
 
     @staticmethod
@@ -168,12 +187,32 @@ class glPointCloud:
         map = np.empty(shape=(glPointCloud.classMapSize, 3), dtype=np.float32)
         GL.glGetUniformfv(self.idxClassMap, glPointCloud.classMapSize*3, map)
         GL.glUseProgram(0)
+        return map
 
     @classColorMap.setter
     def classColorMap(self, map):
         GL.glUseProgram(self.shader)
         GL.glUniform3fv(self.idxClassMap, glPointCloud.classMapSize, map)
         GL.glUseProgram(0)
+
+    @property
+    def viewMatrix(self):
+        GL.glUseProgram(self.shader)
+        mat = np.empty(shape=(4, 4), dtype=np.float32)
+        GL.glGetUniformfv(self.idxViewMat, 4*4, mat)
+        GL.glUseProgram(0)
+        return mat
+
+    @viewMatrix.setter
+    def viewMatrix(self, mat):
+        GL.glUseProgram(self.shader)
+        GL.glUniformMatrix4fv(self.idxViewMat, 1, 0, mat)
+        GL.glUseProgram(0)
+
+
+    @property
+    def initialized(self):
+        return self._initialized
 
     def initíalize(self, vs=vertex_shader, fs=fragment_shader):
         self.shader = OpenGL.GL.shaders.compileProgram(
@@ -183,9 +222,11 @@ class glPointCloud:
 
         # get index of uniform variables
         self.idxDisplayMode = GL.glGetUniformLocation(self.shader, "attrMode")
-        self.idxMinAttr = GL.glGetUniformLocation(self.shader, "minAttr")
-        self.idxMaxAttr = GL.glGetUniformLocation(self.shader, "maxAttr")
+        self.idxMinAttr  = GL.glGetUniformLocation(self.shader, "minAttr")
+        self.idxMaxAttr  = GL.glGetUniformLocation(self.shader, "maxAttr")
         self.idxClassMap = GL.glGetUniformLocation(self.shader, "classMap")
+        self.idxViewMat  = GL.glGetUniformLocation(self.shader, "viewMat")
+        self.idxProjMat  = GL.glGetUniformLocation(self.shader, "projMat")
 
         # Create a new VAO (Vertex Array Object) and bind it
         self.vao = GL.glGenVertexArrays(1)
@@ -210,9 +251,16 @@ class glPointCloud:
         GL.glEnableVertexAttribArray(2)
         GL.glEnableVertexAttribArray(3)
 
+        self._initialized = True
 
-    def draw(self, pointSize=3):
+
+
+    def draw(self, pointSize=3, projMat = None, viewMat = None):
         GL.glUseProgram(self.shader)
+        if projMat is not None:
+            GL.glUniformMatrix4fv(self.idxProjMat, 1, 0, projMat)
+        if viewMat is not None:
+            GL.glUniformMatrix4fv(self.idxViewMat, 1, 0, viewMat)
         GL.glBindVertexArray(self.vao)
         GL.glPointSize(pointSize)
         GL.glDrawArrays(GL.GL_POINTS, 0, self.ptCount)
@@ -221,7 +269,7 @@ class glPointCloud:
 
     def select(self, minx, miny, sizex, sizey):
         old_mode = self.displayMode
-        self.displayMode = ATT_MODE_INDEX
+        self.displayMode = COLOR_MODE_INDEX
 
         ptIdsTemp = self.ptIds.copy()
 

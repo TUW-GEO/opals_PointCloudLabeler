@@ -1,5 +1,5 @@
 #! /usr/bin/env python
-
+import numpy as np
 from Geometry import Point3D, Vector3D, Matrix4x4
 from OpenGL.GL import *
 import math
@@ -93,6 +93,20 @@ class Camera:
 
         M = Matrix4x4.lookAt(self.position, self.target, self.up, False)
         glMultMatrixf(M.get())
+
+
+    def getProjectionMatrix(self):
+        if self.OrthoProjection == True:
+          dist = (self.position-self.target).length()*0.3
+          return np.array( [[1/dist, 0, 0, 0],
+                           [0, 1/dist, 0, 0],
+                           [0, 0, -1/self.farPlane, 0],
+                           [0, 0, 0, 1]], dtype=np.float32)
+        else:
+            return None
+    def getViewMatrix(self):
+        mat = Matrix4x4.lookAt(self.position, self.target, self.up, False)
+        return np.array(mat.get(), dtype=np.float32).reshape(4, 4)
 
     def transformAxis(self):
         if self.OrthoProjection == True:
