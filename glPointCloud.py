@@ -7,22 +7,27 @@ import sys, random
 
 vertex_shader = """
 #version 330
-layout(location = 0) in vec3 position;
-layout(location = 1) in float amp;
+layout(location = 0) in vec3  position;
+layout(location = 1) in float attr;
 layout(location = 2) in int   classId;
 layout(location = 3) in int   index;
 
 uniform int attrMode;
-uniform float minAttr; 
+uniform float minAttr;
 uniform float maxAttr;
-uniform vec3 classMap[256];    
+uniform vec3 classColorPal[256];
+uniform sampler1D attrColorPal;  
+//uniform sampler1D classColorPal;
+uniform mat4 viewMat;
+uniform mat4 projMat;
 
-#define ATT_MODE_AMP    0
-#define ATT_MODE_CLASS  1
-#define ATT_MODE_INDEX  2
+#define COLOR_MODE_ATTR    0
+#define COLOR_MODE_CLASS  1
+#define COLOR_MODE_INDEX  2
 
 vec3 Class2Color(int c) {
-    return vec3(classMap[c]);
+    return vec3(classColorPal[c]);
+    //return texture(classColorPal, 0).rgb;
 }
 
 vec3 Index2Color(int i) {
@@ -32,31 +37,31 @@ vec3 Index2Color(int i) {
                );
 }
 
-vec3 Amp2Color(float a) {
+vec3 Attr2Color(float a) {
     float range = 1;
     if (maxAttr != minAttr)
         range = maxAttr-minAttr;
     float v = (clamp(a,minAttr,maxAttr)-minAttr)/range;
-    return vec3(v, v, v);
+    return texture(attrColorPal, v).rgb;
 }
 
 out vec3  color;
 void main()
 {
    float z = 1.0f;
-   if(attrMode == ATT_MODE_AMP) {
-      color = Amp2Color(amp);
-   } else if(attrMode == ATT_MODE_CLASS) {
+   if(attrMode == COLOR_MODE_ATTR) {
+      color = Attr2Color(attr);
+   } else if(attrMode == COLOR_MODE_CLASS) {
       color = Class2Color(classId);	
-   }  else if(attrMode == ATT_MODE_INDEX) {
+   }  else if(attrMode == COLOR_MODE_INDEX) {
       if (index == 0) {
-         z = -1000f; // disables point
+         z = -1000; // disables point
          color = vec3(0,0,0);
       } else {
         color = Index2Color(index);
       }	
    }   
-   gl_Position = vec4(position, z);
+   gl_Position = projMat*viewMat*vec4(position, z);
 }
 """
 
@@ -70,9 +75,9 @@ void main()
 """
 
 
-ATT_MODE_AMP   = 0
-ATT_MODE_CLASS = 1
-ATT_MODE_INDEX = 2
+COLOR_MODE_ATTR  = 0
+COLOR_MODE_CLASS = 1
+COLOR_MODE_INDEX = 2
 
 
 vertices = [[0.6, 0.6, 0.0],
@@ -90,31 +95,47 @@ classIds = np.array([2, 2, 0, 4, 0, 2], dtype=np.int32)
 
 class glPointCloud:
 
-    classMapSize = 256  # number of supported class ids
+    classColorPalSize = 256  # number of supported class ids
 
     def __init__(self):
         self.vao = None     # vertex array object
         self.vbo = None
         self.shader = None
+        self.texAttrColorPal = None
         self.idxDisplayMode = None
         self.idxMinAttr = None
         self.idxMaxAttr = None
-        self.idxClassMap = None
+        self.idxClassColorPal = None
+        self.idxAttrColorPal = None
+        self.idxViewMat = None
+        self.idxProjMat = None
 
         self.ptCount = None
         self.vertices = None
         self.attrValues = None
         self.classIds = None
         self.ptIds = None   # one based vertex indices
+        self._initialized = False
 
     def _upload_data(self, vertices, attrValues, classIds, ptIds):
+        if vertices is None:
+            # in case vertices is none we still need to bind an empty array, otherwise
+            # subsequent glVertexAttribPointer calls will fail
+            empty = np.empty( shape=(0,0), dtype=np.float32)
+            GL.glBindBuffer(GL.GL_ARRAY_BUFFER, self.vbo)
+            GL.glBufferData(GL.GL_ARRAY_BUFFER, empty.nbytes, empty, GL.GL_STATIC_DRAW)
+            return
+
         # Generate buffers to hold our vertices ----------------------------------------------------------------------------
-        data = np.hstack((vertices, attrValues.reshape(-1, 1), classIds.reshape(-1, 1).view('float32'),
+        classIds_int32 = classIds
+        if classIds_int32.itemsize != 4:               # we need classIds as 4 byte integer (to allow float32 cast)
+            classIds_int32 = classIds.astype(np.int32)
+        data = np.hstack((vertices, attrValues.reshape(-1, 1), classIds_int32.reshape(-1, 1).view('float32'),
                           ptIds.reshape(-1, 1).view('float32')))
         GL.glBindBuffer(GL.GL_ARRAY_BUFFER, self.vbo)
         GL.glBufferData(GL.GL_ARRAY_BUFFER, data.nbytes, data, GL.GL_STATIC_DRAW)
 
-    def set_data(self, vertices, attrValues, classIds):
+    def set_data(self, vertices, attrValues, classIds, upload=True):
         assert isinstance(vertices, np.ndarray) and isinstance(attrValues, np.ndarray) and isinstance(classIds, np.ndarray)
         assert vertices.shape[1] == 3
         self.ptCount = vertices.shape[0]
@@ -123,15 +144,17 @@ class glPointCloud:
         self.vertices = vertices
         self.attrValues = attrValues
         self.classIds = classIds
+        if upload:
+            self._upload_data(self.vertices, self.attrValues, self.classIds, self.ptIds)
         pass
 
     @staticmethod
     def generate_color_map():
-        colorMap = np.empty(shape=(glPointCloud.classMapSize, 3), dtype=np.float32)
-        for r in range(glPointCloud.classMapSize):
-            colorMap[r, 0] = random.random()
-            colorMap[r, 1] = random.random()
-            colorMap[r, 2] = random.random()
+        colorMap = np.empty(shape=(glPointCloud.classColorPalSize, 3), dtype=np.float32)
+        for r in range(glPointCloud.classColorPalSize):
+            colorMap[r, 0] = random.randint(0, 255) #random.random()
+            colorMap[r, 1] = random.randint(0, 255)
+            colorMap[r, 2] = random.randint(0, 255)
         return colorMap
 
     @property
@@ -163,19 +186,59 @@ class glPointCloud:
         GL.glUseProgram(0)
 
     @property
-    def classColorMap(self):
+    def classColorPal(self):
         GL.glUseProgram(self.shader)
-        map = np.empty(shape=(glPointCloud.classMapSize, 3), dtype=np.float32)
-        GL.glGetUniformfv(self.idxClassMap, glPointCloud.classMapSize*3, map)
+        map = np.empty(shape=(glPointCloud.classColorPalSize, 3), dtype=np.float32)
+        GL.glGetUniformfv(self.idxClassColorPal, glPointCloud.classColorPalSize * 3, map)
+        GL.glUseProgram(0)
+        return map
+
+    @classColorPal.setter
+    def classColorPal(self, map):
+        GL.glUseProgram(self.shader)
+        GL.glUniform3fv(self.idxClassColorPal, glPointCloud.classColorPalSize, map)
         GL.glUseProgram(0)
 
-    @classColorMap.setter
-    def classColorMap(self, map):
+    @property
+    def viewMatrix(self):
         GL.glUseProgram(self.shader)
-        GL.glUniform3fv(self.idxClassMap, glPointCloud.classMapSize, map)
+        mat = np.empty(shape=(4, 4), dtype=np.float32)
+        GL.glGetUniformfv(self.idxViewMat, 4*4, mat)
+        GL.glUseProgram(0)
+        return mat
+
+    @viewMatrix.setter
+    def viewMatrix(self, mat):
+        GL.glUseProgram(self.shader)
+        GL.glUniformMatrix4fv(self.idxViewMat, 1, 0, mat)
         GL.glUseProgram(0)
 
-    def initíalize(self, vs=vertex_shader, fs=fragment_shader):
+
+    @property
+    def initialized(self):
+        return self._initialized
+
+    def _upload_attrColorPal(self, colorPal):
+        tmp = np.array(colorPal, dtype=np.uint8)
+        GL.glBindTexture(GL.GL_TEXTURE_1D, self.texAttrColorPal)
+        GL.glTexImage1D(GL.GL_TEXTURE_1D, 0, GL.GL_RGBA, tmp.shape[0], 0, GL.GL_RGB, GL.GL_UNSIGNED_BYTE, tmp)
+        GL.glTexParameterf(GL.GL_TEXTURE_1D, GL.GL_TEXTURE_WRAP_S, GL.GL_MIRRORED_REPEAT)
+        GL.glTexParameterf(GL.GL_TEXTURE_1D, GL.GL_TEXTURE_WRAP_T, GL.GL_MIRRORED_REPEAT)
+        GL.glTexParameteri(GL.GL_TEXTURE_1D, GL.GL_TEXTURE_MIN_FILTER, GL.GL_LINEAR)
+        GL.glTexParameteri(GL.GL_TEXTURE_1D, GL.GL_TEXTURE_MAG_FILTER, GL.GL_LINEAR)
+
+    def _upload_classColorPal(self, colorPal):
+        tmp = np.array(colorPal, dtype=np.uint8)
+        GL.glBindTexture(GL.GL_TEXTURE_1D, self.texClassColorPal)
+        GL.glTexImage1D(GL.GL_TEXTURE_1D, 0, GL.GL_RGBA, tmp.shape[0], 0, GL.GL_RGB, GL.GL_UNSIGNED_BYTE, tmp)
+        GL.glTexParameterf(GL.GL_TEXTURE_1D, GL.GL_TEXTURE_WRAP_S, GL.GL_MIRRORED_REPEAT)
+        GL.glTexParameterf(GL.GL_TEXTURE_1D, GL.GL_TEXTURE_WRAP_T, GL.GL_MIRRORED_REPEAT)
+        GL.glTexParameteri(GL.GL_TEXTURE_1D, GL.GL_TEXTURE_MIN_FILTER, GL.GL_NEAREST)
+        GL.glTexParameteri(GL.GL_TEXTURE_1D, GL.GL_TEXTURE_MAG_FILTER, GL.GL_NEAREST)
+
+    def initíalize(self, vs=vertex_shader, fs=fragment_shader, attrColorPal = [[0, 153, 51], [153, 230, 0], [222, 222, 31], [135, 87, 18]]):
+        #GL.glEnable(GL.GL_TEXTURE_1D)
+
         self.shader = OpenGL.GL.shaders.compileProgram(
             OpenGL.GL.shaders.compileShader(vs, GL.GL_VERTEX_SHADER),
             OpenGL.GL.shaders.compileShader(fs, GL.GL_FRAGMENT_SHADER)
@@ -183,9 +246,12 @@ class glPointCloud:
 
         # get index of uniform variables
         self.idxDisplayMode = GL.glGetUniformLocation(self.shader, "attrMode")
-        self.idxMinAttr = GL.glGetUniformLocation(self.shader, "minAttr")
-        self.idxMaxAttr = GL.glGetUniformLocation(self.shader, "maxAttr")
-        self.idxClassMap = GL.glGetUniformLocation(self.shader, "classMap")
+        self.idxMinAttr  = GL.glGetUniformLocation(self.shader, "minAttr")
+        self.idxMaxAttr  = GL.glGetUniformLocation(self.shader, "maxAttr")
+        self.idxClassColorPal = GL.glGetUniformLocation(self.shader, "classColorPal")
+        self.idxAttrColorPal = GL.glGetUniformLocation(self.shader, "attrColorPal")
+        self.idxViewMat  = GL.glGetUniformLocation(self.shader, "viewMat")
+        self.idxProjMat  = GL.glGetUniformLocation(self.shader, "projMat")
 
         # Create a new VAO (Vertex Array Object) and bind it
         self.vao = GL.glGenVertexArrays(1)
@@ -210,9 +276,27 @@ class glPointCloud:
         GL.glEnableVertexAttribArray(2)
         GL.glEnableVertexAttribArray(3)
 
+        # Create 1d texture objects for colorizing
+        self.texAttrColorPal = GL.glGenTextures(1)
+        self._upload_attrColorPal(attrColorPal)
+        GL.glActiveTexture(GL.GL_TEXTURE0)
+        GL.glBindTexture(GL.GL_TEXTURE_1D, self.texAttrColorPal)
 
-    def draw(self, pointSize=3):
+        self.displayMode = COLOR_MODE_CLASS  #default color mode
+
+        self._initialized = True
+
+
+
+    def draw(self, pointSize=3, projMat = None, viewMat = None):
+        if not self.ptCount:
+            return
         GL.glUseProgram(self.shader)
+        GL.glUniform1i(self.idxAttrColorPal, 0)   # bind uniform samplers to texture units
+        if projMat is not None:
+            GL.glUniformMatrix4fv(self.idxProjMat, 1, 0, projMat)
+        if viewMat is not None:
+            GL.glUniformMatrix4fv(self.idxViewMat, 1, 0, viewMat)
         GL.glBindVertexArray(self.vao)
         GL.glPointSize(pointSize)
         GL.glDrawArrays(GL.GL_POINTS, 0, self.ptCount)
@@ -221,13 +305,16 @@ class glPointCloud:
 
     def select(self, minx, miny, sizex, sizey):
         old_mode = self.displayMode
-        self.displayMode = ATT_MODE_INDEX
+        self.displayMode = COLOR_MODE_INDEX
 
         ptIdsTemp = self.ptIds.copy()
 
         selectedPts = []
         maxIter = 3
         iter = 0
+        # we need to run the selection loop multiple times since points hidden by other will not be selected
+        # hence, we need to deactivated selected points (id is set to 0) and repeat the selection process until
+        # no more point are selected.
         while True:
             GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
             self.draw()
@@ -241,12 +328,12 @@ class glPointCloud:
             # convert split col array into single id array
             posIds = posColArr_idx0.astype(int) + posColArr_idx1 * 256 + posColArr_idx2 * 256 * 256
             # ignore empty ids (-1), make ids unique and convert it to a list
-            idxPtArray = np.unique(posIds[posIds > 0])
+            idxPtArray = np.unique(posIds[posIds > 0]) - 1 # we need to remove one, since point ids start from 1 (not 0)
             idxPtList = idxPtArray.tolist()
             if len(idxPtList) == 0 or iter == maxIter:
                 break
             selectedPts.extend(idxPtList)
-            ptIdsTemp[idxPtArray - 1] = 0
+            ptIdsTemp[idxPtArray] = 0
             self._upload_data(self.vertices, self.attrValues, self.classIds, ptIdsTemp)
             iter += 1
 
@@ -255,80 +342,4 @@ class glPointCloud:
         self._upload_data(self.vertices, self.attrValues, self.classIds, self.ptIds)
         self.displayMode = old_mode
         return selectedPts
-
-# winWidth = None
-# winHeight = None
-# def main():
-#     random.seed()
-#     glutInit(sys.argv)
-#     glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH)
-#     # glutInitContextVersion(3, 3) # this call cause an error when glVertexAttribPointer
-#     glutInitContextFlags(GLUT_CORE_PROFILE | GLUT_DEBUG)
-#     winWidth = 256
-#     winHeight = 256
-#     glutInitWindowSize(winWidth, winHeight)
-#     glutCreateWindow(b"vbo")
-#
-#     print(GL.glGetString(GL.GL_VERSION))
-#     print(
-#         f'VERSION: {GL.glGetInteger(GL.GL_MAJOR_VERSION)}.{GL.glGetInteger(GL.GL_MINOR_VERSION)}'
-#     )
-#
-#     pc = GLPointCloud()
-#     pc.set_data(vertices, amp, classIds)
-#     pc.initíalize(vertex_shader, fragment_shader)
-#
-#     # init uniform shader values
-#     pc.displayMode = 0
-#     pc.amplitudeRange = (0, amp.max())
-#
-#     # fill color map with random values
-#     classColorMap = np.empty(shape=(classMapSize, 3), dtype=np.float32)
-#     for r in range(classMapSize):
-#         classColorMap[r, 0] = random.random()
-#         classColorMap[r, 1] = random.random()
-#         classColorMap[r, 2] = random.random()
-#     pc.classColorMap = classColorMap
-#
-#     def disp_func():
-#         GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
-#         pc.draw()
-#         GL.glFlush()
-#         glutSwapBuffers()
-#
-#     glutDisplayFunc(disp_func)
-#
-#     def key_func(key, x, y):
-#         global winWidth, winHeight
-#         key = key.decode("utf-8")
-#         if key == "s":
-#             selectedPts = pc.select(0, 0, winWidth, winHeight)
-#             print(f"selected ids {selectedPts}")
-#         elif key == "m":
-#             mode = pc.displayMode
-#             print(f"switch mode (current={mode})")
-#             mode = 1 - mode
-#             pc.displayMode = mode
-#             disp_func()
-#
-#     glutKeyboardFunc(key_func)
-#
-#     def reshape_func(w, h):
-#         global winWidth, winHeight
-#         GL.glViewport(0, 0, w, h)
-#         #print(f"reshape w={w}, h={h}")
-#         winWidth = w
-#         winHeight = h
-#
-#     glutReshapeFunc(reshape_func)
-#
-#     GL.glClearColor(0.0, 0.0, 0.0, 0.0)
-#     GL.glDepthFunc(GL.GL_LESS)
-#     GL.glEnable(GL.GL_DEPTH_TEST)
-#
-#     glutMainLoop()
-#
-#
-# if __name__ == '__main__':
-#     main()
 
