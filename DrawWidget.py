@@ -139,7 +139,6 @@ class DrawWidget(QGLWidget):
 
     def dataRefresh(self):
         if len(self.Data) == 0:
-            self.ptList = None
             return
 
         min, max = self.getDataExtends()
@@ -214,7 +213,7 @@ class DrawWidget(QGLWidget):
 
         self.dataRefresh()
 
-    def paintGL(self,renderScreen = True):
+    def paintGL(self):
         glMatrixMode(GL_PROJECTION)
         glLoadIdentity()
         self.camera.transform()
@@ -229,67 +228,68 @@ class DrawWidget(QGLWidget):
         glEnable(GL_BLEND)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
 
-        if renderScreen and self.Data:
-            #glCallList(self.ptList)
-            viewMat = self.camera.getViewMatrix()
-            projMat = self.camera.getProjectionMatrix()
-            self.glPointCloud.draw(pointSize=self.PointSize, projMat=projMat, viewMat=viewMat)
+        viewMat = self.camera.getViewMatrix()
+        projMat = self.camera.getProjectionMatrix()
+        self.glPointCloud.draw(pointSize=self.PointSize, projMat=projMat, viewMat=viewMat)
 
-            glMatrixMode(GL_MODELVIEW)
-            glLoadIdentity()
+        glMatrixMode(GL_MODELVIEW)
+        glLoadIdentity()
 
-            # draw axsis in corner
-            glViewport(0, 0, 100, 100)
+        # draw axsis in corner
+        glViewport(0, 0, 100, 100)
+        glMatrixMode(GL_PROJECTION)
+
+        glLoadIdentity()
+        self.camera.transformAxis()
+        glMatrixMode(GL_MODELVIEW)
+        glLoadIdentity()
+
+        glDisable(GL_DEPTH_TEST)
+        if self.axisList == None:
+            self.initAxis()
+        glCallList(self.axisList)
+
+        # renderText of x y z doesn't seem to work, after changing to the improved point rendering.
+        # TODO: Needs to be checked. jo, 5.12.24
+        #glColor(self.FontColor.redF(), self.FontColor.greenF(), self.FontColor.blueF())
+        #self.renderText(1, 0, 0, "x", self.AxisFont)
+        #self.renderText(0, 1, 0, "y", self.AxisFont)
+        #self.renderText(0, 0, 1, "z", self.AxisFont)
+
+        # restore old view port
+        glViewport(0, 0, self.widthInPixels, self.heightInPixels)
+
+        rect_selection = False
+        pt_selection = False
+        if self.start and self.stop and self.SelectRectangle:
+            rect_selection = True
+        elif self.mouse and self.SelectPoint:
+            pt_selection = True
+
+        if rect_selection or pt_selection:
+            # draw selection box
+            # we switch to orthogonal view with 'windows coordinates'. therefore, we can directly use
+            # the mouse coordinates for drawing
             glMatrixMode(GL_PROJECTION)
-
             glLoadIdentity()
-            self.camera.transformAxis()
-            glMatrixMode(GL_MODELVIEW)
-            glLoadIdentity()
+            glOrtho(0, self.widthInPixels, self.heightInPixels, 0, -self.camera.farPlane, self.camera.farPlane)
 
-            glDisable(GL_DEPTH_TEST)
-            if self.axisList == None:
-                self.initAxis()
-            glCallList(self.axisList)
-            glColor(self.FontColor.redF(), self.FontColor.greenF(), self.FontColor.blueF())
-            self.renderText(1, 0, 0, "x", self.AxisFont)
-            self.renderText(0, 1, 0, "y", self.AxisFont)
-            self.renderText(0, 0, 1, "z", self.AxisFont)
-
-            # restore old view port
-            glViewport(0, 0, self.widthInPixels, self.heightInPixels)
-
-            rect_selection = False
-            pt_selection = False
-            if self.start and self.stop and self.SelectRectangle:
-                rect_selection = True
-            elif self.mouse and self.SelectPoint:
-                pt_selection = True
-
-            if rect_selection or pt_selection:
-                # draw selection box
-                # we switch to orthogonal view with 'windows coordinates'. therefore, we can directly use
-                # the mouse coordinates for drawing
-                glMatrixMode(GL_PROJECTION)
-                glLoadIdentity()
-                glOrtho(0, self.widthInPixels, self.heightInPixels, 0, -self.camera.farPlane, self.camera.farPlane)
-
-                if rect_selection:
-                    glBegin(GL_LINE_LOOP)
-                    glColor3f(0.7, 0.7, 0.7)  # color for selection rectangle
-                    glVertex(self.start[0], self.start[1], 0)
-                    glVertex(self.stop[0],  self.start[1], 0)
-                    glVertex(self.stop[0],  self.stop[1],  0)
-                    glVertex(self.start[0], self.stop[1],  0)
-                    glEnd()
-                elif pt_selection:
-                    glBegin(GL_LINE_LOOP)
-                    glColor3f(0.7, 0.7, 0.7) # color for selection rectangle
-                    glVertex(self.mouse[0] - self.wheel, self.mouse[1] + self.wheel, 0)
-                    glVertex(self.mouse[0] + self.wheel, self.mouse[1] + self.wheel, 0)
-                    glVertex(self.mouse[0] + self.wheel, self.mouse[1] - self.wheel, 0)
-                    glVertex(self.mouse[0] - self.wheel, self.mouse[1] - self.wheel, 0)
-                    glEnd()
+            if rect_selection:
+                glBegin(GL_LINE_LOOP)
+                glColor3f(0.7, 0.7, 0.7)  # color for selection rectangle
+                glVertex(self.start[0], self.start[1], 0)
+                glVertex(self.stop[0],  self.start[1], 0)
+                glVertex(self.stop[0],  self.stop[1],  0)
+                glVertex(self.start[0], self.stop[1],  0)
+                glEnd()
+            elif pt_selection:
+                glBegin(GL_LINE_LOOP)
+                glColor3f(0.7, 0.7, 0.7) # color for selection rectangle
+                glVertex(self.mouse[0] - self.wheel, self.mouse[1] + self.wheel, 0)
+                glVertex(self.mouse[0] + self.wheel, self.mouse[1] + self.wheel, 0)
+                glVertex(self.mouse[0] + self.wheel, self.mouse[1] - self.wheel, 0)
+                glVertex(self.mouse[0] - self.wheel, self.mouse[1] - self.wheel, 0)
+                glEnd()
 
         glFlush()
 
@@ -303,6 +303,7 @@ class DrawWidget(QGLWidget):
         glClearColor(0.0, 0.0, 0.0, 1.0)
         glClearDepth(1.0)
         self.glPointCloud.initíalize()
+        #self.camera.setOrthoView(1,0)
 
 
     def mousePressEvent(self, mouseEvent):
