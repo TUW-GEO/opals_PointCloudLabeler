@@ -146,6 +146,7 @@ class glPointCloud:
         self.classIds = classIds
         if upload:
             self._upload_data(self.vertices, self.attrValues, self.classIds, self.ptIds)
+            GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
         pass
 
     @staticmethod
@@ -283,6 +284,9 @@ class glPointCloud:
         GL.glBindTexture(GL.GL_TEXTURE_1D, self.texAttrColorPal)
 
         self.displayMode = COLOR_MODE_CLASS  #default color mode
+
+        GL.glBindVertexArray(0)
+        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
 
         self._initialized = True
 

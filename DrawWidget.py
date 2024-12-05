@@ -235,7 +235,7 @@ class DrawWidget(QGLWidget):
         glMatrixMode(GL_MODELVIEW)
         glLoadIdentity()
 
-        # draw axsis in corner
+        # draw axis in corner
         glViewport(0, 0, 100, 100)
         glMatrixMode(GL_PROJECTION)
 
@@ -249,12 +249,11 @@ class DrawWidget(QGLWidget):
             self.initAxis()
         glCallList(self.axisList)
 
-        # renderText of x y z doesn't seem to work, after changing to the improved point rendering.
-        # TODO: Needs to be checked. jo, 5.12.24
-        #glColor(self.FontColor.redF(), self.FontColor.greenF(), self.FontColor.blueF())
-        #self.renderText(1, 0, 0, "x", self.AxisFont)
-        #self.renderText(0, 1, 0, "y", self.AxisFont)
-        #self.renderText(0, 0, 1, "z", self.AxisFont)
+        # label axis (in corner)
+        glColor(self.FontColor.redF(), self.FontColor.greenF(), self.FontColor.blueF())
+        self.renderText(1, 0, 0, "x", self.AxisFont)
+        self.renderText(0, 1, 0, "y", self.AxisFont)
+        self.renderText(0, 0, 1, "z", self.AxisFont)
 
         # restore old view port
         glViewport(0, 0, self.widthInPixels, self.heightInPixels)
@@ -303,7 +302,6 @@ class DrawWidget(QGLWidget):
         glClearColor(0.0, 0.0, 0.0, 1.0)
         glClearDepth(1.0)
         self.glPointCloud.initíalize()
-        #self.camera.setOrthoView(1,0)
 
 
     def mousePressEvent(self, mouseEvent):
