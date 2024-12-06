@@ -71,11 +71,22 @@ class Camera:
     def setSceneRadius(self,radius):
         self.sceneRadius = radius
 
+    def getAspectFactors(self):
+        "https://gamedev.stackexchange.com/questions/49674/opengl-resizing-display-and-glortho-glviewport"
+        aspect = self.viewportWidthInPixels / float(self.viewportHeightInPixels)
+        if aspect >= 1.0:
+            f1 = aspect
+            f2 = 1.
+        else:
+            f1 = 1.
+            f2 = 1./aspect
+        return f1, f2
+
     def transform(self):
         if self.OrthoProjection == True:
           dist = (self.position-self.target).length()*0.3
-          glOrtho(-dist, dist, -dist, dist, -self.farPlane, self.farPlane);
-
+          f1, f2 = self.getAspectFactors()
+          glOrtho(-dist*f1, dist*f1, -dist*f2, dist*f2, -self.farPlane, self.farPlane);
         else:
           tangent = math.tan( self.FIELD_OF_VIEW_IN_DEGREES/2.0 / 180.0 * math.pi )
           viewportRadius = self.nearPlane * tangent
@@ -94,16 +105,18 @@ class Camera:
         M = Matrix4x4.lookAt(self.position, self.target, self.up, False)
         glMultMatrixf(M.get())
 
-
     def getProjectionMatrix(self):
         if self.OrthoProjection == True:
           dist = (self.position-self.target).length()*0.3
-          return np.array( [[1/dist, 0, 0, 0],
-                           [0, 1/dist, 0, 0],
+          f1, f2 = self.getAspectFactors()
+          return np.array( [[1/(dist*f1), 0, 0, 0],
+                           [0, 1/(dist*f2), 0, 0],
                            [0, 0, -1/self.farPlane, 0],
                            [0, 0, 0, 1]], dtype=np.float32)
         else:
+            raise Exception("Building perspective projection matrix (glFrustum) not implemented yet")
             return None
+
     def getViewMatrix(self):
         mat = Matrix4x4.lookAt(self.position, self.target, self.up, False)
         return np.array(mat.get(), dtype=np.float32).reshape(4, 4)
