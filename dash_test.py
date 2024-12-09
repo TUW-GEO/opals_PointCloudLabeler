@@ -6,28 +6,41 @@ from PyQt5.QtWidgets import QApplication, QVBoxLayout, QWidget
 from PyQt5.QtWebEngineWidgets import QWebEngineView
 from PyQt5 import QtCore
 
-import dash
-import dash_core_components as dcc
-import dash_html_components as html
+import dash_leaflet as dl
+from dash import Dash, html, Output, Input
 
 
-def run_dash(data, layout):
-    app = dash.Dash()
+def run_dash(path, filename, bounds):
+    app = Dash(prevent_initial_callbacks=True, assets_folder=path)
 
-    app.layout = html.Div(children=[
-        html.H1(children='Hello Dash'),
+    image_path = app.get_asset_url(filename)
+    app.layout = dl.Map([
+            dl.ImageOverlay(opacity=0.5, url=image_path, bounds=bounds),
+            dl.TileLayer(), dl.FeatureGroup([
+                dl.EditControl(id="edit_control",
+                               draw={'polyline': True,
+                'rectangle': False,
+                'polygon': False,
+                'circle': False,
+                'marker': False,
+                'circlemarker': False}) ]),
+        ], bounds=bounds, style={'height': '97vh'})
 
-        html.Div(children='''
-            Dash: A web application framework for Python.
-        '''),
+    # Copy data from the edit control to the geojson component.
+    @app.callback(Input("edit_control", "geojson"))
+    def feature_defined(x):
+        if 'features' not in x:
+            return
+        lineIdx = 0
+        for entry in  x['features']:
+            if 'geometry' not in entry:
+                continue
+            geometry = entry['geometry']
+            if geometry["type"] != "LineString":
+                continue
+            print(f"{lineIdx}. line: {geometry['coordinates']} ")
+            lineIdx += 1
 
-        dcc.Graph(
-            id='example-graph',
-            figure={
-                'data': data,
-                'layout': layout
-            })
-        ])
     app.run_server(debug=False)
 
 
@@ -49,16 +62,12 @@ class MapWidget(QWidget):
 
 
 if __name__ == '__main__':
-    data = [
-        {'x': [1, 2, 3], 'y': [4, 1, 2], 'type': 'bar', 'name': 'SF'},
-        {'x': [1, 2, 3], 'y': [2, 4, 5], 'type': 'bar', 'name': u'Montréal'},
-    ]
 
-    layout = {
-        'title': 'Dash Data Visualization'
-    }
+    path = "E:/opals/nightly/win64/demo"
+    shading = 'strip11.png'
+    bounds = [[48.19985304047831, 15.397944359419803], [48.201458853379336, 15.401859646979037]]
 
-    threading.Thread(target=run_dash, args=(data, layout), daemon=True).start()
+    threading.Thread(target=run_dash, args=(path, shading, bounds), daemon=True).start()
     app = QApplication(sys.argv)
     window = MapWidget()
     window.show()
