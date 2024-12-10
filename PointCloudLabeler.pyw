@@ -9,7 +9,7 @@ import numpy as np
 import copy
 from StationUtilities import StationCubicSpline2D
 from AxisManagment import AxisManagement
-
+from glPointCloud import COLOR_MODE_ATTR, COLOR_MODE_CLASS
 
 # predefined classication dictionary, mapping class ids to class lables and colors
 CLASSIFICATION_DATA = {0: ['0 unclassified', [210, 210, 210]],
@@ -482,10 +482,6 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
     def ptsInSection(self):
         self.Section.setData(self.result)
-        if len(self.result["x"]) > 2:
-            coords1 = [self.result["x"][0], self.result["y"][0], self.result["z"][0]]
-            coords2 = [coords1[0] + 10., coords1[1] + 10., coords1[2] + 10.]
-            self.Section.setStretchAxis(coords1, coords2)
 
     def handlePickedPolyline(self, polyline):
         if polyline != []:
@@ -521,6 +517,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
             self.firstSection = True
             self.showMessages()
         except Exception as e:
+            print(f"Exception occured: {e}")
             return
 
     def overlapPolygons(self):
@@ -772,7 +769,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
                     self.HightColor.setChecked(False)
 
                 if self.ClassColor.isChecked():
-                    self.Section.currentColor = 1
+                    self.Section.currentColor = COLOR_MODE_CLASS
                     self.Section.dataRefresh()
         except Exception as e:
             return
@@ -783,7 +780,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
                 self.ClassColor.setChecked(False)
 
             if self.HightColor.isChecked():
-                self.Section.currentColor = 2
+                self.Section.currentColor = COLOR_MODE_ATTR
                 self.Section.dataRefresh()
         except Exception as e:
             return

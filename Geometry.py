@@ -184,8 +184,12 @@ class Matrix4x4:
 
         # Cross product gives area of parallelogram, which is < 1 for
         # non-perpendicular unit-length vectors; so normalize x and y.
-        x = x.normalized()
-        y = y.normalized()
+        if x.length() == 0 or y.length() == 0:
+            x = Vector3D(1, 0, 0)
+            y = Vector3D(0, 1, 0)
+        else:
+            x = x.normalized()
+            y = y.normalized()
 
         M = Matrix4x4()
 
