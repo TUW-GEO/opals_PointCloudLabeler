@@ -7,3 +7,5 @@ svgwrite
 scipy
 fiona
 shapely
+PyQtWebEngine
+folium

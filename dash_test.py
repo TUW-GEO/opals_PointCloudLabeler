@@ -102,7 +102,7 @@ class MapWidget(QWidget):
         buttonlayout = QHBoxLayout()
         self.loadButton = QPushButton('load', self)
         self.loadButton.clicked.connect(self.load)
-        self.resetButton = QPushButton('reset', self)
+        self.resetButton = QPushButton('initialPtClasses', self)
         self.resetButton.clicked.connect(self.reset)
         self.closeButton = QPushButton('close', self)
         self.closeButton.clicked.connect(self.close)

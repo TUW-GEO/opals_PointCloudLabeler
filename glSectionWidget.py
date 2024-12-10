@@ -12,10 +12,10 @@ import struct
 import copy
 
 
-class DrawWidget(QGLWidget):
+class glSectionWidget(QGLWidget):
 
     def __init__(self, parent=None):
-        super(DrawWidget, self).__init__(parent)
+        super(glSectionWidget, self).__init__(parent)
         self.setMouseTracking(True)
         self.camera = Camera()
         self.camera.setSceneRadius(2)
@@ -31,9 +31,9 @@ class DrawWidget(QGLWidget):
         # Mouse click signal
         self.clicked = QtCore.pyqtSignal()  # pyqtSignal()
 
-        self._reset()  # Call the reset method to initialize/reset attributes
+        self._ResetVariables()  # Call the initialPtClasses method to initialize/initialPtClasses attributes
 
-    def _reset(self):
+    def _ResetVariables(self):
         """Resets the widget attributes to their initial state."""
         self.isPressed = False
         self.oldx = self.oldy = 0
@@ -59,7 +59,7 @@ class DrawWidget(QGLWidget):
         self.wheel = 0
         self.update()
 
-    def _clear(self):
+    def _clearWidget(self):
         self.update()
 
     def setClassifcationData(self, classificationData):
@@ -85,7 +85,7 @@ class DrawWidget(QGLWidget):
     def setData(self, data):
         try:
             self.Data = data
-            self.reset = copy.deepcopy(data['Classification'])
+            self.initialPtClasses = copy.deepcopy(data['Classification'])
         except Exception as e:
             return
 
@@ -169,13 +169,13 @@ class DrawWidget(QGLWidget):
 
         self.update()
 
-    def Reset(self):
-        self.Data['Classification'] = self.reset
-        self.reset = copy.deepcopy(self.Data['Classification'])
+    def ResetPointClasses(self):
+        self.Data['Classification'] = self.initialPtClasses
+        self.initialPtClasses = copy.deepcopy(self.Data['Classification'])
         self.dataRefresh()
 
-    def deleteReset(self):
-        self.reset = self.Data['Classification']
+    def savePointClasses(self):
+        self.initialPtClasses = self.Data['Classification']
 
     def WindowPicking(self, width, height, posX, posY):
         self.makeCurrent()
@@ -353,7 +353,7 @@ class DrawWidget(QGLWidget):
                 self.stop = (mouseEvent.x(), mouseEvent.y())
                 self.Picking(False)
 
-                # reset selection points
+                # initialPtClasses selection points
                 self.start = self.stop = None
                 self.update()
 
