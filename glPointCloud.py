@@ -49,19 +49,22 @@ out vec3  color;
 void main()
 {
    float z = 1.0f;
-   if(attrMode == COLOR_MODE_ATTR) {
-      color = Attr2Color(attr);
-   } else if(attrMode == COLOR_MODE_CLASS) {
-      color = Class2Color(classId);	
-   }  else if(attrMode == COLOR_MODE_INDEX) {
-      if (index == 0) {
-         z = -1000; // disables point
-         color = vec3(0,0,0);
+   if(attrMode == COLOR_MODE_INDEX && index == 0)
+   {
+      color = vec3(0,0,0);
+      gl_Position = vec4(0, 0, 0, 0);
+   } 
+   else
+   {
+      if(attrMode == COLOR_MODE_ATTR) {
+        color = Attr2Color(attr);
+      } else if (attrMode == COLOR_MODE_CLASS) {
+        color = Class2Color(classId);	
       } else {
         color = Index2Color(index);
-      }	
+      }
+      gl_Position = projMat*viewMat*vec4(position, 1.f);
    }   
-   gl_Position = projMat*viewMat*vec4(position, z);
 }
 """
 
@@ -314,7 +317,7 @@ class glPointCloud:
         ptIdsTemp = self.ptIds.copy()
 
         selectedPts = []
-        maxIter = 3
+        maxIter = 50
         iter = 0
         # we need to run the selection loop multiple times since points hidden by other will not be selected
         # hence, we need to deactivated selected points (id is set to 0) and repeat the selection process until
@@ -335,6 +338,8 @@ class glPointCloud:
             idxPtArray = np.unique(posIds[posIds > 0]) - 1 # we need to remove one, since point ids start from 1 (not 0)
             idxPtList = idxPtArray.tolist()
             if len(idxPtList) == 0 or iter == maxIter:
+                if len(idxPtList) > 0:
+                    print(f"Warning: Point selection did not finish after {iter} iterations (points selected: currently={len(idxPtList)}; total={len(selectedPts)}).")
                 break
             selectedPts.extend(idxPtList)
             ptIdsTemp[idxPtArray] = 0
