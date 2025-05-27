@@ -1,9 +1,16 @@
-import numpy
-from opals import Import, Grid, Shade, pyDM
-from PyQt5 import QtWidgets,uic, QtCore
-from PyQt5.QtGui import *
-from PyQt5.QtWidgets import QFileDialog, QDialog, QLineEdit, QPushButton, QFormLayout, QCheckBox, QHBoxLayout
-import os
+try:
+    import os
+    import numpy
+    from opals import Import, Grid, Shade, pyDM
+    from PyQt5 import QtWidgets,uic, QtCore
+    from PyQt5.QtGui import *
+    from PyQt5.QtWidgets import QFileDialog, QDialog, QLineEdit, QPushButton, QFormLayout, QCheckBox, QHBoxLayout
+except ModuleNotFoundError as e:    
+    print(f"Unable to import necessary libraries (Details: {e})")
+    print(f"Make sure that necessary requirements have been installed by calling\n")
+    print(f"pip install -r requirements.txt")
+    print(f"\nin directory '{os.path.abspath(os.path.split(__file__)[0])}'")
+    exit(-1)
 import opals
 import numpy as np
 import copy
