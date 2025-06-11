@@ -129,7 +129,8 @@ class CustomDialog(QDialog):
 class ClassificationTool(QtWidgets.QMainWindow):
     def __init__(self):
         super(ClassificationTool, self).__init__()
-        uic.loadUi('PointCloudLabeler.ui', self)
+        root_dir = os.path.split(__file__)[0]
+        uic.loadUi(os.path.join(root_dir, 'PointCloudLabeler.ui'), self)
         #"D:\users\fmeixner\PointCloudLabeler\Data\Fluss_110736_0_loos_528600_533980_Klassifiziert.odm"
         self.Overview.setStyleSheet("border: 1px solid black; background-color: rgb(255, 255, 255);")
 
