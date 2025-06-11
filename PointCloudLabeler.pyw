@@ -222,7 +222,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.RectangleSelection.clicked.connect(self.SelectRectangle)
 
         self.ClassList.currentTextChanged.connect(self.WritePointsToglSectionWidget)
-        self.Reset.clicked.connect(self.resetSection)
+        self.ResetPointClasses.clicked.connect(self.resetSection)
 
         self.PointSize.valueChanged.connect(self.Section.setPointSize)
         self.LineSize.valueChanged.connect(self.Overview.changeLineWidth)
