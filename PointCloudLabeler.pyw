@@ -16,7 +16,7 @@ import numpy as np
 import copy
 from StationUtilities import StationCubicSpline2D
 from AxisManagment import AxisManagement
-
+from glPointCloud import COLOR_MODE_ATTR, COLOR_MODE_CLASS
 
 # predefined classication dictionary, mapping class ids to class lables and colors
 CLASSIFICATION_DATA = {0: ['0 unclassified', [210, 210, 210]],
@@ -46,7 +46,7 @@ CLASSIFICATION_DATA = {0: ['0 unclassified', [210, 210, 210]],
 PREDICTION = {0:'no prediction', 1:'predict next', 2:'predict previous', 3:'always predict'}
 
 
-class CustomDialog(QDialog):
+class GenerateDialog(QDialog):
     preview_clicked = QtCore.pyqtSignal()
 
     def __init__(self, parent=None, defaultDistance='0'):
@@ -207,7 +207,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
         self.PathToAxisShp.setEnabled(False)
 
-        self.LoadButton.pressed.connect(self.load_pointcloud)
+        self.LoadButton.pressed.connect(self.loadPointcloud)
         self.LoadAxis.pressed.connect(self.clearAxisView)
         self.LoadAxis.pressed.connect(self.viewFirstSection)
 
@@ -222,8 +222,8 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.PointSelection.clicked.connect(self.SelectPoint)
         self.RectangleSelection.clicked.connect(self.SelectRectangle)
 
-        self.ClassList.currentTextChanged.connect(self.PointsClassification)
-        self.Reset.clicked.connect(self.resetSection)
+        self.ClassList.currentTextChanged.connect(self.WritePointsToglSectionWidget)
+        self.ResetPointClasses.clicked.connect(self.resetSection)
 
         self.PointSize.valueChanged.connect(self.Section.setPointSize)
         self.LineSize.valueChanged.connect(self.Overview.changeLineWidth)
@@ -234,14 +234,14 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.Overview.setAxisList(self.AxisView)
         self.Overview.polylinePicked.connect(self.handlePickedPolyline)
 
-        self.Save.pressed.connect(self.save_file)
+        self.Save.pressed.connect(self.saveFile)
 
         self.Section.setClassifcationData(self.classificationData)
 
-        self.DrawMode.clicked.connect(self.DigitalAxis)
-        self.SelectionMode.clicked.connect(self.DigitalAxis)
-
+        self.DrawMode.clicked.connect(self.EdditingAxis)
+        self.SelectionMode.clicked.connect(self.EdditingAxis)
         self.EditMode.toggled.connect(self.activateEditing)
+        
         self.Insert.toggled.connect(self.EditButtonsToggled)
         self.Delete.toggled.connect(self.EditButtonsToggled)
         self.Move.toggled.connect(self.EditButtonsToggled)
@@ -252,7 +252,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.ZoomOut.pressed.connect(self.Overview.zoomOut)
         self.ZoomAll.pressed.connect(self.Overview.zoomOnLayer)
 
-    def load_pointcloud(self, path=None):
+    def loadPointcloud(self, path=None):
         if path is None:
             path, _ = QFileDialog.getOpenFileName(self, "Select point cloud file", "",
                                                   "OPALS Datamanager (*.odm);;LAS Files (*.las *laz);;All Files (*.*)")
@@ -274,27 +274,26 @@ class ClassificationTool(QtWidgets.QMainWindow):
             shd_name = name + '_shd.tif'
             axis_odm_name = name + '_axis.odm'
 
-                #import into odm if needed
             if os.path.isfile(odm_name) == False:
                 Import.Import(inFile=data, outFile=odm_name).run()
 
                 #Extract the header of the odm to get the point density
             self.ptsDensity = pyDM.Datamanager.getHeaderODM(odm_name).estimatedPointDensity()
 
-                #create shading
+                        #create shading
             if os.path.isfile(grid_name) == False:
                 Grid.Grid(inFile=odm_name, outFile=grid_name, filter='echo[last]',
-                      interpolation=opals.Types.GridInterpolator.movingPlanes, gridSize=0.5).run()
+                interpolation=opals.Types.GridInterpolator.movingPlanes, gridSize=0.5).run()
 
             if os.path.isfile(shd_name) == False:
                 Shade.Shade(inFile=grid_name, outFile=shd_name).run()
 
-                # load the opals datamanager in read and write
+                        # load the opals datamanager in read and write
             self.odm = pyDM.Datamanager.load(odm_name, readOnly=False, threadSafety=False)
 
         except Exception as e:
             QtWidgets.QMessageBox(QtWidgets.QMessageBox.Warning, "Warning",
-                                  "Wrong file type! \nPlease choose a file with the right type. ").exec_()
+                                 "Wrong file type! \nPlease choose a file with the right type. ").exec_()
 
         try:
             if os.path.isfile(axis_odm_name) == False:
@@ -490,10 +489,6 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
     def ptsInSection(self):
         self.Section.setData(self.result)
-        if len(self.result["x"]) > 2:
-            coords1 = [self.result["x"][0], self.result["y"][0], self.result["z"][0]]
-            coords2 = [coords1[0] + 10., coords1[1] + 10., coords1[2] + 10.]
-            self.Section.setStretchAxis(coords1, coords2)
 
     def handlePickedPolyline(self, polyline):
         if polyline != []:
@@ -501,7 +496,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
             self.viewFirstSection(False)
             self.axis_pts = []
         else:
-            self.Section._clear()
+            self.Section._clearWidget()
 
     def clearAxisView(self):
         self.AxisView.clear()
@@ -529,6 +524,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
             self.firstSection = True
             self.showMessages()
         except Exception as e:
+            print(f"Exception occured: {e}")
             return
 
     def overlapPolygons(self):
@@ -575,7 +571,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
             self.polygonSize()
             defaultDistance = str(self.across)
             defaultWidth = str(self.along)
-            dialog = CustomDialog(self,defaultDistance=defaultDistance)
+            dialog = GenerateDialog(self,defaultDistance=defaultDistance)
 
             dialog.preview_clicked.connect(lambda: self.handlePreview(dialog))
             dialog.finished.connect(lambda: self.closeDialog(dialog))
@@ -627,18 +623,16 @@ class ClassificationTool(QtWidgets.QMainWindow):
         except Exception as e:
             return
 
-    def DigitalAxis(self):
+    def EdditingAxis(self):
+        self.Overview.insert = False
+        self.Overview.delete = False
+        self.Overview.move = False
+
         if self.DrawMode.isChecked():
-            self.Overview.insert = False
-            self.Overview.delete = False
-            self.Overview.move = False
             self.Overview.Draw = True
             self.Overview.SelectAxis = False
             self.SelectionMode.setChecked(False)
         elif self.SelectionMode.isChecked():
-            self.Overview.insert = False
-            self.Overview.delete = False
-            self.Overview.move = False
             self.Overview.Draw = False
             self.Overview.SelectAxis = True
             self.DrawMode.setChecked(False)
@@ -740,7 +734,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.Overview.dataRefresh()
         self.showMessages()
 
-    def PointsClassification(self):
+    def WritePointsToglSectionWidget(self):
         for key, value in self.classificationData.items():
             if value[0] == str(self.ClassList.currentText()):
                 self.Section.currentClass = key
@@ -754,7 +748,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
             self.Section.SelectRectangle = False
 
         if self.PointSelection.isChecked():
-            self.PointsClassification()
+            self.WritePointsToglSectionWidget()
             self.Section.SelectPoint = True
 
         elif self.PointSelection.isChecked() == False:
@@ -780,7 +774,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
                     self.HightColor.setChecked(False)
 
                 if self.ClassColor.isChecked():
-                    self.Section.currentColor = 1
+                    self.Section.currentColor = COLOR_MODE_CLASS
                     self.Section.dataRefresh()
         except Exception as e:
             return
@@ -791,7 +785,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
                 self.ClassColor.setChecked(False)
 
             if self.HightColor.isChecked():
-                self.Section.currentColor = 2
+                self.Section.currentColor = COLOR_MODE_ATTR
                 self.Section.dataRefresh()
         except Exception as e:
             return
@@ -812,14 +806,14 @@ class ClassificationTool(QtWidgets.QMainWindow):
     def resetSection(self):
         if not self.station_axis:
             return
-        self.Section.Reset()
+        self.Section.ResetPointClasses()
 
-    def save_file(self):
+    def saveFile(self):
         if not self.station_axis:
             return
 
         self.changeAttributes()
-        self.Section.deleteReset()
+        self.Section.savePointClasses()
         self.PathToFile.setEnabled(True)
         self.PathToAxisShp.setEnabled(True)
 
@@ -832,6 +826,8 @@ if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     win = ClassificationTool()
     if len(sys.argv) > 1:
-        win.load_pointcloud(sys.argv[1])
+        win.loadPointcloud(sys.argv[1])
+    elif len(sys.argv) > 2:
+        win.loadPointcloud(sys.argv[2])
     win.show()
     sys.exit(app.exec_())
