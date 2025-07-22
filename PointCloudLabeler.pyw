@@ -1,7 +1,7 @@
 try:
     import os
     import numpy
-    from opals import Import, Grid, Shade, pyDM
+    from opals import Import, Grid, Shade, pyDM, Cell
     from PyQt5 import QtWidgets,uic, QtCore
     from PyQt5.QtGui import *
     from PyQt5.QtWidgets import QFileDialog, QDialog, QLineEdit, QPushButton, QFormLayout, QCheckBox, QHBoxLayout
@@ -17,6 +17,9 @@ import copy
 from StationUtilities import StationCubicSpline2D
 from AxisManagment import AxisManagement
 from glPointCloud import COLOR_MODE_ATTR, COLOR_MODE_CLASS
+from Geometry import Point3D, Matrix4x4
+import argparse
+import time
 
 # predefined classication dictionary, mapping class ids to class lables and colors
 CLASSIFICATION_DATA = {0: ['0 unclassified', [210, 210, 210]],
@@ -44,6 +47,8 @@ CLASSIFICATION_DATA = {0: ['0 unclassified', [210, 210, 210]],
                        45: ['45 volume backscatter', [60, 130, 130]]}
 
 PREDICTION = {0:'no prediction', 1:'predict next', 2:'predict previous', 3:'always predict'}
+
+PREDICTION_MODEL = {0: '2d', 1:'3d'}
 
 
 class GenerateDialog(QDialog):
@@ -126,6 +131,15 @@ class GenerateDialog(QDialog):
         if event.key() == QtCore.Qt.Key_Return:
             self.handle_preview()
 
+class Thread(QtCore.QThread):
+    def __init__(self, parent):
+        super().__init__()
+        self.parent = parent
+
+    def run(self):
+        self.parent.checkProgress()
+        self.parent.Overview.dataRefresh(show_progress=True)
+
 class ClassificationTool(QtWidgets.QMainWindow):
     def __init__(self):
         super(ClassificationTool, self).__init__()
@@ -167,6 +181,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.manuallyClassified = '_manuallyClassified'
         self.classificationData = CLASSIFICATION_DATA
         self.prediction = PREDICTION
+        self.prediction_model = PREDICTION_MODEL
         self.classHisto = {}  # class histogram of the current section
         self.axis_manager = None
         self.axis_pts = None
@@ -200,10 +215,21 @@ class ClassificationTool(QtWidgets.QMainWindow):
         if currentSelection != "":
             self.knnPrediction.setCurrentText(currentSelection)
 
+    def PredictModeComboBox(self):
+        currentSelection = self.knnPrediction.currentText()
+
+        for key, val in self.prediction_model.items():
+            self.predictionModel.addItem(val)
+
+        if currentSelection != "":
+            self.predictionModel.setCurrentText(currentSelection)
+    
     def initUI(self):
         #Build ComboBox:
         self.refeshClassComboBox()
         self.PredictComboBox()
+        self.PredictModeComboBox()
+        self.showProgress.clicked.connect(self.showClassificationProgress)
 
         self.PathToAxisShp.setEnabled(False)
 
@@ -251,6 +277,20 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.ZoomIn.pressed.connect(self.Overview.zoomIn)
         self.ZoomOut.pressed.connect(self.Overview.zoomOut)
         self.ZoomAll.pressed.connect(self.Overview.zoomOnLayer)
+
+    def showClassificationProgress(self):
+        self.thread = Thread(self)
+        self.thread.started.connect(self.showProgressProcessing)
+        self.thread.finished.connect(self.showProgressDone)
+        self.thread.start()
+
+    def showProgressProcessing(self):
+        self.showProgress.setText('please wait')
+        self.showProgress.setEnabled(False)
+
+    def showProgressDone(self):
+        self.showProgress.setText('show progress')
+        self.showProgress.setEnabled(True)
 
     def loadPointcloud(self, path=None):
         if path is None:
@@ -317,7 +357,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
         finally:
             QtWidgets.QApplication.restoreOverrideCursor()
 
-    def load_axis(self,File=True):
+    def load_axis(self, inFile = '', File=True):
         if self.PathToAxisShp.text() == '':
             self.PathToAxisShp.setText(self.Overview.AxisODMPath)
 
@@ -325,8 +365,11 @@ class ClassificationTool(QtWidgets.QMainWindow):
         if File:
             axis = str(self.PathToAxisShp.text()).strip()
 
-            axis_file, _ = QFileDialog.getOpenFileName(self, "Select axis file", "",
-                                                      "OPALS Datamanager (*.odm);;Shape File (*.shp);;All Files (*.*)")
+            if not inFile:
+                axis_file, _ = QFileDialog.getOpenFileName(self, "Select axis file", "",
+                                                         "OPALS Datamanager (*.odm);;Shape File (*.shp);;All Files (*.*)")
+            else:
+                axis_file = inFile
             if axis_file == "":
                 return
             self.PathToAxisShp.setText(os.path.abspath(axis_file))
@@ -336,7 +379,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
             if _ != '.shp' and _ != '.odm':
                 QtWidgets.QMessageBox(QtWidgets.QMessageBox.Warning, "Warning!",
-                                      "Wrong file type! \nFile has to be a shape-file.").exec_()
+                                      "Wrong file type! \nFile has to be a shape-file or a odm-file.").exec_()
 
             elif _ == '.shp':
                 axis_odm_name = name + ".odm"
@@ -451,14 +494,14 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
         dm = self.odm
 
-        lf = pyDM.AddInfoLayoutFactory()
-        type, inDM = lf.addColumn(dm, 'Id', True); assert  inDM == True
-        type, inDM = lf.addColumn(dm, 'GPSTime', True); assert inDM == True
-        type, inDM = lf.addColumn(dm, 'Amplitude', True); assert inDM == True
-        type, inDM = lf.addColumn(dm, 'Classification', True); assert inDM == True
-        type, inDM = lf.addColumn(dm,self.manuallyClassified,True,pyDM.ColumnType.bool_) #add atribute for knn
+        # lf = pyDM.AddInfoLayoutFactory()
+        # type, inDM = lf.addColumn(dm, 'Id', True); assert  inDM == True
+        # type, inDM = lf.addColumn(dm, 'GPSTime', True); assert inDM == True
+        # type, inDM = lf.addColumn(dm, 'Amplitude', True); assert inDM == True
+        # type, inDM = lf.addColumn(dm, 'Classification', True); assert inDM == True
+        # type, inDM = lf.addColumn(dm,self.manuallyClassified,True,pyDM.ColumnType.bool_) #add atribute for knn
 
-        self.layout = lf.getLayout()
+        # self.layout = lf.getLayout()
 
         lf2 = pyDM.AddInfoLayoutFactory()
         type, inDM = lf2.addColumn(dm, 'Id', True); assert inDM == True
@@ -646,32 +689,90 @@ class ClassificationTool(QtWidgets.QMainWindow):
             pyDM.NumpyConverter.setById(self.setObj, self.odm, self.layout2)
             self.odm.save()
 
-    def knn(self):
+    def knn(self, knnMode = '2d'):
+        
         # create 3d kdtree for nearest neighbour selection
         kdtree = pyDM.PointIndexLeaf(pyDM.IndexType.kdtree, 3, True)
+
+        # create 2d kdtree for nearest neighbour selection
+        kdtree_2d = pyDM.PointIndexLeaf(pyDM.IndexType.kdtree, 2, True)
+
         # settings for nn selection
         nnCount = 1
         searchMode = pyDM.SelectionMode.nearest
         maxSearchDist = -1
 
-        for idx in range(len(self.knnSection['x'])):
-            classid = self.knnSection['Classification'][idx]
-            pt = pyDM.Point(self.knnSection['x'][idx],self.knnSection['y'][idx],self.knnSection['z'][idx])
-            pt.setAddInfoView(self.layout2, False)
-            pt.info().set(1,int(classid))
-            kdtree.addPoint(pt)
 
         assigned_pts = 0
-        for idx in range(len(self.result['x'])):
-            if self.result['Classification'][idx] == 0:
-                searchPt = pyDM.Point(self.result['x'][idx],self.result['y'][idx],self.result['z'][idx])
-                pts = kdtree.searchPoint(nnCount,searchPt,maxSearchDist,searchMode)
 
-                if pts != []:
-                    classid = pts[0].info().get(1)
-                    self.result['Classification'][idx] = classid
-                    self.result[self.manuallyClassified][idx] = 2
-                    assigned_pts += 1
+    
+        viewMat_4x4 = self.Section.camera.getTransformationMatrix_4x4(self.rot_camera)
+        center = Point3D(self.Section.Center)
+
+
+        ######################## 2D NEAREST NEIGHBOR SEARCH ##########################
+        if knnMode == '2d':
+            with open("points_last.xyz","w") as f:
+                print(os.getcwd())
+                for idx in range(len(self.knnSection['x'])):
+                    classid = self.knnSection['Classification'][idx]
+                    
+                    pt3d = Point3D(self.knnSection['x'][idx] - center.x(), self.knnSection['y'][idx]- center.y(), self.knnSection['z'][idx]- center.z())
+                    
+                    point_transformed_last = viewMat_4x4.mul(pt3d)
+
+                    x, y, z = point_transformed_last.x(), point_transformed_last.y(), point_transformed_last.z()
+                    
+                    f.write(f"{x:.3f},{y:.3f},{z:.3f}\n")
+
+                    pt = pyDM.Point(x, z, 0)
+                    pt.setAddInfoView(self.layout2, False)
+                    pt.info().set(1,int(classid))
+                    kdtree_2d.addPoint(pt)
+            with open("points_current.xyz","w") as f:
+                for idx in range(len(self.result['x'])):
+
+                    pt3d = Point3D(self.result['x'][idx] - center.x(), self.result['y'][idx]- center.y(), self.result['z'][idx]- center.z()) 
+                    point_transformed_current = viewMat_4x4.mul(pt3d)
+
+                    x, y, z = point_transformed_current.x(), point_transformed_current.y(), point_transformed_current.z()
+                    
+                    f.write(f"{x:.3f},{y:.3f},{z:.3f}\n")
+
+                    
+
+                    if self.result['Classification'][idx] == 0:
+                        searchPt = pyDM.Point(x, z, 0)
+                        
+                        pts = kdtree_2d.searchPoint(nnCount,searchPt,maxSearchDist,searchMode)
+
+                        if pts != []:
+                            classid = pts[0].info().get(1)
+                            self.result['Classification'][idx] = classid
+                            self.result[self.manuallyClassified][idx] = 2
+                            assigned_pts += 1   
+        ######################## 3D NEAREST NEIGHBOR SEARCH ##########################
+        elif knnMode == '3d':
+        
+            for idx in range(len(self.knnSection['x'])):
+                classid = self.knnSection['Classification'][idx]
+                pt = pyDM.Point(self.knnSection['x'][idx],self.knnSection['y'][idx],self.knnSection['z'][idx])
+                pt.setAddInfoView(self.layout2, False)
+                pt.info().set(1,int(classid))
+                kdtree.addPoint(pt)
+        
+            for idx in range(len(self.result['x'])):
+
+                if self.result['Classification'][idx] == 0:
+                    searchPt = pyDM.Point(self.result['x'][idx],self.result['y'][idx],self.result['z'][idx])
+                    
+                    pts = kdtree.searchPoint(nnCount,searchPt,maxSearchDist,searchMode)
+
+                    if pts != []:
+                        classid = pts[0].info().get(1)
+                        self.result['Classification'][idx] = classid
+                        self.result[self.manuallyClassified][idx] = 2
+                        assigned_pts += 1
 
         self.knnPts = assigned_pts
         self.ptsNoClass = sum(self.result['Classification'] > 0)
@@ -682,7 +783,38 @@ class ClassificationTool(QtWidgets.QMainWindow):
         for cl, cn in zip(classes, counts):
             self.classHisto[cl] = cn
 
-    def nextSection(self):
+    def checkProgress(self):
+        start = time.time()
+
+        bbox = self.odm.getLimit()
+
+        ysteps=100
+        xsteps=100
+
+        Y = np.linspace(bbox.ymin, bbox.ymax, ysteps, endpoint=False)
+        X = np.linspace(bbox.xmin, bbox.xmax, xsteps, endpoint=False)
+
+        dy = (bbox.ymax - bbox.ymin) / ysteps
+        dx = (bbox.xmax - bbox.xmin) / xsteps
+
+        def checkProgressByCell(x, y, dx, dy, odm, layout):
+            try:
+                window = pyDM.Window(x, y, x+dx, y+dy)
+                pts = pyDM.NumpyConverter.searchPoint(odm, window, layout, withCoordinates=True, noDataObj=0)
+                return 1 if any(c == 0 for c in pts['Classification']) else 0
+            except Exception:
+                return 2
+            
+        grid_x, grid_y = np.meshgrid(X, Y)
+        result = [checkProgressByCell(x, y, dx, dy, self.odm, self.layout2) for x, y in zip(grid_x.ravel(), grid_y.ravel())]
+        progress = np.array(result).reshape(ysteps, xsteps)
+        
+        
+        self.Overview.setProgress(progress, X, Y, dx, dy)
+        end = time.time()
+        print(f'Progress set, it took {end-start}s')
+
+    def nextSection(self):        
         if not self.station_axis:
             return
 
@@ -825,9 +957,23 @@ if __name__ == "__main__":
     import sys
     app = QtWidgets.QApplication(sys.argv)
     win = ClassificationTool()
-    if len(sys.argv) > 1:
-        win.loadPointcloud(sys.argv[1])
-    elif len(sys.argv) > 2:
-        win.loadPointcloud(sys.argv[2])
+    #if len(sys.argv) > 1:
+    #    win.loadPointcloud(sys.argv[1])
+    #elif len(sys.argv) > 2:
+    #    win.loadPointcloud(sys.argv[2])
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-i", "--inFile", help="filename of the odm-file containing the pointcloud")
+    parser.add_argument("-a", "--axisFile", help="filename of the file containing the axis")
+    parser.add_argument("-p", "--predMode", help="'no prediction' or 'predict previous' or 'always predict' or 'predict next'")
+    args = parser.parse_args()
+    if args.inFile:
+        win.loadPointcloud(args.inFile)
+
+    if args.inFile:
+        win.load_axis(args.axisFile)
+    
+    if args.inFile:
+        win.knnPrediction.setCurrentText(args.predMode)
     win.show()
     sys.exit(app.exec_())
