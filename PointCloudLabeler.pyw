@@ -1,10 +1,10 @@
 try:
     import os
     import numpy
-    from opals import Import, Grid, Shade, pyDM, Cell
+    from opals import Import, Grid, Shade, pyDM
     from PyQt5 import QtWidgets,uic, QtCore
     from PyQt5.QtGui import *
-    from PyQt5.QtWidgets import QFileDialog, QDialog, QLineEdit, QPushButton, QFormLayout, QCheckBox, QHBoxLayout
+    from PyQt5.QtWidgets import QFileDialog, QDialog, QLineEdit, QPushButton, QFormLayout, QCheckBox, QHBoxLayout, QShortcut, QTableWidget, QTableWidgetItem
 except ModuleNotFoundError as e:    
     print(f"Unable to import necessary libraries (Details: {e})")
     print(f"Make sure that necessary requirements have been installed by calling\n")
@@ -186,6 +186,9 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.axis_manager = None
         self.axis_pts = None
         self.currrentaxisID = None
+        self.shortcuts_set = []
+        self.shortcuts = []
+        self.shortcutBindings = {}
 
         self.initUI()
 
@@ -223,13 +226,34 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
         if currentSelection != "":
             self.predictionModel.setCurrentText(currentSelection)
-    
+
+    def setShortcutBinding(self, key, currentText):
+        self.shortcutBindings[key] = currentText
+        self.showShortcutBindings()
+
+    def execShortcutBinding(self, key):
+        if key in self.shortcutBindings.keys():
+            self.ClassList.setCurrentText(self.shortcutBindings[key])
+
     def initUI(self):
         #Build ComboBox:
         self.refeshClassComboBox()
         self.PredictComboBox()
         self.PredictModeComboBox()
         self.showProgress.clicked.connect(self.showClassificationProgress)
+
+        # create Shortcuts for setting the bindings and the Shortcuts for setting the Class
+        for i in range(10):
+            key = f'Ctrl+{i}'
+            shortcut = QShortcut(QKeySequence(key), self)
+            shortcut.activated.connect(lambda i=i: self.setShortcutBinding(i, self.ClassList.currentText()) )
+            self.shortcuts_set.append(shortcut)
+
+        for i in range(10):
+            key = f'Alt+{i}'
+            shortcut = QShortcut(QKeySequence(key), self)
+            shortcut.activated.connect(lambda i=i: self.execShortcutBinding(i) )
+            self.shortcuts.append(shortcut)
 
         self.PathToAxisShp.setEnabled(False)
 
@@ -257,6 +281,22 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.StatusMessageModel = QStandardItemModel()
         self.StatusMessages.setModel(self.StatusMessageModel)
 
+        self.ViewShortcutBindings.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
+
+        # create descriptions how to use shortcuts
+        self.ViewShortcutBindings.setRowCount(3) 
+        self.ViewShortcutBindings.setColumnCount(1)
+        self.ViewShortcutBindings.verticalHeader().setVisible(False)
+        self.ViewShortcutBindings.horizontalHeader().setVisible(False)
+        self.ViewShortcutBindings.setItem(0, 0, QTableWidgetItem(
+            'To create shortcuts choose the preferred option in the dropdown menu e.g. "2 ground",'))
+        self.ViewShortcutBindings.setItem(1, 0, QTableWidgetItem(
+            'then press Ctrl + <your desired number (0-9)>.'))
+        self.ViewShortcutBindings.setItem(2, 0, QTableWidgetItem(
+            'To use the shortcut press Alt + <your number>.'))
+        self.ViewShortcutBindings.resizeColumnsToContents()
+
+
         self.Overview.setAxisList(self.AxisView)
         self.Overview.polylinePicked.connect(self.handlePickedPolyline)
 
@@ -271,6 +311,10 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.Insert.toggled.connect(self.EditButtonsToggled)
         self.Delete.toggled.connect(self.EditButtonsToggled)
         self.Move.toggled.connect(self.EditButtonsToggled)
+
+        self.Insert.setToolTip('insert axis point')
+        self.Delete.setToolTip('delete axis point')
+        self.Move.setToolTip('move axis point')
 
         self.Generate.clicked.connect(self.GenerateAxis)
 
@@ -493,15 +537,6 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.overlap = (float(self.overlap_section.text().strip()))/100
 
         dm = self.odm
-
-        # lf = pyDM.AddInfoLayoutFactory()
-        # type, inDM = lf.addColumn(dm, 'Id', True); assert  inDM == True
-        # type, inDM = lf.addColumn(dm, 'GPSTime', True); assert inDM == True
-        # type, inDM = lf.addColumn(dm, 'Amplitude', True); assert inDM == True
-        # type, inDM = lf.addColumn(dm, 'Classification', True); assert inDM == True
-        # type, inDM = lf.addColumn(dm,self.manuallyClassified,True,pyDM.ColumnType.bool_) #add atribute for knn
-
-        # self.layout = lf.getLayout()
 
         lf2 = pyDM.AddInfoLayoutFactory()
         type, inDM = lf2.addColumn(dm, 'Id', True); assert inDM == True
@@ -812,9 +847,9 @@ class ClassificationTool(QtWidgets.QMainWindow):
         
         self.Overview.setProgress(progress, X, Y, dx, dy)
         end = time.time()
-        print(f'Progress set, it took {end-start}s')
+        #print(f'Progress set, it took {end-start}s')
 
-    def nextSection(self):        
+    def nextSection(self):
         if not self.station_axis:
             return
 
@@ -934,6 +969,27 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
         if self.knnPrediction.currentText() == ('predict previous' or 'always predict' or 'predict next'):
             self.StatusMessageModel.appendRow(QStandardItem(r'Class predicted: {} Points'.format(self.knnPts)))
+    
+    def showShortcutBindings(self):
+        self.ViewShortcutBindings.setRowCount(2) 
+        self.ViewShortcutBindings.setColumnCount(len(self.shortcutBindings.keys()))
+        self.ViewShortcutBindings.verticalHeader().setVisible(False)
+        self.ViewShortcutBindings.horizontalHeader().setVisible(False)
+        idx = 0
+        for key, value in self.shortcutBindings.items():
+            self.ViewShortcutBindings.setItem(0, idx, QTableWidgetItem('Alt+{}'.format(key)))
+
+            item = QTableWidgetItem('{}'.format(value))
+            for key, val in self.classificationData.items():
+                if val[0] == value:
+                    pixmap = QPixmap(100,100)
+                    pixmap.fill((QColor(val[1][0],val[1][1],val[1][2])))
+                    icon = QIcon(pixmap)
+                    item.setIcon(icon)
+            self.ViewShortcutBindings.setItem(1, idx, item)
+
+            idx += 1
+        self.ViewShortcutBindings.resizeColumnsToContents()
 
     def resetSection(self):
         if not self.station_axis:
@@ -957,10 +1013,6 @@ if __name__ == "__main__":
     import sys
     app = QtWidgets.QApplication(sys.argv)
     win = ClassificationTool()
-    #if len(sys.argv) > 1:
-    #    win.loadPointcloud(sys.argv[1])
-    #elif len(sys.argv) > 2:
-    #    win.loadPointcloud(sys.argv[2])
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--inFile", help="filename of the odm-file containing the pointcloud")
