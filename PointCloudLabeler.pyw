@@ -145,6 +145,9 @@ class ClassificationTool(QtWidgets.QMainWindow):
         super(ClassificationTool, self).__init__()
         root_dir = os.path.split(__file__)[0]
         uic.loadUi(os.path.join(root_dir, 'PointCloudLabeler.ui'), self)
+
+        self.setWindowTitle('OPALS PointCloudLabeler')
+
         #"D:\users\fmeixner\PointCloudLabeler\Data\Fluss_110736_0_loos_528600_533980_Klassifiziert.odm"
         self.Overview.setStyleSheet("border: 1px solid black; background-color: rgb(255, 255, 255);")
 
@@ -218,8 +221,8 @@ class ClassificationTool(QtWidgets.QMainWindow):
         if currentSelection != "":
             self.knnPrediction.setCurrentText(currentSelection)
 
-    def PredictModeComboBox(self):
-        currentSelection = self.knnPrediction.currentText()
+    def PredictModelComboBox(self):
+        currentSelection = self.predictionModel.currentText()
 
         for key, val in self.prediction_model.items():
             self.predictionModel.addItem(val)
@@ -239,7 +242,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
         #Build ComboBox:
         self.refeshClassComboBox()
         self.PredictComboBox()
-        self.PredictModeComboBox()
+        self.PredictModelComboBox()
         self.showProgress.clicked.connect(self.showClassificationProgress)
 
         # create Shortcuts for setting the bindings and the Shortcuts for setting the Class
@@ -283,20 +286,6 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
         self.ViewShortcutBindings.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
 
-        # create descriptions how to use shortcuts
-        self.ViewShortcutBindings.setRowCount(3) 
-        self.ViewShortcutBindings.setColumnCount(1)
-        self.ViewShortcutBindings.verticalHeader().setVisible(False)
-        self.ViewShortcutBindings.horizontalHeader().setVisible(False)
-        self.ViewShortcutBindings.setItem(0, 0, QTableWidgetItem(
-            'To create shortcuts choose the preferred option in the dropdown menu e.g. "2 ground",'))
-        self.ViewShortcutBindings.setItem(1, 0, QTableWidgetItem(
-            'then press Ctrl + <your desired number (0-9)>.'))
-        self.ViewShortcutBindings.setItem(2, 0, QTableWidgetItem(
-            'To use the shortcut press Alt + <your number>.'))
-        self.ViewShortcutBindings.resizeColumnsToContents()
-
-
         self.Overview.setAxisList(self.AxisView)
         self.Overview.polylinePicked.connect(self.handlePickedPolyline)
 
@@ -311,10 +300,6 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.Insert.toggled.connect(self.EditButtonsToggled)
         self.Delete.toggled.connect(self.EditButtonsToggled)
         self.Move.toggled.connect(self.EditButtonsToggled)
-
-        self.Insert.setToolTip('insert axis point')
-        self.Delete.setToolTip('delete axis point')
-        self.Move.setToolTip('move axis point')
 
         self.Generate.clicked.connect(self.GenerateAxis)
 
