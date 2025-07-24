@@ -1,7 +1,7 @@
 import os.path
 from StationUtilities import StationCubicSpline2D
 from opals import pyDM
-from CallBackObject import AnalyseDistance
+from PolylineUtilities import insert_point_in_polyline, get_closest_point
 
 class AxisManagement:
     def __init__(self, odm_filename, overwrite=False):
@@ -154,16 +154,13 @@ class AxisManagement:
         id = polyline.info().get(0)
         self.idx = self.odm2idx[id]
 
-        obj = AnalyseDistance()
         point = pyDM.Point(pt[0], pt[1],0)
 
-        pyDM.GeometricAlgorithms.analyseDistance(line=polyline, pt=point, callback=obj, d3=False)
+        ptlist = self.polyline2linestring(polyline)
 
-        pts = self.polyline2linestring(polyline)
-        vertices = sorted(obj.insertVertex)
-        pts.insert(vertices[-1],[pt[0], pt[1]])
+        ptlist_inserted = insert_point_in_polyline(polyline=polyline, ptlist=ptlist, point=point)
 
-        self._updatePolyline(pts, id)
+        self._updatePolyline(ptlist_inserted, id)
 
         self.save()
 
@@ -171,16 +168,14 @@ class AxisManagement:
         id = polyline.info().get(0)
         self.idx = self.odm2idx[id]
 
-        obj = AnalyseDistance()
         point = pyDM.Point(pt[0], pt[1], 0)
 
-        pyDM.GeometricAlgorithms.analyseDistance(line=polyline, pt=point, callback=obj, maxDist=2, d3=False)
+        ptlist = self.polyline2linestring(polyline)
 
-        pts = self.polyline2linestring(polyline)
-        vertex = obj.pickedVertex
-        pts.pop(vertex)
+        closest_vertex = get_closest_point(polyline=polyline, point=point)
+        ptlist.pop(closest_vertex)
 
-        self._updatePolyline(pts, id)
+        self._updatePolyline(ptlist, id)
 
         self.save()
 
@@ -188,12 +183,9 @@ class AxisManagement:
         id = line.info().get(0)
         self.idx = self.odm2idx[id]
 
-        obj = AnalyseDistance()
         point = pyDM.Point(pt[0], pt[1], 0)
 
-        pyDM.GeometricAlgorithms.analyseDistance(line=line, pt=point, callback=obj, maxDist=2, d3=False)
-
-        return obj.pickedVertex
+        return get_closest_point(polyline=line, point=point)
 
     def MoveVertices(self, polyline, vertexId, pt):
         id = polyline.info().get(0)

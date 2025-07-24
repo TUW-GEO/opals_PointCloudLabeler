@@ -121,6 +121,20 @@ class Camera:
         mat = Matrix4x4.lookAt(self.position, self.target, self.up, False)
         return np.array(mat.get(), dtype=np.float32).reshape(4, 4)
 
+
+    def getTransformationMatrix_4x4(self, rotation):
+        x = rotation[0,0]
+        y = rotation[0,1]
+        dist = (self.target-self.position).length()
+        vec = Vector3D(-y, x, 0)
+
+        position = self.target + vec*dist
+        up = Vector3D(0,0,1)
+
+        mat = Matrix4x4.createTransformationMatrix(position, self.target, up, True)
+        
+        return mat
+
     def transformAxis(self):
         if self.OrthoProjection == True:
           dist = 1.5

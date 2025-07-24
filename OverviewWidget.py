@@ -1,6 +1,6 @@
 from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtSvg import QSvgWidget
-from PyQt5.QtWidgets import QFileDialog, QMessageBox
+from PyQt5.QtWidgets import QFileDialog, QMessageBox, QApplication
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 import svgwrite
@@ -12,6 +12,7 @@ import numpy as np
 
 class OverviewWidget(QSvgWidget):
     polylinePicked = QtCore.pyqtSignal(object)
+    selectSection = pyqtSignal(float, float)
     def __init__(self, *args):
         QSvgWidget.__init__(self, *args)
         self.setMouseTracking(True)
@@ -24,6 +25,11 @@ class OverviewWidget(QSvgWidget):
         self.selection = None
         self.sections = None
         self.section_color = 'red'
+        self.classificationProgress = None
+        self.progressLinspaceX = None
+        self.progressLinspaceY = None
+        self.progressDX = None
+        self.progressDY = None
         self.axis_color = 'blue'
         self.node_color = 'orange'
         self.width = None
@@ -167,13 +173,17 @@ class OverviewWidget(QSvgWidget):
         wy = self.red_y - sy
         return wx, wy
 
-    def dataRefresh(self):
+    def dataRefresh(self, show_progress=False):
         self.svg = svgwrite.Drawing()
 
         self.svg.viewbox(minx=self.svg_vb_minx, miny=self.svg_vb_miny, width=self.svg_vb_dx/self.svg_zoom, height=self.svg_vb_dy/self.svg_zoom)
         dx = self.shd_bbox[1][0] - self.shd_bbox[0][0]
         dy = self.shd_bbox[0][1] - self.shd_bbox[1][1]
         self.svg.add(self.svg.image(href=self.shd_filename, insert=(0, 0), size=(dx, dy)))
+
+        # Draw Classification Progress
+        if show_progress:
+            self.drawProgress()
 
         try:
             for line in self.AxisManager.axis:
@@ -247,6 +257,38 @@ class OverviewWidget(QSvgWidget):
             self.svg.add(self.svg.line(start=pt1, end=pt2, stroke=self.section_color, stroke_width=self.stroke_width))
 
         self.update_svg()
+
+    def drawProgress(self):
+        if self.classificationProgress is not None and self.classificationProgress.size > 0:
+            dx = self.progressDX
+            dy = self.progressDY
+                        
+            for i, y in enumerate(self.progressLinspaceY):
+                for j, x in enumerate(self.progressLinspaceX):
+                    classified = self.classificationProgress[i, j]
+                    pts = [self.world2svg(x, y),
+                        self.world2svg(x, y+dy),
+                        self.world2svg(x+dx, y+dy),
+                        self.world2svg(x+dx, y),
+                        self.world2svg(x, y)]
+                    
+                    if classified == 0:
+                        color = 'lightgreen'
+                    elif classified == 1:
+                        color = 'red'
+                    elif classified == 2:
+                        color = 'orange'
+
+                    self.svg.add(self.svg.polygon(points=pts, fill=color, fill_opacity=0.4))
+           
+            self.update_svg()
+
+    def setProgress(self, progress, X, Y, dx, dy):
+        self.classificationProgress = progress
+        self.progressLinspaceX = X
+        self.progressLinspaceY = Y
+        self.progressDX = dx
+        self.progressDY = dy
 
     def update_svg(self):
         # Update the SVG in the widget
@@ -545,6 +587,9 @@ class OverviewWidget(QSvgWidget):
 
         elif mouseEvent.button() == QtCore.Qt.RightButton and self.SelectAxis:
             self.last_pos = (mouseEvent.x(), mouseEvent.y())
+        
+
+
 
     def mouseMoveEvent(self, mouseEvent):
         self.pos = (mouseEvent.x(), mouseEvent.y())
@@ -578,6 +623,11 @@ class OverviewWidget(QSvgWidget):
 
             finally:
                 QtWidgets.QApplication.restoreOverrideCursor()
+
+        if mouseEvent.button() == QtCore.Qt.RightButton and self.SelectAxis and QApplication.keyboardModifiers() == QtCore.Qt.ControlModifier:
+            x, y = self.pixel2world(mouseEvent.x(), mouseEvent.y())
+            self.selectSection.emit(x, y)
+            
     def wheelEvent(self, event):
         if event.angleDelta().y() > 0 and self.SelectAxis:
             self.zoom(self.pos[0], self.pos[1], self.svg_zoom_factor)

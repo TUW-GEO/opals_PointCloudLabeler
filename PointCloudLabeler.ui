@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1347</width>
-    <height>1172</height>
+    <width>1312</width>
+    <height>928</height>
    </rect>
   </property>
   <property name="font">
@@ -17,6 +17,10 @@
   </property>
   <property name="windowTitle">
    <string>MainWindow</string>
+  </property>
+  <property name="windowIcon">
+   <iconset>
+    <normaloff>Graphics/pcl.png</normaloff>Graphics/pcl.png</iconset>
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QHBoxLayout" name="horizontalLayout_3">
@@ -33,6 +37,9 @@
       </property>
       <property name="rightMargin">
        <number>4</number>
+      </property>
+      <property name="bottomMargin">
+       <number>0</number>
       </property>
       <item>
        <layout class="QVBoxLayout" name="verticalLayout_3">
@@ -53,7 +60,7 @@
           <property name="sizeHint" stdset="0">
            <size>
             <width>20</width>
-            <height>13</height>
+            <height>7</height>
            </size>
           </property>
          </spacer>
@@ -134,24 +141,8 @@
          </widget>
         </item>
         <item>
-         <spacer name="verticalSpacer_7">
-          <property name="orientation">
-           <enum>Qt::Vertical</enum>
-          </property>
-          <property name="sizeType">
-           <enum>QSizePolicy::Minimum</enum>
-          </property>
-          <property name="sizeHint" stdset="0">
-           <size>
-            <width>20</width>
-            <height>13</height>
-           </size>
-          </property>
-         </spacer>
-        </item>
-        <item>
          <layout class="QGridLayout" name="gridLayout_2">
-          <item row="2" column="6">
+          <item row="2" column="5">
            <widget class="QToolButton" name="PointSelection">
             <property name="minimumSize">
              <size>
@@ -160,7 +151,7 @@
              </size>
             </property>
             <property name="toolTip">
-             <string>dynamic point labelling</string>
+             <string>dynamic point labelling, use mouse wheel to change size</string>
             </property>
             <property name="text">
              <string>...</string>
@@ -180,10 +171,70 @@
             </property>
            </widget>
           </item>
-          <item row="2" column="0">
-           <widget class="QToolButton" name="Previous">
+          <item row="3" column="6">
+           <widget class="QToolButton" name="HightColor">
             <property name="sizePolicy">
-             <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
+             <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+              <horstretch>30</horstretch>
+              <verstretch>30</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="minimumSize">
+             <size>
+              <width>30</width>
+              <height>30</height>
+             </size>
+            </property>
+            <property name="font">
+             <font>
+              <pointsize>9</pointsize>
+             </font>
+            </property>
+            <property name="mouseTracking">
+             <bool>true</bool>
+            </property>
+            <property name="focusPolicy">
+             <enum>Qt::WheelFocus</enum>
+            </property>
+            <property name="toolTip">
+             <string>colorise the points according to their relative hight inside the section</string>
+            </property>
+            <property name="toolTipDuration">
+             <number>-1</number>
+            </property>
+            <property name="whatsThis">
+             <string/>
+            </property>
+            <property name="text">
+             <string>HC</string>
+            </property>
+            <property name="checkable">
+             <bool>true</bool>
+            </property>
+            <property name="checked">
+             <bool>false</bool>
+            </property>
+            <property name="autoRepeat">
+             <bool>false</bool>
+            </property>
+           </widget>
+          </item>
+          <item row="6" column="1">
+           <widget class="QPushButton" name="ResetPointClasses">
+            <property name="font">
+             <font>
+              <pointsize>9</pointsize>
+             </font>
+            </property>
+            <property name="text">
+             <string>ResetPointClasses</string>
+            </property>
+           </widget>
+          </item>
+          <item row="3" column="5">
+           <widget class="QToolButton" name="ClassColor">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
               <horstretch>0</horstretch>
               <verstretch>0</verstretch>
              </sizepolicy>
@@ -194,18 +245,26 @@
               <height>30</height>
              </size>
             </property>
+            <property name="font">
+             <font>
+              <pointsize>9</pointsize>
+             </font>
+            </property>
             <property name="toolTip">
-             <string>Previous Section</string>
+             <string>colorise the points according to their classes</string>
             </property>
             <property name="text">
-             <string>...</string>
+             <string>CC</string>
             </property>
-            <property name="arrowType">
-             <enum>Qt::LeftArrow</enum>
+            <property name="checkable">
+             <bool>true</bool>
+            </property>
+            <property name="checked">
+             <bool>true</bool>
             </property>
            </widget>
           </item>
-          <item row="2" column="8">
+          <item row="2" column="7">
            <layout class="QHBoxLayout" name="horizontalLayout">
             <item>
              <widget class="QLabel" name="label_2">
@@ -232,38 +291,6 @@
              </widget>
             </item>
            </layout>
-          </item>
-          <item row="3" column="2">
-           <widget class="QLabel" name="label_7">
-            <property name="text">
-             <string>Overlap [%]</string>
-            </property>
-           </widget>
-          </item>
-          <item row="2" column="1">
-           <widget class="QToolButton" name="Next">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="minimumSize">
-             <size>
-              <width>30</width>
-              <height>30</height>
-             </size>
-            </property>
-            <property name="toolTip">
-             <string>Next Section</string>
-            </property>
-            <property name="text">
-             <string>...</string>
-            </property>
-            <property name="arrowType">
-             <enum>Qt::RightArrow</enum>
-            </property>
-           </widget>
           </item>
           <item row="2" column="3">
            <widget class="QComboBox" name="ClassList">
@@ -292,8 +319,21 @@
             </property>
            </widget>
           </item>
-          <item row="2" column="7">
-           <widget class="QToolButton" name="RectangleSelection">
+          <item row="3" column="0">
+           <widget class="QLabel" name="label_5">
+            <property name="text">
+             <string>Across</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="1">
+           <widget class="QToolButton" name="Next">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
             <property name="minimumSize">
              <size>
               <width>30</width>
@@ -301,47 +341,89 @@
              </size>
             </property>
             <property name="toolTip">
-             <string>rectangle selection labelling</string>
+             <string>Next Section</string>
             </property>
             <property name="text">
              <string>...</string>
             </property>
-            <property name="icon">
-             <iconset>
-              <normaloff>Graphics/Rechteck.jpg</normaloff>Graphics/Rechteck.jpg</iconset>
-            </property>
-            <property name="iconSize">
-             <size>
-              <width>20</width>
-              <height>20</height>
-             </size>
-            </property>
-            <property name="checkable">
-             <bool>true</bool>
-            </property>
-            <property name="toolButtonStyle">
-             <enum>Qt::ToolButtonIconOnly</enum>
-            </property>
             <property name="arrowType">
-             <enum>Qt::NoArrow</enum>
+             <enum>Qt::RightArrow</enum>
             </property>
            </widget>
           </item>
-          <item row="4" column="8">
-           <widget class="QLabel" name="label_8">
+          <item row="6" column="0">
+           <widget class="QPushButton" name="Save">
+            <property name="font">
+             <font>
+              <pointsize>9</pointsize>
+             </font>
+            </property>
+            <property name="text">
+             <string>Save</string>
+            </property>
+            <property name="default">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item row="4" column="0">
+           <widget class="QLineEdit" name="across_section">
             <property name="sizePolicy">
              <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
               <horstretch>0</horstretch>
               <verstretch>0</verstretch>
              </sizepolicy>
             </property>
+            <property name="minimumSize">
+             <size>
+              <width>50</width>
+              <height>25</height>
+             </size>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>50</width>
+              <height>25</height>
+             </size>
+            </property>
             <property name="font">
              <font>
-              <pointsize>10</pointsize>
+              <pointsize>9</pointsize>
              </font>
             </property>
+            <property name="toolTip">
+             <string>across</string>
+            </property>
             <property name="text">
-             <string>Line Size</string>
+             <string/>
+            </property>
+           </widget>
+          </item>
+          <item row="6" column="7">
+           <widget class="QSlider" name="LineSize">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="toolTip">
+             <string>Change the linewidth of the shown axis and section</string>
+            </property>
+            <property name="minimum">
+             <number>1</number>
+            </property>
+            <property name="maximum">
+             <number>5</number>
+            </property>
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+            <property name="tickPosition">
+             <enum>QSlider::TicksBelow</enum>
+            </property>
+            <property name="tickInterval">
+             <number>1</number>
             </property>
            </widget>
           </item>
@@ -352,30 +434,141 @@
             </property>
            </widget>
           </item>
-          <item row="3" column="0">
-           <widget class="QLabel" name="label_5">
-            <property name="text">
-             <string>Across</string>
+          <item row="4" column="3">
+           <widget class="QComboBox" name="predictionModel">
+            <property name="toolTip">
+             <string>prediction model</string>
             </property>
            </widget>
           </item>
-          <item row="3" column="3">
-           <widget class="QComboBox" name="knnPrediction">
+          <item row="2" column="2">
+           <layout class="QVBoxLayout" name="verticalLayout_4"/>
+          </item>
+          <item row="4" column="1">
+           <widget class="QLineEdit" name="along_section">
             <property name="sizePolicy">
-             <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+             <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
               <horstretch>0</horstretch>
               <verstretch>0</verstretch>
              </sizepolicy>
             </property>
             <property name="minimumSize">
              <size>
-              <width>60</width>
-              <height>19</height>
+              <width>50</width>
+              <height>25</height>
              </size>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>50</width>
+              <height>25</height>
+             </size>
+            </property>
+            <property name="font">
+             <font>
+              <pointsize>9</pointsize>
+             </font>
+            </property>
+            <property name="focusPolicy">
+             <enum>Qt::StrongFocus</enum>
+            </property>
+            <property name="toolTip">
+             <string>along</string>
+            </property>
+            <property name="text">
+             <string/>
             </property>
            </widget>
           </item>
-          <item row="3" column="8">
+          <item row="3" column="2">
+           <widget class="QLabel" name="label_7">
+            <property name="text">
+             <string>Overlap [%]</string>
+            </property>
+           </widget>
+          </item>
+          <item row="4" column="5">
+           <widget class="QToolButton" name="OrthoView">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="minimumSize">
+             <size>
+              <width>30</width>
+              <height>30</height>
+             </size>
+            </property>
+            <property name="toolTip">
+             <string>aligns the polygon orthogonally to the axis again</string>
+            </property>
+            <property name="text">
+             <string/>
+            </property>
+            <property name="icon">
+             <iconset>
+              <normaloff>Graphics/Orthogonal.png</normaloff>Graphics/Orthogonal.png</iconset>
+            </property>
+            <property name="iconSize">
+             <size>
+              <width>20</width>
+              <height>20</height>
+             </size>
+            </property>
+            <property name="checkable">
+             <bool>false</bool>
+            </property>
+            <property name="checked">
+             <bool>false</bool>
+            </property>
+           </widget>
+          </item>
+          <item row="6" column="3">
+           <widget class="QPushButton" name="showProgress">
+            <property name="text">
+             <string>show progress</string>
+            </property>
+           </widget>
+          </item>
+          <item row="4" column="2">
+           <widget class="QLineEdit" name="overlap_section">
+            <property name="enabled">
+             <bool>true</bool>
+            </property>
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="minimumSize">
+             <size>
+              <width>50</width>
+              <height>25</height>
+             </size>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>50</width>
+              <height>25</height>
+             </size>
+            </property>
+            <property name="font">
+             <font>
+              <pointsize>9</pointsize>
+             </font>
+            </property>
+            <property name="toolTip">
+             <string>overlap [%]</string>
+            </property>
+            <property name="text">
+             <string>0</string>
+            </property>
+           </widget>
+          </item>
+          <item row="3" column="7">
            <widget class="QSlider" name="PointSize">
             <property name="sizePolicy">
              <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
@@ -424,164 +617,10 @@
             </property>
            </widget>
           </item>
-          <item row="7" column="8">
-           <widget class="QSlider" name="LineSize">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="toolTip">
-             <string>Change the linewidth of the shown axis and section</string>
-            </property>
-            <property name="minimum">
-             <number>1</number>
-            </property>
-            <property name="maximum">
-             <number>5</number>
-            </property>
-            <property name="orientation">
-             <enum>Qt::Horizontal</enum>
-            </property>
-            <property name="tickPosition">
-             <enum>QSlider::TicksBelow</enum>
-            </property>
-            <property name="tickInterval">
-             <number>1</number>
-            </property>
-           </widget>
-          </item>
-          <item row="4" column="2">
-           <widget class="QLineEdit" name="overlap_section">
-            <property name="enabled">
-             <bool>true</bool>
-            </property>
+          <item row="2" column="0">
+           <widget class="QToolButton" name="Previous">
             <property name="sizePolicy">
              <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="minimumSize">
-             <size>
-              <width>50</width>
-              <height>25</height>
-             </size>
-            </property>
-            <property name="maximumSize">
-             <size>
-              <width>50</width>
-              <height>25</height>
-             </size>
-            </property>
-            <property name="font">
-             <font>
-              <pointsize>9</pointsize>
-             </font>
-            </property>
-            <property name="text">
-             <string>0</string>
-            </property>
-           </widget>
-          </item>
-          <item row="3" column="6">
-           <widget class="QToolButton" name="ClassColor">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="minimumSize">
-             <size>
-              <width>30</width>
-              <height>30</height>
-             </size>
-            </property>
-            <property name="font">
-             <font>
-              <pointsize>9</pointsize>
-             </font>
-            </property>
-            <property name="toolTip">
-             <string>colorise the points according to their classes</string>
-            </property>
-            <property name="text">
-             <string>CC</string>
-            </property>
-            <property name="checkable">
-             <bool>true</bool>
-            </property>
-            <property name="checked">
-             <bool>true</bool>
-            </property>
-           </widget>
-          </item>
-          <item row="2" column="2">
-           <layout class="QVBoxLayout" name="verticalLayout_4"/>
-          </item>
-          <item row="7" column="1">
-           <widget class="QPushButton" name="ResetPointClasses">
-            <property name="font">
-             <font>
-              <pointsize>9</pointsize>
-             </font>
-            </property>
-            <property name="text">
-             <string>ResetPointClasses</string>
-            </property>
-           </widget>
-          </item>
-          <item row="7" column="0">
-           <widget class="QPushButton" name="Save">
-            <property name="font">
-             <font>
-              <pointsize>9</pointsize>
-             </font>
-            </property>
-            <property name="text">
-             <string>Save</string>
-            </property>
-            <property name="default">
-             <bool>true</bool>
-            </property>
-           </widget>
-          </item>
-          <item row="4" column="0">
-           <widget class="QLineEdit" name="across_section">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="minimumSize">
-             <size>
-              <width>50</width>
-              <height>25</height>
-             </size>
-            </property>
-            <property name="maximumSize">
-             <size>
-              <width>50</width>
-              <height>25</height>
-             </size>
-            </property>
-            <property name="font">
-             <font>
-              <pointsize>9</pointsize>
-             </font>
-            </property>
-            <property name="text">
-             <string/>
-            </property>
-           </widget>
-          </item>
-          <item row="4" column="6">
-           <widget class="QToolButton" name="OrthoView">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
               <horstretch>0</horstretch>
               <verstretch>0</verstretch>
              </sizepolicy>
@@ -593,14 +632,52 @@
              </size>
             </property>
             <property name="toolTip">
-             <string>aligns the polygon orthogonally to the axis again</string>
+             <string>Previous Section</string>
             </property>
             <property name="text">
-             <string/>
+             <string>...</string>
+            </property>
+            <property name="arrowType">
+             <enum>Qt::LeftArrow</enum>
+            </property>
+           </widget>
+          </item>
+          <item row="3" column="3">
+           <widget class="QComboBox" name="knnPrediction">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="minimumSize">
+             <size>
+              <width>60</width>
+              <height>19</height>
+             </size>
+            </property>
+            <property name="toolTip">
+             <string>prediction mode</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="6">
+           <widget class="QToolButton" name="RectangleSelection">
+            <property name="minimumSize">
+             <size>
+              <width>30</width>
+              <height>30</height>
+             </size>
+            </property>
+            <property name="toolTip">
+             <string>rectangle selection labelling</string>
+            </property>
+            <property name="text">
+             <string>...</string>
             </property>
             <property name="icon">
              <iconset>
-              <normaloff>Graphics/Orthogonal.png</normaloff>Graphics/Orthogonal.png</iconset>
+              <normaloff>Graphics/Rechteck.jpg</normaloff>Graphics/Rechteck.jpg</iconset>
             </property>
             <property name="iconSize">
              <size>
@@ -609,91 +686,31 @@
              </size>
             </property>
             <property name="checkable">
-             <bool>false</bool>
+             <bool>true</bool>
             </property>
-            <property name="checked">
-             <bool>false</bool>
+            <property name="toolButtonStyle">
+             <enum>Qt::ToolButtonIconOnly</enum>
+            </property>
+            <property name="arrowType">
+             <enum>Qt::NoArrow</enum>
             </property>
            </widget>
           </item>
-          <item row="3" column="7">
-           <widget class="QToolButton" name="HightColor">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-              <horstretch>30</horstretch>
-              <verstretch>30</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="minimumSize">
-             <size>
-              <width>30</width>
-              <height>30</height>
-             </size>
-            </property>
-            <property name="font">
-             <font>
-              <pointsize>9</pointsize>
-             </font>
-            </property>
-            <property name="mouseTracking">
-             <bool>true</bool>
-            </property>
-            <property name="focusPolicy">
-             <enum>Qt::WheelFocus</enum>
-            </property>
-            <property name="toolTip">
-             <string>colorise the points according to their relative hight inside the section</string>
-            </property>
-            <property name="toolTipDuration">
-             <number>-1</number>
-            </property>
-            <property name="whatsThis">
-             <string/>
-            </property>
-            <property name="text">
-             <string>HC</string>
-            </property>
-            <property name="checkable">
-             <bool>true</bool>
-            </property>
-            <property name="checked">
-             <bool>false</bool>
-            </property>
-            <property name="autoRepeat">
-             <bool>false</bool>
-            </property>
-           </widget>
-          </item>
-          <item row="4" column="1">
-           <widget class="QLineEdit" name="along_section">
+          <item row="4" column="7">
+           <widget class="QLabel" name="label_8">
             <property name="sizePolicy">
              <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
               <horstretch>0</horstretch>
               <verstretch>0</verstretch>
              </sizepolicy>
             </property>
-            <property name="minimumSize">
-             <size>
-              <width>50</width>
-              <height>25</height>
-             </size>
-            </property>
-            <property name="maximumSize">
-             <size>
-              <width>50</width>
-              <height>25</height>
-             </size>
-            </property>
             <property name="font">
              <font>
-              <pointsize>9</pointsize>
+              <pointsize>10</pointsize>
              </font>
             </property>
-            <property name="focusPolicy">
-             <enum>Qt::StrongFocus</enum>
-            </property>
             <property name="text">
-             <string/>
+             <string>Line Size</string>
             </property>
            </widget>
           </item>
@@ -711,7 +728,7 @@
         </property>
         <property name="sizeHint" stdset="0">
          <size>
-          <width>100</width>
+          <width>30</width>
           <height>20</height>
          </size>
         </property>
@@ -733,7 +750,7 @@
           <property name="sizeHint" stdset="0">
            <size>
             <width>20</width>
-            <height>10</height>
+            <height>7</height>
            </size>
           </property>
          </spacer>
@@ -783,7 +800,7 @@
             <property name="minimumSize">
              <size>
               <width>600</width>
-              <height>600</height>
+              <height>400</height>
              </size>
             </property>
             <property name="maximumSize">
@@ -815,7 +832,7 @@ color: rgb(0, 255, 255);</string>
             <property name="sizeHint" stdset="0">
              <size>
               <width>20</width>
-              <height>10</height>
+              <height>7</height>
              </size>
             </property>
            </spacer>
@@ -825,42 +842,13 @@ color: rgb(0, 255, 255);</string>
             <property name="sizeConstraint">
              <enum>QLayout::SetMinimumSize</enum>
             </property>
+            <property name="rightMargin">
+             <number>4</number>
+            </property>
             <property name="spacing">
              <number>2</number>
             </property>
-            <item row="4" column="0">
-             <widget class="QRadioButton" name="EditMode">
-              <property name="sizePolicy">
-               <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
-                <horstretch>0</horstretch>
-                <verstretch>0</verstretch>
-               </sizepolicy>
-              </property>
-              <property name="minimumSize">
-               <size>
-                <width>10</width>
-                <height>0</height>
-               </size>
-              </property>
-              <property name="text">
-               <string>Edit Modus</string>
-              </property>
-             </widget>
-            </item>
-            <item row="2" column="0">
-             <widget class="QRadioButton" name="SelectionMode">
-              <property name="toolTip">
-               <string>Change of the active axis</string>
-              </property>
-              <property name="text">
-               <string>Selection Modus</string>
-              </property>
-              <property name="checked">
-               <bool>true</bool>
-              </property>
-             </widget>
-            </item>
-            <item row="4" column="3">
+            <item row="5" column="3">
              <widget class="QToolButton" name="Insert">
               <property name="enabled">
                <bool>false</bool>
@@ -877,6 +865,9 @@ color: rgb(0, 255, 255);</string>
                 <height>30</height>
                </size>
               </property>
+              <property name="toolTip">
+               <string>insert axis point</string>
+              </property>
               <property name="text">
                <string/>
               </property>
@@ -886,6 +877,73 @@ color: rgb(0, 255, 255);</string>
               </property>
               <property name="checkable">
                <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+            <item row="5" column="4">
+             <widget class="QToolButton" name="Delete">
+              <property name="enabled">
+               <bool>false</bool>
+              </property>
+              <property name="minimumSize">
+               <size>
+                <width>30</width>
+                <height>30</height>
+               </size>
+              </property>
+              <property name="toolTip">
+               <string>delete axis point</string>
+              </property>
+              <property name="text">
+               <string>...</string>
+              </property>
+              <property name="icon">
+               <iconset>
+                <normaloff>Graphics/Delete.png</normaloff>Graphics/Delete.png</iconset>
+              </property>
+              <property name="iconSize">
+               <size>
+                <width>16</width>
+                <height>16</height>
+               </size>
+              </property>
+              <property name="checkable">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+            <item row="2" column="0">
+             <widget class="QRadioButton" name="SelectionMode">
+              <property name="toolTip">
+               <string>Change of the active axis</string>
+              </property>
+              <property name="text">
+               <string>Selection Modus</string>
+              </property>
+              <property name="checked">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+            <item row="5" column="0">
+             <widget class="QRadioButton" name="EditMode">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="minimumSize">
+               <size>
+                <width>10</width>
+                <height>0</height>
+               </size>
+              </property>
+              <property name="toolTip">
+               <string>insert, delete or move axis points</string>
+              </property>
+              <property name="text">
+               <string>Edit Modus</string>
               </property>
              </widget>
             </item>
@@ -913,58 +971,7 @@ color: rgb(0, 255, 255);</string>
               </item>
              </layout>
             </item>
-            <item row="3" column="0">
-             <widget class="QRadioButton" name="DrawMode">
-              <property name="sizePolicy">
-               <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
-                <horstretch>0</horstretch>
-                <verstretch>0</verstretch>
-               </sizepolicy>
-              </property>
-              <property name="minimumSize">
-               <size>
-                <width>10</width>
-                <height>0</height>
-               </size>
-              </property>
-              <property name="toolTip">
-               <string>Draw and add a new axis</string>
-              </property>
-              <property name="text">
-               <string>Draw Modus</string>
-              </property>
-             </widget>
-            </item>
-            <item row="4" column="4">
-             <widget class="QToolButton" name="Delete">
-              <property name="enabled">
-               <bool>false</bool>
-              </property>
-              <property name="minimumSize">
-               <size>
-                <width>30</width>
-                <height>30</height>
-               </size>
-              </property>
-              <property name="text">
-               <string>...</string>
-              </property>
-              <property name="icon">
-               <iconset>
-                <normaloff>Graphics/Delete.png</normaloff>Graphics/Delete.png</iconset>
-              </property>
-              <property name="iconSize">
-               <size>
-                <width>16</width>
-                <height>16</height>
-               </size>
-              </property>
-              <property name="checkable">
-               <bool>true</bool>
-              </property>
-             </widget>
-            </item>
-            <item row="4" column="11">
+            <item row="5" column="11">
              <widget class="QToolButton" name="Move">
               <property name="enabled">
                <bool>false</bool>
@@ -974,6 +981,9 @@ color: rgb(0, 255, 255);</string>
                 <width>30</width>
                 <height>30</height>
                </size>
+              </property>
+              <property name="toolTip">
+               <string>move axis point</string>
               </property>
               <property name="text">
                <string/>
@@ -1039,12 +1049,34 @@ color: rgb(0, 255, 255);</string>
               </property>
              </widget>
             </item>
+            <item row="4" column="0">
+             <widget class="QRadioButton" name="DrawMode">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="minimumSize">
+               <size>
+                <width>10</width>
+                <height>0</height>
+               </size>
+              </property>
+              <property name="toolTip">
+               <string>Draw and add a new axis</string>
+              </property>
+              <property name="text">
+               <string>Draw Modus</string>
+              </property>
+             </widget>
+            </item>
            </layout>
           </item>
           <item>
            <widget class="QListWidget" name="AxisView">
             <property name="sizePolicy">
-             <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+             <sizepolicy hsizetype="MinimumExpanding" vsizetype="MinimumExpanding">
               <horstretch>0</horstretch>
               <verstretch>0</verstretch>
              </sizepolicy>
@@ -1057,8 +1089,8 @@ color: rgb(0, 255, 255);</string>
             </property>
             <property name="maximumSize">
              <size>
-              <width>600</width>
-              <height>400</height>
+              <width>900</width>
+              <height>500</height>
              </size>
             </property>
             <property name="selectionMode">
@@ -1068,6 +1100,25 @@ color: rgb(0, 255, 255);</string>
           </item>
           <item>
            <layout class="QGridLayout" name="gridLayout_3">
+            <item row="2" column="5">
+             <widget class="QPushButton" name="Generate">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="minimumSize">
+               <size>
+                <width>56</width>
+                <height>21</height>
+               </size>
+              </property>
+              <property name="text">
+               <string>Generate</string>
+              </property>
+             </widget>
+            </item>
             <item row="1" column="3">
              <widget class="QLineEdit" name="PathToFile">
               <property name="sizePolicy">
@@ -1079,10 +1130,108 @@ color: rgb(0, 255, 255);</string>
               <property name="minimumSize">
                <size>
                 <width>291</width>
-                <height>19</height>
+                <height>21</height>
                </size>
               </property>
              </widget>
+            </item>
+            <item row="2" column="3">
+             <widget class="QLineEdit" name="PathToAxisShp">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="minimumSize">
+               <size>
+                <width>291</width>
+                <height>21</height>
+               </size>
+              </property>
+              <property name="baseSize">
+               <size>
+                <width>0</width>
+                <height>0</height>
+               </size>
+              </property>
+             </widget>
+            </item>
+            <item row="2" column="4">
+             <widget class="QPushButton" name="LoadAxis">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="minimumSize">
+               <size>
+                <width>56</width>
+                <height>21</height>
+               </size>
+              </property>
+              <property name="font">
+               <font>
+                <pointsize>9</pointsize>
+               </font>
+              </property>
+              <property name="text">
+               <string>Load</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="4">
+             <widget class="QPushButton" name="LoadButton">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="minimumSize">
+               <size>
+                <width>56</width>
+                <height>21</height>
+               </size>
+              </property>
+              <property name="font">
+               <font>
+                <pointsize>9</pointsize>
+               </font>
+              </property>
+              <property name="text">
+               <string>Load</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="0">
+             <layout class="QGridLayout" name="gridLayout">
+              <item row="0" column="0">
+               <widget class="QLabel" name="loadFile">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="minimumSize">
+                 <size>
+                  <width>50</width>
+                  <height>21</height>
+                 </size>
+                </property>
+                <property name="font">
+                 <font>
+                  <pointsize>9</pointsize>
+                 </font>
+                </property>
+                <property name="text">
+                 <string>Pointcloud:</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
             </item>
             <item row="2" column="0">
              <widget class="QLabel" name="label">
@@ -1098,7 +1247,7 @@ color: rgb(0, 255, 255);</string>
               <property name="minimumSize">
                <size>
                 <width>50</width>
-                <height>19</height>
+                <height>21</height>
                </size>
               </property>
               <property name="sizeIncrement">
@@ -1126,181 +1275,142 @@ color: rgb(0, 255, 255);</string>
               </property>
              </widget>
             </item>
-            <item row="2" column="3">
-             <widget class="QLineEdit" name="PathToAxisShp">
-              <property name="sizePolicy">
-               <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
-                <horstretch>0</horstretch>
-                <verstretch>0</verstretch>
-               </sizepolicy>
+           </layout>
+          </item>
+          <item>
+           <widget class="QTabWidget" name="tabWidget">
+            <property name="minimumSize">
+             <size>
+              <width>600</width>
+              <height>140</height>
+             </size>
+            </property>
+            <property name="currentIndex">
+             <number>1</number>
+            </property>
+            <widget class="QWidget" name="StatusMessagesTab">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <attribute name="title">
+              <string>status messages</string>
+             </attribute>
+             <layout class="QGridLayout" name="gridLayout_5">
+              <property name="sizeConstraint">
+               <enum>QLayout::SetMinAndMaxSize</enum>
               </property>
-              <property name="minimumSize">
-               <size>
-                <width>291</width>
-                <height>19</height>
-               </size>
+              <property name="leftMargin">
+               <number>2</number>
               </property>
-              <property name="baseSize">
-               <size>
-                <width>0</width>
-                <height>0</height>
-               </size>
+              <property name="topMargin">
+               <number>2</number>
               </property>
-             </widget>
-            </item>
-            <item row="1" column="0">
-             <layout class="QGridLayout" name="gridLayout">
+              <property name="rightMargin">
+               <number>2</number>
+              </property>
+              <property name="bottomMargin">
+               <number>2</number>
+              </property>
               <item row="0" column="0">
-               <widget class="QLabel" name="loadFile">
+               <widget class="QListView" name="StatusMessages">
+                <property name="enabled">
+                 <bool>true</bool>
+                </property>
                 <property name="sizePolicy">
-                 <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                 <sizepolicy hsizetype="MinimumExpanding" vsizetype="MinimumExpanding">
                   <horstretch>0</horstretch>
                   <verstretch>0</verstretch>
                  </sizepolicy>
                 </property>
                 <property name="minimumSize">
                  <size>
-                  <width>50</width>
-                  <height>19</height>
+                  <width>596</width>
+                  <height>100</height>
+                 </size>
+                </property>
+                <property name="maximumSize">
+                 <size>
+                  <width>900</width>
+                  <height>16777215</height>
                  </size>
                 </property>
                 <property name="font">
                  <font>
-                  <pointsize>9</pointsize>
+                  <family>MS Shell Dlg 2</family>
                  </font>
                 </property>
-                <property name="text">
-                 <string>Pointcloud:</string>
+                <property name="autoFillBackground">
+                 <bool>false</bool>
+                </property>
+                <property name="editTriggers">
+                 <set>QAbstractItemView::NoEditTriggers</set>
+                </property>
+                <property name="showDropIndicator" stdset="0">
+                 <bool>false</bool>
+                </property>
+                <property name="selectionMode">
+                 <enum>QAbstractItemView::NoSelection</enum>
                 </property>
                </widget>
               </item>
              </layout>
-            </item>
-            <item row="1" column="4">
-             <widget class="QPushButton" name="LoadButton">
-              <property name="sizePolicy">
-               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-                <horstretch>0</horstretch>
-                <verstretch>0</verstretch>
-               </sizepolicy>
+            </widget>
+            <widget class="QWidget" name="ShortcutBindingsTab">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <attribute name="title">
+              <string>shortcut bindings</string>
+             </attribute>
+             <attribute name="toolTip">
+              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;To create shortcuts choose the preferred option in the dropdown menu e.g. &amp;quot;2 ground&amp;quot;, then press Ctrl + &amp;lt;your desired number (0-9)&amp;gt;. &lt;/p&gt;&lt;p&gt;To use the shortcut press Alt + &amp;lt;your number&amp;gt;.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+             </attribute>
+             <layout class="QGridLayout" name="gridLayout_7">
+              <property name="sizeConstraint">
+               <enum>QLayout::SetMinAndMaxSize</enum>
               </property>
-              <property name="minimumSize">
-               <size>
-                <width>56</width>
-                <height>19</height>
-               </size>
+              <property name="leftMargin">
+               <number>2</number>
               </property>
-              <property name="font">
-               <font>
-                <pointsize>9</pointsize>
-               </font>
+              <property name="topMargin">
+               <number>2</number>
               </property>
-              <property name="text">
-               <string>Load</string>
+              <property name="rightMargin">
+               <number>2</number>
               </property>
-             </widget>
-            </item>
-            <item row="2" column="4">
-             <widget class="QPushButton" name="LoadAxis">
-              <property name="sizePolicy">
-               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-                <horstretch>0</horstretch>
-                <verstretch>0</verstretch>
-               </sizepolicy>
+              <property name="bottomMargin">
+               <number>2</number>
               </property>
-              <property name="minimumSize">
-               <size>
-                <width>56</width>
-                <height>19</height>
-               </size>
-              </property>
-              <property name="font">
-               <font>
-                <pointsize>9</pointsize>
-               </font>
-              </property>
-              <property name="text">
-               <string>Load</string>
-              </property>
-             </widget>
-            </item>
-            <item row="2" column="5">
-             <widget class="QPushButton" name="Generate">
-              <property name="sizePolicy">
-               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-                <horstretch>0</horstretch>
-                <verstretch>0</verstretch>
-               </sizepolicy>
-              </property>
-              <property name="minimumSize">
-               <size>
-                <width>56</width>
-                <height>19</height>
-               </size>
-              </property>
-              <property name="text">
-               <string>Generate</string>
-              </property>
-             </widget>
-            </item>
-           </layout>
-          </item>
-          <item>
-           <spacer name="verticalSpacer_3">
-            <property name="orientation">
-             <enum>Qt::Vertical</enum>
-            </property>
-            <property name="sizeType">
-             <enum>QSizePolicy::Fixed</enum>
-            </property>
-            <property name="sizeHint" stdset="0">
-             <size>
-              <width>20</width>
-              <height>10</height>
-             </size>
-            </property>
-           </spacer>
-          </item>
-          <item>
-           <widget class="QListView" name="StatusMessages">
-            <property name="enabled">
-             <bool>true</bool>
-            </property>
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Minimum" vsizetype="Expanding">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="minimumSize">
-             <size>
-              <width>600</width>
-              <height>100</height>
-             </size>
-            </property>
-            <property name="maximumSize">
-             <size>
-              <width>600</width>
-              <height>100</height>
-             </size>
-            </property>
-            <property name="font">
-             <font>
-              <family>MS Shell Dlg 2</family>
-             </font>
-            </property>
-            <property name="autoFillBackground">
-             <bool>false</bool>
-            </property>
-            <property name="editTriggers">
-             <set>QAbstractItemView::NoEditTriggers</set>
-            </property>
-            <property name="showDropIndicator" stdset="0">
-             <bool>false</bool>
-            </property>
-            <property name="selectionMode">
-             <enum>QAbstractItemView::NoSelection</enum>
-            </property>
+              <item row="0" column="0">
+               <widget class="QTableWidget" name="ViewShortcutBindings">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="MinimumExpanding" vsizetype="MinimumExpanding">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="minimumSize">
+                 <size>
+                  <width>596</width>
+                  <height>100</height>
+                 </size>
+                </property>
+                <property name="toolTip">
+                 <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;To create shortcuts choose the preferred option in the dropdown menu e.g. &amp;quot;2 ground&amp;quot;, then press Ctrl + &amp;lt;your desired number (0-9)&amp;gt;. &lt;/p&gt;&lt;p&gt;To use the shortcut press Alt + &amp;lt;your number&amp;gt;.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                </property>
+                <property name="sizeAdjustPolicy">
+                 <enum>QAbstractScrollArea::AdjustIgnored</enum>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
            </widget>
           </item>
          </layout>
@@ -1316,8 +1426,8 @@ color: rgb(0, 255, 255);</string>
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1347</width>
-     <height>21</height>
+     <width>1312</width>
+     <height>26</height>
     </rect>
    </property>
   </widget>
@@ -1351,7 +1461,6 @@ color: rgb(0, 255, 255);</string>
   <tabstop>knnPrediction</tabstop>
   <tabstop>Section</tabstop>
   <tabstop>LoadButton</tabstop>
-  <tabstop>StatusMessages</tabstop>
   <tabstop>HightColor</tabstop>
   <tabstop>PointSize</tabstop>
   <tabstop>OrthoView</tabstop>

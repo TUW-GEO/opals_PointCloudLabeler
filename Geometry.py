@@ -211,8 +211,82 @@ class Matrix4x4:
 
             # step two: postmultiply by a translation matrix
             return M * Matrix4x4.translation( - eyePoint.asVector3D() )
+        
+    @staticmethod
+    def createTransformationMatrix( eyePoint, targetPoint, upVector, b=True ):
+        # step one: generate a rotation matrix
+
+        y = (eyePoint-targetPoint).normalized()
+        z = upVector
+        x = z ^ y   # cross product
+        z = y ^ x   # cross product
+
+        # Cross product gives area of parallelogram, which is < 1 for
+        # non-perpendicular unit-length vectors; so normalize x and y.
+        if x.length() == 0 or z.length() == 0:
+            x = Vector3D(1, 0, 0)
+            z = Vector3D(0, 1, 0)
+        else:
+            x = x.normalized()
+            z = z.normalized()
+
+        M = Matrix4x4()
+
+        if not b :
+            # the rotation and translation matrix
+            M.m[ 0] = x.x();   M.m[ 4] = y.x();   M.m[ 8] = z.x();   M.m[12] = 0.0;
+            M.m[ 1] = x.y();   M.m[ 5] = y.y();   M.m[ 9] = z.y();   M.m[13] = 0.0;
+            M.m[ 2] = x.z();   M.m[ 6] = y.z();   M.m[10] = z.z();   M.m[14] = 0.;
+            M.m[ 3] = 0.0;     M.m[ 7] = 0.0;     M.m[11] = 0.0;     M.m[15] = 1.0;
+
+        else:
+            M.m[ 0] = x.x();   M.m[ 4] = y.x();   M.m[ 8] = z.x();   M.m[12] = 0.0;
+            M.m[ 1] = x.y();   M.m[ 5] = y.y();   M.m[ 9] = z.y();   M.m[13] = 0.0;
+            M.m[ 2] = x.z();   M.m[ 6] = y.z();   M.m[10] = z.z();   M.m[14] = 0.0;
+            M.m[ 3] = 0.0;     M.m[ 7] = 0.0;     M.m[11] = 0.0;     M.m[15] = 1.0;
+           
+        return  M
 
     def __mul__(a,b):   # note: a is really self
+        if isinstance(b,Matrix4x4):
+            M = Matrix4x4()
+            M.m[ 0] = a.m[ 0]*b.m[ 0] + a.m[ 4]*b.m[ 1] + a.m[ 8]*b.m[ 2] + a.m[12]*b.m[ 3];
+            M.m[ 1] = a.m[ 1]*b.m[ 0] + a.m[ 5]*b.m[ 1] + a.m[ 9]*b.m[ 2] + a.m[13]*b.m[ 3];
+            M.m[ 2] = a.m[ 2]*b.m[ 0] + a.m[ 6]*b.m[ 1] + a.m[10]*b.m[ 2] + a.m[14]*b.m[ 3];
+            M.m[ 3] = a.m[ 3]*b.m[ 0] + a.m[ 7]*b.m[ 1] + a.m[11]*b.m[ 2] + a.m[15]*b.m[ 3];
+
+            M.m[ 4] = a.m[ 0]*b.m[ 4] + a.m[ 4]*b.m[ 5] + a.m[ 8]*b.m[ 6] + a.m[12]*b.m[ 7];
+            M.m[ 5] = a.m[ 1]*b.m[ 4] + a.m[ 5]*b.m[ 5] + a.m[ 9]*b.m[ 6] + a.m[13]*b.m[ 7];
+            M.m[ 6] = a.m[ 2]*b.m[ 4] + a.m[ 6]*b.m[ 5] + a.m[10]*b.m[ 6] + a.m[14]*b.m[ 7];
+            M.m[ 7] = a.m[ 3]*b.m[ 4] + a.m[ 7]*b.m[ 5] + a.m[11]*b.m[ 6] + a.m[15]*b.m[ 7];
+
+            M.m[ 8] = a.m[ 0]*b.m[ 8] + a.m[ 4]*b.m[ 9] + a.m[ 8]*b.m[10] + a.m[12]*b.m[11];
+            M.m[ 9] = a.m[ 1]*b.m[ 8] + a.m[ 5]*b.m[ 9] + a.m[ 9]*b.m[10] + a.m[13]*b.m[11];
+            M.m[10] = a.m[ 2]*b.m[ 8] + a.m[ 6]*b.m[ 9] + a.m[10]*b.m[10] + a.m[14]*b.m[11];
+            M.m[11] = a.m[ 3]*b.m[ 8] + a.m[ 7]*b.m[ 9] + a.m[11]*b.m[10] + a.m[15]*b.m[11];
+
+            M.m[12] = a.m[ 0]*b.m[12] + a.m[ 4]*b.m[13] + a.m[ 8]*b.m[14] + a.m[12]*b.m[15];
+            M.m[13] = a.m[ 1]*b.m[12] + a.m[ 5]*b.m[13] + a.m[ 9]*b.m[14] + a.m[13]*b.m[15];
+            M.m[14] = a.m[ 2]*b.m[12] + a.m[ 6]*b.m[13] + a.m[10]*b.m[14] + a.m[14]*b.m[15];
+            M.m[15] = a.m[ 3]*b.m[12] + a.m[ 7]*b.m[13] + a.m[11]*b.m[14] + a.m[15]*b.m[15];
+
+            return M
+        elif isinstance(b,Vector3D):
+            # We treat the vector as if its (homogeneous) 4th component were zero.
+            return Vector3D(
+                a.m[ 0]*b.x() + a.m[ 4]*b.y() + a.m[ 8]*b.z(), # + a.m[12]*b.w(),
+                a.m[ 1]*b.x() + a.m[ 5]*b.y() + a.m[ 9]*b.z(), # + a.m[13]*b.w(),
+                a.m[ 2]*b.x() + a.m[ 6]*b.y() + a.m[10]*b.z()  # + a.m[14]*b.w(),
+                # a.m[ 3]*b.x() + a.m[ 7]*b.y() + a.m[11]*b.z() + a.m[15]*b.w()
+                )
+        elif isinstance(b,Point3D):
+            # We treat the point as if its (homogeneous) 4th component were one.
+            return Point3D(
+                a.m[ 0]*b.x() + a.m[ 4]*b.y() + a.m[ 8]*b.z() + a.m[12],
+                a.m[ 1]*b.x() + a.m[ 5]*b.y() + a.m[ 9]*b.z() + a.m[13],
+                a.m[ 2]*b.x() + a.m[ 6]*b.y() + a.m[10]*b.z() + a.m[14]
+                )
+    def mul(a,b):   # note: a is really self
         if isinstance(b,Matrix4x4):
             M = Matrix4x4()
             M.m[ 0] = a.m[ 0]*b.m[ 0] + a.m[ 4]*b.m[ 1] + a.m[ 8]*b.m[ 2] + a.m[12]*b.m[ 3];
