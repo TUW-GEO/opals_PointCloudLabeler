@@ -1,6 +1,10 @@
 import bisect
 import numpy as np
 from scipy.interpolate import CubicSpline
+from opals import pyDM
+import math
+
+from PolylineUtilities import get_closest_point_on_line
 
 class StationPolyline2D:
     """2d polyline class with station support
@@ -74,6 +78,15 @@ class StationPolyline2D:
             ds = station-s
             ptRet = [pt[0]+ds*dir[0], pt[1]+ds*dir[1]]
             return ptRet, dir
+        
+    def get_point_and_direction_from_point(self, x, y, polyline):
+        point = pyDM.Point(x, y, 0)
+        idx, basePt = get_closest_point_on_line(polyline=polyline, point=point)
+        s = self.stations[idx]
+        dir = self.directions[idx]
+        station = s + math.sqrt((point.x - basePt.x)**2 + (point.y - basePt.y)**2)
+
+        return basePt, dir, station
 
 
 class StationCubicSpline2D(StationPolyline2D):

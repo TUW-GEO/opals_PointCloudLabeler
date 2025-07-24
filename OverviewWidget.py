@@ -1,6 +1,6 @@
 from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtSvg import QSvgWidget
-from PyQt5.QtWidgets import QFileDialog, QMessageBox
+from PyQt5.QtWidgets import QFileDialog, QMessageBox, QApplication
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 import svgwrite
@@ -12,6 +12,7 @@ import numpy as np
 
 class OverviewWidget(QSvgWidget):
     polylinePicked = QtCore.pyqtSignal(object)
+    selectSection = pyqtSignal(float, float)
     def __init__(self, *args):
         QSvgWidget.__init__(self, *args)
         self.setMouseTracking(True)
@@ -586,6 +587,9 @@ class OverviewWidget(QSvgWidget):
 
         elif mouseEvent.button() == QtCore.Qt.RightButton and self.SelectAxis:
             self.last_pos = (mouseEvent.x(), mouseEvent.y())
+        
+
+
 
     def mouseMoveEvent(self, mouseEvent):
         self.pos = (mouseEvent.x(), mouseEvent.y())
@@ -619,6 +623,11 @@ class OverviewWidget(QSvgWidget):
 
             finally:
                 QtWidgets.QApplication.restoreOverrideCursor()
+
+        if mouseEvent.button() == QtCore.Qt.RightButton and self.SelectAxis and QApplication.keyboardModifiers() == QtCore.Qt.ControlModifier:
+            x, y = self.pixel2world(mouseEvent.x(), mouseEvent.y())
+            self.selectSection.emit(x, y)
+            
     def wheelEvent(self, event):
         if event.angleDelta().y() > 0 and self.SelectAxis:
             self.zoom(self.pos[0], self.pos[1], self.svg_zoom_factor)
