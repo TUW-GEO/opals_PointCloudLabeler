@@ -1,6 +1,6 @@
 from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtSvg import QSvgWidget
-from PyQt5.QtWidgets import QFileDialog, QMessageBox, QApplication
+from PyQt5.QtWidgets import QFileDialog, QMessageBox, QApplication, QRubberBand
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 import svgwrite
@@ -62,6 +62,9 @@ class OverviewWidget(QSvgWidget):
         self.overlap = None
         self.distance = None
 
+        self.last_pos_zoomtorectangle = None
+        self.rubberBand = QRubberBand(QRubberBand.Rectangle, self)
+
     def zoom(self,px, py, factor):
         try:
             widget_width = self.size().width()
@@ -93,6 +96,15 @@ class OverviewWidget(QSvgWidget):
             self.dataRefresh()
         except Exception as e:
             return
+    def zoomToRectangle(self, xmin, ymin, xmax, ymax):
+        dx = abs(xmax-xmin)
+        dy = abs(ymax-ymin)
+        if dx != 0 and dy != 0:
+            self.svg_vb_minx = xmin
+            self.svg_vb_miny = ymin
+            self.svg_zoom = min(self.svg_vb_dx/dx, self.svg_vb_dy/dy)
+            print(f'dx:{dx}, dy:{dy}, zoom:{self.svg_zoom}')
+            self.dataRefresh()
 
     def setAxisList(self, listWidget):
         self.AxisList = listWidget
@@ -492,19 +504,101 @@ class OverviewWidget(QSvgWidget):
         self.dataRefresh()
 
     def mousePressEvent(self, mouseEvent):
-        if mouseEvent.button() == QtCore.Qt.LeftButton and self.Draw and self.shd_filename:
-            self.width = self.size().width()
-            self.height = self.size().height()
+        ################## LEFT BUTTON ############################
+        #zoom to rectangle
+        if mouseEvent.button() == QtCore.Qt.LeftButton and QApplication.keyboardModifiers() == QtCore.Qt.ControlModifier:
+            print('setz2rectstart')
+            self.last_pos_zoomtorectangle = mouseEvent.pos()
+            print(self.last_pos_zoomtorectangle)
+            self.rubberBand.setGeometry(QRect(self.last_pos_zoomtorectangle, QSize()))
+            self.rubberBand.show()
+        else:
+            #draw axis
+            if mouseEvent.button() == QtCore.Qt.LeftButton and self.Draw and self.shd_filename:
+                self.width = self.size().width()
+                self.height = self.size().height()
 
-            self.axis_pts.append(self.pixel2world(mouseEvent.x(),mouseEvent.y()))
+                self.axis_pts.append(self.pixel2world(mouseEvent.x(),mouseEvent.y()))
 
-            self.axis_color = 'lightblue'
+                self.axis_color = 'lightblue'
 
-            if len(self.axis_pts) == 1:
-                self.drawAxis(firstPoint=True)
-            elif len(self.axis_pts) > 1:
-                self.drawAxis()
+                if len(self.axis_pts) == 1:
+                    self.drawAxis(firstPoint=True)
+                elif len(self.axis_pts) > 1:
+                    self.drawAxis()
+            
+            #select axis
+            if mouseEvent.button() == QtCore.Qt.LeftButton and self.SelectAxis:
+                try:
+                    QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.WaitCursor)
 
+                    pt = self.pixel2world(mouseEvent.x(), mouseEvent.y())
+                    line = self.AxisManager.getByCoords(pt[0],pt[1])
+                    self.activeLineIdx = self.odm2idx[line[0].info().get(0)]
+                    self.setItemChecked(self.activeLineIdx)
+                    self.polylinePicked.emit(self.AxisManager.allAxisPts[self.activeLineIdx])
+                    self.dataRefresh()
+
+                except Exception as e:
+                    return
+
+                finally:
+                    QtWidgets.QApplication.restoreOverrideCursor()
+
+
+            #insert axis node
+            if mouseEvent.button() == QtCore.Qt.LeftButton and self.insert:
+                try:
+                    QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.WaitCursor)
+
+                    pt = self.pixel2world(mouseEvent.x(), mouseEvent.y())
+                    line = self.AxisManager.getByCoords(pt[0], pt[1])
+                    self.AxisManager.InsertVertices(line[0], pt)
+
+
+
+                    self.polylinePicked.emit(self.AxisManager.allAxisPts[self.activeLineIdx])
+                    self.dataRefresh()
+                    self.updateItemLabels()
+
+                except Exception as e:
+                    return
+
+                finally:
+                    QtWidgets.QApplication.restoreOverrideCursor()
+
+            #delete axis node
+            elif mouseEvent.button() == QtCore.Qt.LeftButton and self.delete:
+                try:
+                    QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.WaitCursor)
+
+                    pt = self.pixel2world(mouseEvent.x(), mouseEvent.y())
+                    line = self.AxisManager.getByCoords(pt[0], pt[1])
+                    self.AxisManager.DeleteVertices(line[0], pt)
+                    self.polylinePicked.emit(self.AxisManager.allAxisPts[self.activeLineIdx])
+                    self.dataRefresh()
+                    self.updateItemLabels()
+                except Exception as e:
+                    return
+
+                finally:
+                    QtWidgets.QApplication.restoreOverrideCursor()
+
+            #move axis node
+            elif mouseEvent.button() == QtCore.Qt.LeftButton and self.move:
+                try:
+                    pt = self.pixel2world(mouseEvent.x(), mouseEvent.y())
+                    line = self.AxisManager.getByCoords(pt[0], pt[1])
+                    self.pickedVertex = self.AxisManager.PickVertices(line[0], pt)
+                    self.dataRefresh()
+                    self.updateItemLabels()
+                except Exception as e:
+                    return
+
+            
+            
+        ################## RIGHT BUTTON ############################
+        #finish axis
         if mouseEvent.button() == QtCore.Qt.RightButton and self.axis_pts != [] and self.Draw:
             try:
                 self.linestring2polylineobj()
@@ -521,70 +615,7 @@ class OverviewWidget(QSvgWidget):
 
             except Exception as e:
                 return
-
-        if mouseEvent.button() == QtCore.Qt.LeftButton and self.SelectAxis:
-            try:
-                QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.WaitCursor)
-
-                pt = self.pixel2world(mouseEvent.x(), mouseEvent.y())
-                line = self.AxisManager.getByCoords(pt[0],pt[1])
-                self.activeLineIdx = self.odm2idx[line[0].info().get(0)]
-                self.setItemChecked(self.activeLineIdx)
-                self.polylinePicked.emit(self.AxisManager.allAxisPts[self.activeLineIdx])
-                self.dataRefresh()
-
-            except Exception as e:
-                return
-
-            finally:
-                QtWidgets.QApplication.restoreOverrideCursor()
-
-        if mouseEvent.button() == QtCore.Qt.LeftButton and self.insert:
-            try:
-                QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.WaitCursor)
-
-                pt = self.pixel2world(mouseEvent.x(), mouseEvent.y())
-                line = self.AxisManager.getByCoords(pt[0], pt[1])
-                self.AxisManager.InsertVertices(line[0], pt)
-
-
-
-                self.polylinePicked.emit(self.AxisManager.allAxisPts[self.activeLineIdx])
-                self.dataRefresh()
-                self.updateItemLabels()
-
-            except Exception as e:
-                return
-
-            finally:
-                QtWidgets.QApplication.restoreOverrideCursor()
-
-        elif mouseEvent.button() == QtCore.Qt.LeftButton and self.delete:
-            try:
-                QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.WaitCursor)
-
-                pt = self.pixel2world(mouseEvent.x(), mouseEvent.y())
-                line = self.AxisManager.getByCoords(pt[0], pt[1])
-                self.AxisManager.DeleteVertices(line[0], pt)
-                self.polylinePicked.emit(self.AxisManager.allAxisPts[self.activeLineIdx])
-                self.dataRefresh()
-                self.updateItemLabels()
-            except Exception as e:
-                return
-
-            finally:
-                QtWidgets.QApplication.restoreOverrideCursor()
-
-        elif mouseEvent.button() == QtCore.Qt.LeftButton and self.move:
-            try:
-                pt = self.pixel2world(mouseEvent.x(), mouseEvent.y())
-                line = self.AxisManager.getByCoords(pt[0], pt[1])
-                self.pickedVertex = self.AxisManager.PickVertices(line[0], pt)
-                self.dataRefresh()
-                self.updateItemLabels()
-            except Exception as e:
-                return
-
+        #save position for moving
         elif mouseEvent.button() == QtCore.Qt.RightButton and self.SelectAxis:
             self.last_pos = (mouseEvent.x(), mouseEvent.y())
         
@@ -594,10 +625,14 @@ class OverviewWidget(QSvgWidget):
     def mouseMoveEvent(self, mouseEvent):
         self.pos = (mouseEvent.x(), mouseEvent.y())
 
-        if int(mouseEvent.buttons()) & QtCore.Qt.LeftButton and self.move:
-            self.mouse = (mouseEvent.x(), mouseEvent.y())
+        if self.last_pos_zoomtorectangle:
+            rect = QRect(self.last_pos_zoomtorectangle, mouseEvent.pos()).normalized()
+            self.rubberBand.setGeometry(rect)
 
-        elif int(mouseEvent.buttons()) & QtCore.Qt.RightButton and self.SelectAxis:
+        # if int(mouseEvent.buttons()) & QtCore.Qt.LeftButton and self.move:
+        #     self.mouse = (mouseEvent.x(), mouseEvent.y())
+
+        if int(mouseEvent.buttons()) & QtCore.Qt.RightButton and self.SelectAxis:
             dx = self.last_pos[0]-mouseEvent.x()
             dy = self.last_pos[1]-mouseEvent.y()
             svg_dx, svg_dy = self.pixel2svg(dx, dy)
@@ -607,7 +642,20 @@ class OverviewWidget(QSvgWidget):
             self.last_pos = (mouseEvent.x(), mouseEvent.y())
 
     def mouseReleaseEvent(self, mouseEvent):
-        if mouseEvent.button() == QtCore.Qt.LeftButton and self.move:
+        ########## LEFT BUTTON ##############
+        #for zoom to rectangle
+        if mouseEvent.button() == QtCore.Qt.LeftButton and QApplication.keyboardModifiers() == QtCore.Qt.ControlModifier:
+            print('z2rect')
+            minx = min(self.last_pos_zoomtorectangle.x(), self.pos[0])
+            miny = min(self.last_pos_zoomtorectangle.y(), self.pos[1])
+            maxx = max(self.last_pos_zoomtorectangle.x(), self.pos[0])
+            maxy = max(self.last_pos_zoomtorectangle.y(), self.pos[1])
+            xmin, ymin = self.pixel2svg(minx, miny)
+            xmax, ymax = self.pixel2svg(maxx, maxy)
+            print(minx, miny, maxx, maxy)
+            self.zoomToRectangle(xmin=xmin, ymin=ymin, xmax=xmax, ymax=ymax)
+
+        elif mouseEvent.button() == QtCore.Qt.LeftButton and self.move:
             try:
                 QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.WaitCursor)
 
@@ -623,15 +671,21 @@ class OverviewWidget(QSvgWidget):
 
             finally:
                 QtWidgets.QApplication.restoreOverrideCursor()
+        
+        self.rubberBand.hide()
+        self.last_pos_zoomtorectangle = None
 
+
+        ########## RIGHT BUTTON ##############
         if mouseEvent.button() == QtCore.Qt.RightButton and self.SelectAxis and QApplication.keyboardModifiers() == QtCore.Qt.ControlModifier:
             x, y = self.pixel2world(mouseEvent.x(), mouseEvent.y())
             self.selectSection.emit(x, y)
             
     def wheelEvent(self, event):
-        if event.angleDelta().y() > 0 and self.SelectAxis:
+        #zooming while drawing axis would lead to losing unfinished axis
+        if event.angleDelta().y() > 0 and not self.Draw:
             self.zoom(self.pos[0], self.pos[1], self.svg_zoom_factor)
-        elif event.angleDelta().y() < 0 and self.SelectAxis:
+        elif event.angleDelta().y() < 0 and not self.Draw:
             self.zoom(self.pos[0], self.pos[1], (1/self.svg_zoom_factor))
 
 # Create custom cursor and change the cursor, depends on the mode in which the widget is set to:

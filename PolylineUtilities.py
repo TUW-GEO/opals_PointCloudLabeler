@@ -20,7 +20,7 @@ class AnalyseDistance(pyDM.AnalyseDistance):
      def closest(self, distance, idx, basePt, Idx1, Idx2, minDistPt):
          self.distance = distance
          self.basePt = pyDM.Point(minDistPt.x, minDistPt.y, 0)
-         self.vertices = (Idx1, Idx2)
+         self.vertices = sorted((Idx1, Idx2))
 
          self.closestVertex = Idx1
          if self.polyline and Idx1 != Idx2:
