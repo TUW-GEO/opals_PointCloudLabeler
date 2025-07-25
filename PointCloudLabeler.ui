@@ -958,7 +958,7 @@ color: rgb(0, 255, 255);</string>
                  </size>
                 </property>
                 <property name="toolTip">
-                 <string extracomment="Zoom on Layer"/>
+                 <string extracomment="Zoom on Layer">zoom to fit</string>
                 </property>
                 <property name="text">
                  <string>...</string>
@@ -1018,7 +1018,7 @@ color: rgb(0, 255, 255);</string>
                </size>
               </property>
               <property name="toolTip">
-               <string extracomment="Zoom In"/>
+               <string extracomment="Zoom In">zoom in</string>
               </property>
               <property name="text">
                <string>...</string>
@@ -1038,7 +1038,7 @@ color: rgb(0, 255, 255);</string>
                </size>
               </property>
               <property name="toolTip">
-               <string extracomment="Zoom Out"/>
+               <string extracomment="Zoom Out">zoom out</string>
               </property>
               <property name="text">
                <string>...</string>
