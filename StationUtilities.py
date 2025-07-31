@@ -84,7 +84,8 @@ class StationPolyline2D:
         idx, basePt = get_closest_point_on_line(polyline=polyline, point=point)
         s = self.stations[idx]
         dir = self.directions[idx]
-        station = s + math.sqrt((point.x - basePt.x)**2 + (point.y - basePt.y)**2)
+        plinepoint = pyDM.Point(self.vertices[idx][0], self.vertices[idx][1], 0)
+        station = s + math.sqrt((plinepoint.x - basePt.x)**2 + (plinepoint.y - basePt.y)**2)
 
         return basePt, dir, station
 

@@ -73,9 +73,9 @@ class glSectionWidget(QGLWidget):
             self.ClassColorPal[id][2] = color[2]/255.
 
     def setOrthoView(self,rotation):
-        x = rotation[0,0]
-        y = rotation[0,1]
-        self.camera.setOrthoView(-y,x)
+        x = rotation[0]
+        y = rotation[1]
+        self.camera.setOrthoView(x,y)
         self.update()
 
     def setGroundView(self):
@@ -86,6 +86,7 @@ class glSectionWidget(QGLWidget):
         try:
             self.Data = data
             self.initialPtClasses = copy.deepcopy(data['Classification'])
+            self.initialManuallyClassified = copy.deepcopy(data['_manuallyClassified'])
         except Exception as e:
             return
 
@@ -172,10 +173,13 @@ class glSectionWidget(QGLWidget):
     def ResetPointClasses(self):
         self.Data['Classification'] = self.initialPtClasses
         self.initialPtClasses = copy.deepcopy(self.Data['Classification'])
+        self.Data['_manuallyClassified'] = self.initialManuallyClassified
+        self.initialManuallyClassified = copy.deepcopy(self.Data['_manuallyClassified'])
         self.dataRefresh()
 
     def savePointClasses(self):
         self.initialPtClasses = self.Data['Classification']
+        self.initialManuallyClassified = self.Data['_manuallyClassified']
 
     def WindowPicking(self, width, height, posX, posY):
         self.makeCurrent()
@@ -186,8 +190,12 @@ class glSectionWidget(QGLWidget):
         idxPt = self.glPointCloud.select(posX, self.heightInPixels - posY - Height, Width, Height)
 
         for pt in idxPt:
-            self.Data['Classification'][pt] = self.currentClass
-            self.Data['_manuallyClassified'][pt] = 1
+            # dont overwrite original ground points when holding Alt
+            if QApplication.keyboardModifiers() == QtCore.Qt.AltModifier and self.Data['Classification'][pt] == 2 and self.Data['_manuallyClassified'][pt] not in [1, 2]:
+                continue
+            else:
+                self.Data['Classification'][pt] = self.currentClass
+                self.Data['_manuallyClassified'][pt] = 1
 
     def Picking(self, singlePoint = True):
 
@@ -307,7 +315,7 @@ class glSectionWidget(QGLWidget):
     def mousePressEvent(self, mouseEvent):
         self.oldx = mouseEvent.x()
         self.oldy = mouseEvent.y()
-        if mouseEvent.button() == QtCore.Qt.LeftButton:
+        if mouseEvent.button() == QtCore.Qt.LeftButton and QApplication.keyboardModifiers() != QtCore.Qt.ControlModifier:
             if self.SelectPoint:
                 self.mouse = (mouseEvent.x(), mouseEvent.y())
                 self.Picking(True)
@@ -348,7 +356,7 @@ class glSectionWidget(QGLWidget):
         self.oldy = mouseEvent.y()
 
     def mouseReleaseEvent(self, mouseEvent):
-        if mouseEvent.button() == QtCore.Qt.LeftButton:
+        if mouseEvent.button() == QtCore.Qt.LeftButton and QApplication.keyboardModifiers() != QtCore.Qt.ControlModifier:
             if self.SelectRectangle:
                 self.stop = (mouseEvent.x(), mouseEvent.y())
                 self.Picking(False)
