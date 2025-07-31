@@ -20,6 +20,7 @@ from StationUtilities import StationCubicSpline2D
 from AxisManagment import AxisManagement
 from glPointCloud import COLOR_MODE_ATTR, COLOR_MODE_CLASS
 from Geometry import Point3D, Matrix4x4
+from ProgressControl import Control, ProgressEmitter
 import argparse
 import time
 
@@ -278,6 +279,13 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.PredictModelComboBox()
         self.showProgress.clicked.connect(self.showClassificationProgress)
 
+        self.progressBar.setVisible(False)
+        self.progressemitter = ProgressEmitter()
+        self.control = Control(self.progressemitter)
+
+        self.progressemitter.progressChanged.connect(self.progressBar.setValue)
+        self.progressemitter.stageChanged.connect(lambda text: print(f"Stage: {text}"))
+
         # create Shortcuts for setting the bindings and the Shortcuts for setting the Class
         for i in range(10):
             key = f'Ctrl+{i}'
@@ -378,7 +386,13 @@ class ClassificationTool(QtWidgets.QMainWindow):
             axis_odm_name = name + '_axis.odm'
 
             if os.path.isfile(odm_name) == False:
-                Import.Import(inFile=data, outFile=odm_name).run()
+                self.progressBar.setVisible(True)
+                imp = Import.Import(inFile=data, outFile=odm_name)
+                imp.set_controlObject(self.control)
+                imp.run()
+                del imp
+                self.progressBar.setVisible(False)
+
 
                 #Extract the header of the odm to get the point density
             self.ptsDensity = pyDM.Datamanager.getHeaderODM(odm_name).estimatedPointDensity()
@@ -386,11 +400,20 @@ class ClassificationTool(QtWidgets.QMainWindow):
                         #create shadin
             if os.path.isfile(shd_name) == False:
                 if os.path.isfile(grid_name) == False:
-                    Grid.Grid(inFile=odm_name, outFile=grid_name, filter='echo[last]',
-                    interpolation=opals.Types.GridInterpolator.movingPlanes, gridSize=0.5).run()
+                    self.progressBar.setVisible(True)
+                    grd = Grid.Grid(inFile=odm_name, outFile=grid_name, filter='echo[last]',
+                    interpolation=opals.Types.GridInterpolator.movingPlanes, gridSize=0.5)
+                    grd.set_controlObject(self.control)
+                    grd.run()
+                    del grd
+                    
 
-            
-                Shade.Shade(inFile=grid_name, outFile=shd_name).run()
+                self.progressBar.setVisible(True)
+                shd = Shade.Shade(inFile=grid_name, outFile=shd_name)
+                shd.set_controlObject(self.control)
+                shd.run()
+                del shd
+                self.progressBar.setVisible(False)
 
                         # load the opals datamanager in read and write
             self.odm = pyDM.Datamanager.load(odm_name, readOnly=False, threadSafety=False)

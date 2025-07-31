@@ -1275,6 +1275,16 @@ color: rgb(0, 255, 255);</string>
               </property>
              </widget>
             </item>
+            <item row="1" column="5">
+             <widget class="QProgressBar" name="progressBar">
+              <property name="enabled">
+               <bool>true</bool>
+              </property>
+              <property name="value">
+               <number>0</number>
+              </property>
+             </widget>
+            </item>
            </layout>
           </item>
           <item>
@@ -1427,7 +1437,7 @@ color: rgb(0, 255, 255);</string>
      <x>0</x>
      <y>0</y>
      <width>1312</width>
-     <height>26</height>
+     <height>21</height>
     </rect>
    </property>
   </widget>
