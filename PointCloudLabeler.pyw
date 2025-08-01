@@ -4,7 +4,7 @@ try:
     from opals import Import, Grid, Shade, pyDM
     from PyQt5 import QtWidgets,uic, QtCore
     from PyQt5.QtGui import *
-    from PyQt5.QtCore import QThreadPool, QMutex, QRunnable
+    from PyQt5.QtCore import QThreadPool, QMutex, QRunnable, Qt
     from PyQt5.QtWidgets import QFileDialog, QDialog, QLineEdit, QPushButton, QFormLayout, QCheckBox, QHBoxLayout, QShortcut, QTableWidget, QTableWidgetItem
     from sklearn.neighbors import KDTree
 except ModuleNotFoundError as e:    
@@ -226,6 +226,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.mutex = QMutex()
         self.mutexQL = QMutex()
         self.knnSection = None
+        self.classesToPredict = {0, 1, 7}
 
         self.initUI()
 
@@ -272,6 +273,16 @@ class ClassificationTool(QtWidgets.QMainWindow):
         if key in self.shortcutBindings.keys():
             self.ClassList.setCurrentText(self.shortcutBindings[key])
 
+    def handleItemChangedClassCheckboxes(self):
+        for i, key in enumerate(self.classificationData.keys()):
+            item = self.tableWidgetClassesCheckboxes.item(i, 0)
+            state = item.checkState()
+            if state == 2:
+                self.classesToPredict.add(key)
+            else:
+                self.classesToPredict.discard(key)
+        print(self.classesToPredict)
+
     def initUI(self):
         #Build ComboBox:
         self.refeshClassComboBox()
@@ -298,6 +309,33 @@ class ClassificationTool(QtWidgets.QMainWindow):
             shortcut = QShortcut(QKeySequence(key), self)
             shortcut.activated.connect(lambda i=i: self.execShortcutBinding(i) )
             self.shortcuts.append(shortcut)
+
+
+        ##########
+        self.tableWidgetClassesCheckboxes.setRowCount(len(self.classificationData.keys())) 
+        self.tableWidgetClassesCheckboxes.setColumnCount(1)
+        self.tableWidgetClassesCheckboxes.verticalHeader().setVisible(False)
+        self.tableWidgetClassesCheckboxes.horizontalHeader().setVisible(False)
+        idx = 0
+        for key, value in self.classificationData.items():
+
+            item = QTableWidgetItem('{}'.format(value[0]))
+            item.setFlags(Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
+            if key in self.classesToPredict:
+                item.setCheckState(Qt.Checked)
+            else:
+                item.setCheckState(Qt.Unchecked)
+            pixmap = QPixmap(100,100)
+            pixmap.fill((QColor(value[1][0],value[1][1],value[1][2])))
+            icon = QIcon(pixmap)
+            item.setIcon(icon)
+            self.tableWidgetClassesCheckboxes.setItem(idx, 0, item)
+
+            idx += 1
+        self.tableWidgetClassesCheckboxes.resizeColumnsToContents()
+
+        self.tableWidgetClassesCheckboxes.itemChanged.connect(self.handleItemChangedClassCheckboxes)
+        ##########
 
         self.PathToAxisShp.setEnabled(False)
 
@@ -900,7 +938,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
             classes = np.array(self.knnSection['Classification'])
 
-            mask = np.isin(self.result['Classification'], [0, 1, 7])
+            mask = np.isin(self.result['Classification'], list(self.classesToPredict))
             coords2 = np.vstack([
                 self.result['x'][mask] - cx,
                 self.result['y'][mask] - cy,
