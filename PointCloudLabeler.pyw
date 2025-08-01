@@ -1197,6 +1197,10 @@ class ClassificationTool(QtWidgets.QMainWindow):
     def keyReleaseEvent(self, event):
         if event.key() == QtCore.Qt.Key_Return or event.key() == QtCore.Qt.Key_Tab:
             self.changePolygonSize()
+        if event.key() == Qt.Key_Left:
+            self.previousSection()
+        if event.key() == Qt.Key_Right:
+            self.nextSection()
 
 if __name__ == "__main__":
     import sys
