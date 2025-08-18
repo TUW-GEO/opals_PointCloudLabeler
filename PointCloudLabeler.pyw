@@ -948,6 +948,9 @@ class ClassificationTool(QtWidgets.QMainWindow):
             transformed2 = transMat.dot(coords2)
 
             queries = np.column_stack((transformed2[0], transformed2[2]))
+            
+            if queries.size == 0:
+                return
 
             # find nearest neighbor
             idxs = tree.query(queries, return_distance=False)
@@ -1208,8 +1211,8 @@ if __name__ == "__main__":
     win = ClassificationTool()
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("-i", "--inFile", help="filename of the odm-file containing the pointcloud")
-    parser.add_argument("-a", "--axisFile", help="filename of the file containing the axis")
+    parser.add_argument("-i", "--inFile", help="filename of the file containing the pointcloud [.odm, .las, .laz]")
+    parser.add_argument("-a", "--axisFile", help="filename of the file containing the axis [.shp or .odm]")
     parser.add_argument("-p", "--predMode", help="'no prediction' or 'predict previous' or 'always predict' or 'predict next'")
     args = parser.parse_args()
     if args.inFile:

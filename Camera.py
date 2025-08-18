@@ -131,7 +131,7 @@ class Camera:
         position = self.target + vec*dist
         up = Vector3D(0,0,1)
 
-        mat = Matrix4x4.createTransformationMatrix(position, self.target, up, True)
+        mat = Matrix4x4.createTransformationMatrix(position, self.target, up)
         
         return mat
     
