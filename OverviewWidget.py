@@ -154,12 +154,8 @@ class OverviewWidget(QSvgWidget):
         self.red_y = self.shd_bbox[0][1]
         del ds
 
-    def setSelectionBox(self,p1,p2,p3,p4):
-        self.selection = [(p1[0][0], p1[0][1]),
-                          (p2[0][0], p2[0][1]),
-                          (p3[0][0], p3[0][1]),
-                          (p4[0][0], p4[0][1]),
-                          (p1[0][0], p1[0][1]) ]
+    def setSelectionBox(self,pointlist):
+        self.selection = pointlist + [pointlist[0]] # append first point to close polygon
 
     def world2svg(self, wx, wy):
         sx = wx - self.red_x
@@ -267,8 +263,6 @@ class OverviewWidget(QSvgWidget):
             pt2 = self.world2svg(self.selection[idx + 1][0], self.selection[idx + 1][1])
 
             self.svg.add(self.svg.line(start=pt1, end=pt2, stroke=self.section_color, stroke_width=self.stroke_width))
-
-        self.update_svg()
 
     def drawProgress(self):
         if self.classificationProgress is not None and self.classificationProgress.size > 0:
@@ -645,7 +639,7 @@ class OverviewWidget(QSvgWidget):
         ########## LEFT BUTTON ##############
         #for zoom to rectangle
         if mouseEvent.button() == QtCore.Qt.LeftButton and QApplication.keyboardModifiers() == QtCore.Qt.ControlModifier:
-            print('z2rect')
+            QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.WaitCursor)
             minx = min(self.last_pos_zoomtorectangle.x(), self.pos[0])
             miny = min(self.last_pos_zoomtorectangle.y(), self.pos[1])
             maxx = max(self.last_pos_zoomtorectangle.x(), self.pos[0])
@@ -654,6 +648,7 @@ class OverviewWidget(QSvgWidget):
             xmax, ymax = self.pixel2svg(maxx, maxy)
             print(minx, miny, maxx, maxy)
             self.zoomToRectangle(xmin=xmin, ymin=ymin, xmax=xmax, ymax=ymax)
+            QtWidgets.QApplication.restoreOverrideCursor()
 
         elif mouseEvent.button() == QtCore.Qt.LeftButton and self.move:
             try:

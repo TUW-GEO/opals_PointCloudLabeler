@@ -4,7 +4,9 @@ try:
     from opals import Import, Grid, Shade, pyDM
     from PyQt5 import QtWidgets,uic, QtCore
     from PyQt5.QtGui import *
+    from PyQt5.QtCore import QThreadPool, QMutex, QRunnable, Qt
     from PyQt5.QtWidgets import QFileDialog, QDialog, QLineEdit, QPushButton, QFormLayout, QCheckBox, QHBoxLayout, QShortcut, QTableWidget, QTableWidgetItem
+    from sklearn.neighbors import KDTree
 except ModuleNotFoundError as e:    
     print(f"Unable to import necessary libraries (Details: {e})")
     print(f"Make sure that necessary requirements have been installed by calling\n")
@@ -18,6 +20,7 @@ from StationUtilities import StationCubicSpline2D
 from AxisManagment import AxisManagement
 from glPointCloud import COLOR_MODE_ATTR, COLOR_MODE_CLASS
 from Geometry import Point3D, Matrix4x4
+from ProgressControl import Control, ProgressEmitter
 import argparse
 import time
 
@@ -140,6 +143,33 @@ class Thread(QtCore.QThread):
         self.parent.checkProgress()
         self.parent.Overview.dataRefresh(show_progress=True)
 
+class Worker(QRunnable):
+    def __init__(self, fn, *args, **kwargs):
+        super().__init__()
+        self.fn = fn
+        self.args = args
+        self.kwargs = kwargs
+
+    def run(self):
+        try:
+            self.fn(*self.args, **self.kwargs)
+        except e:
+            print(e)
+
+class BatchWorker(QRunnable):
+    def __init__(self, fn, stations):
+        super().__init__()
+
+        self.fn = fn
+        self.stations = stations
+
+    def run(self):
+        for st in self.stations:
+            try:
+                self.fn(st)
+            except e:
+                print(e)
+
 class ClassificationTool(QtWidgets.QMainWindow):
     def __init__(self):
         super(ClassificationTool, self).__init__()
@@ -161,7 +191,6 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.result = None
         self.direction = None
         self.layout2 = None
-        self.rot_camera = None
         self.along = None
         self.across = None
         self.overlap = None
@@ -191,6 +220,13 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.shortcuts_set = []
         self.shortcuts = []
         self.shortcutBindings = {}
+        self.queuelist = []
+        self.bufferdict = {}
+        self.threadpool = QThreadPool()
+        self.mutex = QMutex()
+        self.mutexQL = QMutex()
+        self.knnSection = None
+        self.classesToPredict = {0, 1, 7}
 
         self.initUI()
 
@@ -237,12 +273,29 @@ class ClassificationTool(QtWidgets.QMainWindow):
         if key in self.shortcutBindings.keys():
             self.ClassList.setCurrentText(self.shortcutBindings[key])
 
+    def handleItemChangedClassCheckboxes(self):
+        for i, key in enumerate(self.classificationData.keys()):
+            item = self.tableWidgetClassesCheckboxes.item(i, 0)
+            state = item.checkState()
+            if state == 2:
+                self.classesToPredict.add(key)
+            else:
+                self.classesToPredict.discard(key)
+        print(self.classesToPredict)
+
     def initUI(self):
         #Build ComboBox:
         self.refeshClassComboBox()
         self.PredictComboBox()
         self.PredictModelComboBox()
         self.showProgress.clicked.connect(self.showClassificationProgress)
+
+        self.progressBar.setVisible(False)
+        self.progressemitter = ProgressEmitter()
+        self.control = Control(self.progressemitter)
+
+        self.progressemitter.progressChanged.connect(self.progressBar.setValue)
+        self.progressemitter.stageChanged.connect(lambda text: print(f"Stage: {text}"))
 
         # create Shortcuts for setting the bindings and the Shortcuts for setting the Class
         for i in range(10):
@@ -256,6 +309,33 @@ class ClassificationTool(QtWidgets.QMainWindow):
             shortcut = QShortcut(QKeySequence(key), self)
             shortcut.activated.connect(lambda i=i: self.execShortcutBinding(i) )
             self.shortcuts.append(shortcut)
+
+
+        ##########
+        self.tableWidgetClassesCheckboxes.setRowCount(len(self.classificationData.keys())) 
+        self.tableWidgetClassesCheckboxes.setColumnCount(1)
+        self.tableWidgetClassesCheckboxes.verticalHeader().setVisible(False)
+        self.tableWidgetClassesCheckboxes.horizontalHeader().setVisible(False)
+        idx = 0
+        for key, value in self.classificationData.items():
+
+            item = QTableWidgetItem('{}'.format(value[0]))
+            item.setFlags(Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
+            if key in self.classesToPredict:
+                item.setCheckState(Qt.Checked)
+            else:
+                item.setCheckState(Qt.Unchecked)
+            pixmap = QPixmap(100,100)
+            pixmap.fill((QColor(value[1][0],value[1][1],value[1][2])))
+            icon = QIcon(pixmap)
+            item.setIcon(icon)
+            self.tableWidgetClassesCheckboxes.setItem(idx, 0, item)
+
+            idx += 1
+        self.tableWidgetClassesCheckboxes.resizeColumnsToContents()
+
+        self.tableWidgetClassesCheckboxes.itemChanged.connect(self.handleItemChangedClassCheckboxes)
+        ##########
 
         self.PathToAxisShp.setEnabled(False)
 
@@ -344,7 +424,13 @@ class ClassificationTool(QtWidgets.QMainWindow):
             axis_odm_name = name + '_axis.odm'
 
             if os.path.isfile(odm_name) == False:
-                Import.Import(inFile=data, outFile=odm_name).run()
+                self.progressBar.setVisible(True)
+                imp = Import.Import(inFile=data, outFile=odm_name)
+                imp.set_controlObject(self.control)
+                imp.run()
+                del imp
+                self.progressBar.setVisible(False)
+
 
                 #Extract the header of the odm to get the point density
             self.ptsDensity = pyDM.Datamanager.getHeaderODM(odm_name).estimatedPointDensity()
@@ -352,11 +438,20 @@ class ClassificationTool(QtWidgets.QMainWindow):
                         #create shadin
             if os.path.isfile(shd_name) == False:
                 if os.path.isfile(grid_name) == False:
-                    Grid.Grid(inFile=odm_name, outFile=grid_name, filter='echo[last]',
-                    interpolation=opals.Types.GridInterpolator.movingPlanes, gridSize=0.5).run()
+                    self.progressBar.setVisible(True)
+                    grd = Grid.Grid(inFile=odm_name, outFile=grid_name, filter='echo[last]',
+                    interpolation=opals.Types.GridInterpolator.movingPlanes, gridSize=0.5)
+                    grd.set_controlObject(self.control)
+                    grd.run()
+                    del grd
+                    
 
-            
-                Shade.Shade(inFile=grid_name, outFile=shd_name).run()
+                self.progressBar.setVisible(True)
+                shd = Shade.Shade(inFile=grid_name, outFile=shd_name)
+                shd.set_controlObject(self.control)
+                shd.run()
+                del shd
+                self.progressBar.setVisible(False)
 
                         # load the opals datamanager in read and write
             self.odm = pyDM.Datamanager.load(odm_name, readOnly=False, threadSafety=False)
@@ -386,6 +481,8 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
         finally:
             QtWidgets.QApplication.restoreOverrideCursor()
+        
+        self.clearSectionPreloads()
 
     def load_axis(self, inFile = '', File=True):
         if self.PathToAxisShp.text() == '':
@@ -448,33 +545,30 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
         self.PathToAxisShp.setEnabled(False)
 
-    def initialiseSection(self):
-        def poly_points(start, vector, length, width):
-            start_point = np.array([start]).reshape(1, 2)
-            rot_vector = np.array([-vector[1], vector[0]]).reshape(1, 2)
-            vector = np.array([vector[0], vector[1]]).reshape(1, 2)
-            p1 = start_point + (rot_vector * length / 2)
-            p2 = start_point + (-rot_vector * length / 2)
-            p3 = p2 + (width * vector)
-            p4 = p1 + (width * vector)
-            self.rot_camera = rot_vector
-            return p1, p2, p3, p4
+        self.clearSectionPreloads()
 
-        p1, p2, p3, p4 = poly_points(self.begin, self.direction, self.across, self.along)
+    def getSectionPolygon(self, start, dirvector, length, width):
+        start_point = np.array([start]).reshape(1, 2)
+        across_vector = np.array([-dirvector[1], dirvector[0]]).reshape(1, 2) # normal vector of direction vector
+        dirvector = np.array([dirvector[0], dirvector[1]]).reshape(1, 2)
+        p1 = start_point + (across_vector * length / 2)
+        p2 = start_point + (-across_vector * length / 2)
+        p3 = p2 + (width * dirvector)
+        p4 = p1 + (width * dirvector)
+
         pf = pyDM.PolygonFactory()
+        pointlist = []
 
-        pf.addPoint(p1[0, 0], p1[0, 1])
-        pf.addPoint(p2[0, 0], p2[0, 1])
-        pf.addPoint(p3[0, 0], p3[0, 1])
-        pf.addPoint(p4[0, 0], p4[0, 1])
+        for p in (p1, p2, p3, p4):
+            x, y = p[0, 0], p[0, 1]
+            pf.addPoint(x, y)
+            pointlist.append((x, y))
+
         pf.closePart()
         polygon = pf.getPolygon()
-
-        self.Overview.setSelectionBox(p1, p2, p3, p4)
-        self.Overview.section_color = 'red'
-        self.Overview.overlap = self.overlap
-        self.Overview.drawSection()
-
+        return polygon, pointlist
+    
+    def retrievePointArray(self, polygon):
         # extract the points inside of the polygon
         try:
             result = pyDM.NumpyConverter.searchPoint(self.odm, polygon, self.layout2, withCoordinates=True, noDataObj=0)
@@ -485,16 +579,101 @@ class ClassificationTool(QtWidgets.QMainWindow):
             result['x'] = np.empty(shape=(0, 0))
             result['y'] = np.empty(shape=(0, 0))
             result['z'] = np.empty(shape=(0, 0))
-        self.result = result
+        return result
+    
+    def retrievePointArrayFromStation(self, station):
+        print(f'retrievePointArrayFromStation: station: {station}')
+        across, along, overlap = self.across, self.along, self.overlap
+        begin, direction = self.station_axis.get_point_and_direction(station)
+        polygon, pointlist = self.getSectionPolygon(begin, direction, across, along)
+        result = self.retrievePointArray(polygon)
 
-        self.checkClassification = result['Classification'].copy()
+        self.mutex.lock()
+        print('mutex locked by retrievePAFSation')
+        try:
+            self.bufferdict[(station, across, along, overlap)] = result
+            print(f'points retrieved and saved for {(station, across, along, overlap)}')
+        finally:
+            self.mutex.unlock()
+            print('mutex unlocked by retrievePAFSation')
+
+    def refreshQueue(self):
+        self.mutexQL.lock()
+        currentQueueList = []
+        oldQueueList = self.queuelist
+        ds = round(self.along * (1 - self.overlap), 2)
+        currst = self.current_station
+        minst, maxst = self.min_station, self. max_station
+        toCalculate = []
+
+        for i in range(-5, 6):
+            if i == 0:
+                continue
+            st = round(currst + i * ds, 2)
+            st = min(max(st, minst), maxst)
+            if st == currst:
+                continue
+            currentQueueList.append(st)
+            if st not in oldQueueList:
+                toCalculate.append(st)
+        
+        if toCalculate:
+            self.threadpool.start(BatchWorker(fn=self.retrievePointArrayFromStation, stations=toCalculate))
+
+        print(f'old Quelist: {oldQueueList}')
+        print(f'new quelist: {currentQueueList}')
+        self.queuelist = currentQueueList
+        self.mutexQL.unlock()
+        self.threadpool.start(Worker(fn=self.delSectionNotInQueuelist))
+
+    def delSectionNotInQueuelist(self):
+        self.mutexQL.lock()
+        queuelist = self.queuelist
+        self.mutexQL.unlock()
+
+        self.mutex.lock()
+        print('mutex locked by delsectionnotinqueue')
+        ks = list(self.bufferdict.keys())
+        print(f'keylist: {ks}')
+        for k in ks:
+            if k[0] not in queuelist:
+                deleted = self.bufferdict.pop(k)
+                print(f'bufferdict item deleted for key: {k}')
+        self.mutex.unlock()
+        print('mutex unlocked by delsectionnotinqueue')
+
+    def clearSectionPreloads(self):
+        self.threadpool.clear()
+        self.mutex.lock()
+        self.bufferdict = {}
+        self.mutex.unlock()
+        print('bufferdict emptied')
+        self.queuelist = []
+
+        
+
+    def initialiseSection(self):
+        polygon, pointlist = self.getSectionPolygon(self.begin, self.direction, self.across, self.along)
+
+        self.Overview.setSelectionBox(pointlist)
+        self.Overview.section_color = 'red'
+        self.Overview.overlap = self.overlap
+
+        self.mutex.lock()
+        if (self.current_station, self.across, self.along, self.overlap) in list(self.bufferdict.keys()):
+            self.result = self.bufferdict[(self.current_station, self.across, self.along, self.overlap)]
+            print(f'\n points loaded from bufferdict for key {(self.current_station, self.across, self.along, self.overlap)}..................... \n')
+        else:
+            self.result = self.retrievePointArray(polygon)
+            print(f'\n points were not in bufferdict for key {(self.current_station, self.across, self.along, self.overlap)} \n')
+        self.mutex.unlock()
+
+        self.checkClassification = self.result['Classification'].copy()
 
         self.ptsLoad = len(self.result['x'])
         # build histogram of class ids
         classes, counts = numpy.unique(self.result['Classification'], return_counts=True)
-        self.classHisto = {}
-        for cl, cn in zip(classes, counts):
-            self.classHisto[cl] = cn
+        self.classHisto = {cl:cn for cl, cn in zip(classes, counts)}
         self.ptsNoClass = 0 if 0 not in self.classHisto else self.classHisto[0]
         self.ptsClass = self.ptsLoad - self.ptsNoClass
 
@@ -511,26 +690,10 @@ class ClassificationTool(QtWidgets.QMainWindow):
         if classesAdded:
             self.refeshClassComboBox()
 
-    def initialiseFirstSection(self):
-        if not self.odm:
-            return
-        if not self.station_axis:
-            return
-
-        self.overlap = (float(self.overlap_section.text().strip()))/100
-
-        dm = self.odm
-
-        lf = pyDM.AddInfoLayoutFactory()
-        type, inDM = lf.addColumn(dm, 'Id', True); assert inDM == True
-        type, inDM = lf.addColumn(dm, 'Classification', True); assert inDM == True
-        type, inDM = lf.addColumn(dm, self.manuallyClassified, True, pyDM.ColumnType.uint8)
-        self.layout2 = lf.getLayout()
-
-        self.begin, self.direction = self.station_axis.get_point_and_direction(self.current_station)
-        self.initialiseSection()
 
     def selectSection(self, x, y):
+        self.knnSection = None
+        QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.WaitCursor)
         f = pyDM.PolylineFactory()
         for pt in self.station_axis.vertices:
             f.addPoint(pt[0], pt[1])
@@ -539,11 +702,14 @@ class ClassificationTool(QtWidgets.QMainWindow):
         basePt, dir, station = self.station_axis.get_point_and_direction_from_point(x, y, polyline)
         self.begin = [basePt.x, basePt.y]
         self.direction = dir
-        self.current_station = station
+        self.current_station = round(station, 2) 
         self.initialiseSection()
         self.ptsInSection()
         self.Section.dataRefresh()
         self.Overview.dataRefresh()
+        self.showMessages()
+        QtWidgets.QApplication.restoreOverrideCursor()
+        self.refreshQueue()
 
     def polygonSize(self):
         if not self.meanPtDistance:
@@ -573,6 +739,7 @@ class ClassificationTool(QtWidgets.QMainWindow):
             self.axis_pts = []
         else:
             self.Section._clearWidget()
+        self.clearSectionPreloads()
 
     def clearAxisView(self):
         self.AxisView.clear()
@@ -592,12 +759,31 @@ class ClassificationTool(QtWidgets.QMainWindow):
 
             if self.FalseAxis:
                 return
-            self.initialiseFirstSection()
+            
+            if not self.station_axis:
+                return
+
+            self.overlap = (float(self.overlap_section.text().strip()))/100
+
+            dm = self.odm
+
+            lf = pyDM.AddInfoLayoutFactory()
+            type, inDM = lf.addColumn(dm, 'Id', True); assert inDM == True
+            type, inDM = lf.addColumn(dm, 'Classification', True); assert inDM == True
+            type, inDM = lf.addColumn(dm, self.manuallyClassified, True, pyDM.ColumnType.uint8)
+            self.layout2 = lf.getLayout()
+
+            self.begin, self.direction = self.station_axis.get_point_and_direction(self.current_station)
+            
+            self.initialiseSection()
+
             self.ptsInSection()
-            self.Section.setOrthoView(self.rot_camera)
+            self.Section.setOrthoView(self.direction)
             self.Section.dataRefresh()
+            self.Overview.dataRefresh()
             self.firstSection = True
             self.showMessages()
+            self.refreshQueue()
         except Exception as e:
             print(f"Exception occured: {e}")
             return
@@ -680,21 +866,31 @@ class ClassificationTool(QtWidgets.QMainWindow):
         self.Overview.clear()
 
     def changePolygonSize(self):
+        QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.WaitCursor)
         if not self.station_axis:
             return
 
-        self.along = float(self.along_section.text().strip())
-        self.across = float(self.across_section.text().strip())
+        along = float(self.along_section.text().strip())
+        across = float(self.across_section.text().strip())
+        overlap = float(self.overlap_section.text().strip())
 
-        self.initialiseSection()
-        self.ptsInSection()
-        self.Section.dataRefresh()
-        self.Overview.dataRefresh()
-        self.showMessages()
+        if not (along == self.along and across == self.across and overlap == self.overlap):
+            self.along = along
+            self.across = across
+            self.overlap = overlap
+            
+            self.clearSectionPreloads()
+            self.initialiseSection()
+            self.ptsInSection()
+            self.Section.dataRefresh()
+            self.Overview.dataRefresh()
+            self.showMessages()
+            self.refreshQueue()
+        QtWidgets.QApplication.restoreOverrideCursor()
 
     def setOrthoView(self):
         try:
-            self.Section.setOrthoView(self.rot_camera)
+            self.Section.setOrthoView(self.direction)
         except Exception as e:
             return
 
@@ -722,100 +918,59 @@ class ClassificationTool(QtWidgets.QMainWindow):
             self.odm.save()
 
     def knn(self, knnMode = '2d'):
-        
-        # create 3d kdtree for nearest neighbour selection
-        kdtree = pyDM.PointIndexLeaf(pyDM.IndexType.kdtree, 3, True)
-
-        # create 2d kdtree for nearest neighbour selection
-        kdtree_2d = pyDM.PointIndexLeaf(pyDM.IndexType.kdtree, 2, True)
-
-        # settings for nn selection
-        nnCount = 1
-        searchMode = pyDM.SelectionMode.nearest
-        maxSearchDist = -1
-
-
         assigned_pts = 0
-
-    
-        viewMat_4x4 = self.Section.camera.getTransformationMatrix_4x4(self.rot_camera)
-        center = Point3D(self.Section.Center)
-
+        if not self.knnSection:
+            return
 
         ######################## 2D NEAREST NEIGHBOR SEARCH ##########################
         if knnMode == '2d':
-            for idx in range(len(self.knnSection['x'])):
-                    classid = self.knnSection['Classification'][idx]
-                    
-                    pt3d = Point3D(self.knnSection['x'][idx] - center.x(), self.knnSection['y'][idx]- center.y(), self.knnSection['z'][idx]- center.z())
-                    
-                    point_transformed_last = viewMat_4x4.mul(pt3d)
+            center = Point3D(self.Section.Center)
+            transMat = self.Section.camera.getTransformationMatrix(self.direction) # 4x4 transformation matrix (homogenous coordinates)
+            cx, cy, cz = center.x(), center.y(), center.z()
+            kx, ky, kz = self.knnSection['x'], self.knnSection['y'], self.knnSection['z']
 
-                    x, y, z = point_transformed_last.x(), point_transformed_last.y(), point_transformed_last.z()
+            coords = np.vstack([kx - cx, ky - cy, kz - cz, np.ones(len(kx))])
 
-                    pt = pyDM.Point(x, z, 0)
-                    pt.setAddInfoView(self.layout2, False)
-                    pt.info().set(1,int(classid))
-                    kdtree_2d.addPoint(pt)
+            transformed = transMat.dot(coords)
+            transPoints = np.column_stack((transformed[0], transformed[2])) # only X and Z, Y (projected axis in orthoview = direction along axis) is discarded
 
-            # with open("points_last.xyz","w") as f:
-            #     print(os.getcwd())
-            #     for idx in range(len(self.knnSection['x'])):
-            #         classid = self.knnSection['Classification'][idx]
-                    
-            #         pt3d = Point3D(self.knnSection['x'][idx] - center.x(), self.knnSection['y'][idx]- center.y(), self.knnSection['z'][idx]- center.z())
-                    
-            #         point_transformed_last = viewMat_4x4.mul(pt3d)
+            tree = KDTree(transPoints)
 
-            #         x, y, z = point_transformed_last.x(), point_transformed_last.y(), point_transformed_last.z()
-                    
-            #         f.write(f"{x:.3f},{y:.3f},{z:.3f}\n")
+            classes = np.array(self.knnSection['Classification'])
 
-            #         pt = pyDM.Point(x, z, 0)
-            #         pt.setAddInfoView(self.layout2, False)
-            #         pt.info().set(1,int(classid))
-            #         kdtree_2d.addPoint(pt)
-            for idx in range(len(self.result['x'])):
+            mask = np.isin(self.result['Classification'], list(self.classesToPredict))
+            coords2 = np.vstack([
+                self.result['x'][mask] - cx,
+                self.result['y'][mask] - cy,
+                self.result['z'][mask] - cz,
+                np.ones(mask.sum())
+            ])
+            transformed2 = transMat.dot(coords2)
 
-                    pt3d = Point3D(self.result['x'][idx] - center.x(), self.result['y'][idx]- center.y(), self.result['z'][idx]- center.z()) 
-                    point_transformed_current = viewMat_4x4.mul(pt3d)
+            queries = np.column_stack((transformed2[0], transformed2[2]))
+            
+            if queries.size == 0:
+                return
 
-                    x, y, z = point_transformed_current.x(), point_transformed_current.y(), point_transformed_current.z()                    
+            # find nearest neighbor
+            idxs = tree.query(queries, return_distance=False)
 
-                    if self.result['Classification'][idx] == 0:
-                        searchPt = pyDM.Point(x, z, 0)
-                        
-                        pts = kdtree_2d.searchPoint(nnCount,searchPt,maxSearchDist,searchMode)
+            real_indices = np.nonzero(mask)[0] # to get original indices before masking
 
-                        if pts != []:
-                            classid = pts[0].info().get(1)
-                            self.result['Classification'][idx] = classid
-                            self.result[self.manuallyClassified][idx] = 2
-                            assigned_pts += 1   
-            # with open("points_current.xyz","w") as f:
-            #     for idx in range(len(self.result['x'])):
-
-            #         pt3d = Point3D(self.result['x'][idx] - center.x(), self.result['y'][idx]- center.y(), self.result['z'][idx]- center.z()) 
-            #         point_transformed_current = viewMat_4x4.mul(pt3d)
-
-            #         x, y, z = point_transformed_current.x(), point_transformed_current.y(), point_transformed_current.z()
-                    
-            #         f.write(f"{x:.3f},{y:.3f},{z:.3f}\n")
-
-                    
-
-            #         if self.result['Classification'][idx] == 0:
-            #             searchPt = pyDM.Point(x, z, 0)
-                        
-            #             pts = kdtree_2d.searchPoint(nnCount,searchPt,maxSearchDist,searchMode)
-
-            #             if pts != []:
-            #                 classid = pts[0].info().get(1)
-            #                 self.result['Classification'][idx] = classid
-            #                 self.result[self.manuallyClassified][idx] = 2
-            #                 assigned_pts += 1   
+            for real_idx, idx_nearest in zip(real_indices, idxs):
+                self.result['Classification'][real_idx] = classes[idx_nearest]
+                self.result[self.manuallyClassified][real_idx] = 2
+                assigned_pts += 1
+ 
         ######################## 3D NEAREST NEIGHBOR SEARCH ##########################
         elif knnMode == '3d':
+                    # create 3d kdtree for nearest neighbour selection
+            kdtree = pyDM.PointIndexLeaf(pyDM.IndexType.kdtree, 3, True)
+
+            # settings for nn selection
+            nnCount = 1
+            searchMode = pyDM.SelectionMode.nearest
+            maxSearchDist = -1
         
             for idx in range(len(self.knnSection['x'])):
                 classid = self.knnSection['Classification'][idx]
@@ -878,56 +1033,64 @@ class ClassificationTool(QtWidgets.QMainWindow):
         #print(f'Progress set, it took {end-start}s')
 
     def nextSection(self):
-        if not self.station_axis:
-            return
-
-        ds = self.along * (1 - self.overlap)
-        new_station = self.current_station + ds
-        if new_station + ds > self.max_station:
-            new_station = self.max_station-ds
-        if new_station == self.current_station:
-            return
-
-        self.changeAttributes()
-        self.knnSection = copy.deepcopy(self.result)
-
-        self.current_station = new_station
-        self.begin, self.direction = self.station_axis.get_point_and_direction(self.current_station)
-        self.initialiseSection()
-
-        if self.knnPrediction.currentText() == 'predict next' or self.knnPrediction.currentText() == 'always predict':
-            self.knn()
-
-        self.ptsInSection()
-        self.Section.dataRefresh()
-        self.Overview.dataRefresh()
-        self.showMessages()
+        self.switchSection('next')
 
     def previousSection(self):
+        self.switchSection('previous')
+
+    def switchSection(self, direction):
+        QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.WaitCursor)
+        start=time.time()
         if not self.station_axis:
             return
 
-        ds = self.along * (1 - self.overlap)
-        new_station = self.current_station - ds
-        if new_station < self.min_station:
-            new_station = self.min_station
+        # calculate new station
+        ds = round(self.along * (1 - self.overlap), 2)
+
+        if direction == 'next':
+            new_station = self.current_station + ds
+            if new_station + ds > self.max_station:
+                new_station = self.max_station-ds
+        elif direction == 'previous':
+            new_station = self.current_station - ds
+            if new_station < self.min_station:
+                new_station = self.min_station
         if new_station == self.current_station:
             return
+        self.current_station = round(new_station, 2)
+
+        endst=time.time()
+        print(f'calculating new station took {endst-start}s')
 
         self.changeAttributes()
-        self.knnSection = copy.deepcopy(self.result)
+        #self.knnSection = copy.deepcopy(self.result) # copy of previous section for knn prediction
+        self.knnSection = {k: np.copy(v) for k, v in self.result.items()}
+        endcop = time.time()
+        print(f'copying to knnsection took {endcop-endst}s')
 
-        self.current_station = new_station
         self.begin, self.direction = self.station_axis.get_point_and_direction(self.current_station)
+        starti = time.time()
+        print(f'going further in nextsection until initialisesection took {starti-endcop}')
         self.initialiseSection()
-
-        if self.knnPrediction.currentText() == 'predict previous' or self.knnPrediction.currentText() == 'always predict':
-            self.knn()
+        endi = time.time()
+        print(f'self.initialiseSection took {endi-starti}s')
+        
+        
+        # knn prediction
+        if self.knnPrediction.currentText() == 'always predict' or self.knnPrediction.currentText() == f'predict {direction}':
+            self.knn(self.predictionModel.currentText())
 
         self.ptsInSection()
         self.Section.dataRefresh()
         self.Overview.dataRefresh()
         self.showMessages()
+
+        end = time.time()
+        print(f'going to next section took {end-start}s')
+        self.refreshQueue()
+        endr = time.time()
+        print(f'self.refreshQueue took {endr-end}s')
+        QtWidgets.QApplication.restoreOverrideCursor()
 
     def WritePointsToglSectionWidget(self):
         for key, value in self.classificationData.items():
@@ -1037,6 +1200,10 @@ class ClassificationTool(QtWidgets.QMainWindow):
     def keyReleaseEvent(self, event):
         if event.key() == QtCore.Qt.Key_Return or event.key() == QtCore.Qt.Key_Tab:
             self.changePolygonSize()
+        if event.key() == Qt.Key_Left:
+            self.previousSection()
+        if event.key() == Qt.Key_Right:
+            self.nextSection()
 
 if __name__ == "__main__":
     import sys
@@ -1044,18 +1211,17 @@ if __name__ == "__main__":
     win = ClassificationTool()
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("-i", "--inFile", help="filename of the odm-file containing the pointcloud")
-    parser.add_argument("-a", "--axisFile", help="filename of the file containing the axis")
+    parser.add_argument("-i", "--inFile", help="filename of the file containing the pointcloud [.odm, .las, .laz]")
+    parser.add_argument("-a", "--axisFile", help="filename of the file containing the axis [.shp or .odm]")
     parser.add_argument("-p", "--predMode", help="'no prediction' or 'predict previous' or 'always predict' or 'predict next'")
     args = parser.parse_args()
     if args.inFile:
         win.loadPointcloud(args.inFile)
 
-    if args.axisFile:
-        #win.load_axis(args.axisFile)
-        win.viewFirstSection(inFile=args.axisFile)
     
     if args.predMode:
         win.knnPrediction.setCurrentText(args.predMode)
     win.show()
+    if args.axisFile:
+        win.viewFirstSection(inFile=args.axisFile)
     sys.exit(app.exec_())

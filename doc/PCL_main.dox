@@ -18,13 +18,27 @@ For running the PCL please type:
     python PointCloudLabeler.pyw
 	
 \section pcl_description General Description
-With the PCL it is possible to manually label 3D point clouds. To start the labeling process, the point cloud must be read in. Then an axis has to be defined. The labeling process is performed along this axis. It is possible to define several axes. Once an axis is defined, a polygon is created at the start of the axis. The polygon is normal to the axis. The extension of the polygon depends on the point density of the point cloud. The points inside the polygon are displayed as a vertical slice. This point can now be labeled. Once a section is labeled, it can be moved to the next section. To get a first prediction of the classes, it is possible to predict the classes of the unclassified points of the next section with a KNN tree (\ref knn "kNN - k Nearest Neighbors"). 
+With the PCL it is possible to manually label 3D point clouds. To start the labeling process, the point cloud must be read in. Then an axis has to be defined. 
+The labeling process is performed along this axis. It is possible to define several axes. Once an axis is defined, a polygon is created at the start of the axis. 
+The polygon is normal to the axis. The extension of the polygon depends on the point density of the point cloud. The points inside the polygon are displayed as a vertical slice. 
+This point can now be labeled. Once a section is labeled, it can be moved to the next section. To get a first prediction of the classes, 
+it is possible to predict the classes of the unclassified points of the next section using nearest neighbors (\ref pred "Prediction"). 
 
 To get an overview of the whole area of the point cloud, a shading is displayed. This shading allows the definition of several axes.
-These axes can be used to navigate through the point cloud. The overview has a zoom and pan function. Use the mouse wheel to zoom in and out. To pan, press the left mouse button and drag over the shading (1). The PCL sequentially displays a portion of the full point cloud that can be classified (2). To change the active axis, select "Selection Mode". When this mode is activated, the active axis can be changed by clicking on the desired axis. To add a new axis, select "Draw Mode". An axis can then be simply drawn into the overview by clicking inside the shading. The vertices of an axis can be moved, deleted or a new vertex can be added to an axis. This is done by selecting the "Edit Mode". Use the three magnifying glass icons  to zoom in and out (3).
-The different axes are listed with the corresponding information (the number of nodes and the lenght from the respective axis). The ceckbox of the currently active axis is checked. An axis can be deleted by right-clicking on it.
+These axes can be used to navigate through the point cloud. 
+The PCL sequentially displays a portion of the full point cloud that can be classified (2). To change the active axis, select "Selection Mode". When this mode is activated, 
+the active axis can be changed by clicking on the desired axis. To add a new axis, select "Draw Mode". An axis can then be simply drawn into the overview by clicking inside the shading. 
+The vertices of an axis can be moved, deleted or a new vertex can be added to an axis. This is done by selecting the "Edit Mode". Use the three magnifying glass icons  to zoom in and out and zoom to fit(3).
+The different axes are listed (4) with the corresponding information (the number of nodes and the lenght from the respective axis). The checkbox of the currently active axis is checked. 
 The various axes, accompanied by the pertinent information, are enumerated. The deletion of an axis is initiated by right-clicking on the relevant item (4).
-In order to classify a point cloud, it is necessary to load the dataset. All data types that the Opals Datamanger can process are allowed. Once the data has been read in, it is possible to read in an existing axis datamanger (5). The panel can be used for classification, navigation and to display a greater or lesser number of points. The displayed section can be coloured either by class or by height. The different classes can be selected from a drop-down menu. When a section is classified, the classes of the following section can be predicted via a KNN tree (\ref knn "kNN - k Nearest Neighbors"). The number of points displayed can be modified by adjusting the section geometry using the "Across" and "Along" numeric fields. The "Overlap" numeric field allows the user to define the degree of overlap between each section and its neighbours (6). To give a general overview of the displayed section of the total point cloud, some information is displayed. First, the current station of the section is displayed. The other information is about the points themselves (loaded points, classified points, unclassified points and a histogram of the classes) (7). It is possible to cover the whole area of interest with an axis (\ref generating "Axis Generation") (8). 
+In order to classify a point cloud, it is necessary to load the dataset. All data types that the Opals Datamanger can process are allowed. Once the data has been read in, it is possible to read in an existing axis datamanger (5). The panel can be used for classification, navigation and to display a greater or lesser number of points. The displayed section can be coloured either by class or by height. The different classes can be selected from a drop-down menu. 
+When a section is classified, the classes of the following section can be predicted using nearest neighbors (\ref pred "Prediction"). 
+The number of points displayed can be modified by adjusting the section geometry using the "Across" and "Along" numeric fields. 
+The "Overlap" numeric field allows the user to define the degree of overlap between each section and its neighbours (6). 
+For along, across and overlap changes to take effect press Tab or Enter.
+To give a general overview of the displayed section of the total point cloud, some information is displayed. 
+First, the current station of the section is displayed. The other information is about the points themselves (loaded points, classified points, unclassified points and a histogram of the classes) (7). 
+It is possible to cover the whole area of interest with an axis (\ref generating "Axis Generation") (8). 
 
 \image html Tool.png "Fig.1: PCL - PointCloudLabeler"
 
@@ -47,31 +61,12 @@ An existing axis odm can be loaded directly. To do this, specify the path to the
 
 4. Generate axis:
 If the whole area is to be covered, the generate option can be used. This will generate a large number of straight lines. First in a preview. In this preview
-the rotaion angle and the distance between the axes can be adjusted. The desired configurations must be confirmed. The generated axis is automatically saved as an 
+the rotation angle and the distance between the axes can be adjusted. The desired configurations must be confirmed. The generated axis is automatically saved as an 
 odm file in the working directory.
 
 
-\section Functions
-\subsection knn kNN - k Nearest Neighbors
-Once all points of the current section have been classified, you can select whether a prediction with kNN from the classes of the next section.
-For a prediction, an empty kdtree object is created with PointIndexLeaf, which represents a spatial leaf with a point index, is created. This kdTree object is filled 
-with the points of the previous section. In the next step, the parameters are defined for how the prediction is to be carried out:
 
-<table>
-<caption id="knnprameters">Parameters for kdtree object</caption>
-<tr><th>Parameter                     <th>Value        
-<tr><td rowspan="1">nnCount<td>1
-<tr><td rowspan="1">searchPoint<td>Coordinates of a point in the new section
-<tr><td rowspan="1">searchMode<td>nearest
-<tr><td rowspan="1">maxSearchDist<td>-1       
-</table>
-
-
-With the point for which the class is to be predicted, the kdtree object is searched for its nearest neighbor. The maximum search radius is defined as -1.
-This means that the search continues until a nearest neighbor is found. If a neighbor is found, the class of the neighbor is assigned to the point. A prediction should only 
-be made for those points that are not yet assigned to a class (equals to the value 0). To perform the prediction, select the different options (predict next, predict previous, always predict, no prediction) out of a dropdown menu.
-
-\subsection editingAxis Axis editing
+\section editingAxis Axis editing
 For the editing of an axis the "Edit Modus" has to be turned on:
 
 \image html Editing.png  "Fig.3: Active Edit Modus"
@@ -85,11 +80,80 @@ The axis is stored as a linestring of coordinate tuples: [[x1,y1],[x2,y2],...]
 
 <b>Note</b>: It is only possible to edit the active axis! 
 
-\subsection generating Generate Axis
+\section generating Generate Axis
 By generating axes, the entire area of interest can be covered. To do this, a polygon is created whose corner coordinates correspond to the coordinates of the corners of the area. In the next step, the centre point of this polygon will be evaluated. Once the centre point has been determined, the polygon is intersected by polylines. The distance between the polylines and the angle of rotation of the polylines can be adjusted. Each adjustment results in a preview for a first look at the area coverage. Note that the rotation angles are in degrees! Once the desired configuration has been selected it must be confirmed. It is also possible to export the polylines to a shape file.
 \image html GenerationParameter.png  "Fig.5: Parameters for the arial coverage"
 
 \image html GenerationPreview.png  "Fig.6: Preview of the arial coverage"
+
+\section Overview window
+The overview window has a zoom and pan function. Use the mouse wheel or the zoom buttons to zoom in and out. 
+You can also zoom to a rectangle which is selected by drawing with the left mouse button while holing the Ctrl key. To see the whole shading use the zoom to fit button.
+To pan, press the right mouse button and drag over the shading. 
+When an axis is selected and Selection Modus is enabled, it is possible to choose a section along the axis. Right-clicking while holding Ctrl loads the section from the nearest point on the axis.
+
+\section Section window
+Use the right mouse button to move the scene right/left and up/down. To zoom hold Ctrl and use the mouse wheel. To change the camera angle hold Ctrl and use the left mouse button. 
+You can get back to the orthogonal view using the Ʇ button.
+Holding Alt keeps ground points (class: 2) which were not manually classified or predicted (_manuallyClassified not in [1, 2]) from being reclassified. This can be useful for example if ground points were derived earlier and You want to classify low vegetation.
+
+\section pred Prediction
+You can choose from different options in a dropdown menu: predict next, predict previous, always predict, no prediction. The prediction algoritm can be selected from a dropdown menu: 2d or 3d nearest neighbor. 
+When switching section and prediction is enabled, the classes of the points are predicted using the nearest neighbor from the last section.
+Only points with classes to override (default: 0 'unclassified', 1 'undefined' and 7 'noise') are assigned the predicted class, points with other classes remain unchanged. 
+The classes to be overridden by prediction can be selected in the corresponding tab.
+
+\subsection 2D Nearest neighbor (default)
+Points from both the last section and the section which is to be loaded are transformed to a section coordinate system (y is along the axis, z is up and x normal to axis). 
+Then a 2D KDTree with the points of the last section is created, discarding the y-coordinates (along axis). For points whith classes to override the nearest neighbor is found with the KDTree. 
+'Classification' is set to the class of the neighbor and '_manuallyClassified' is set to 2.
+
+\subsection 3D Nearest neighbor
+
+For a prediction, an empty kdtree object is created with PointIndexLeaf, which represents a 3D spatial leaf with a point index, is created. This kdTree object is filled 
+with the points of the previous section. In the next step, the parameters are defined for how the prediction is to be carried out:
+
+<table>
+<caption id="knnprameters">Parameters for kdtree object</caption>
+<tr><th>Parameter                     <th>Value        
+<tr><td rowspan="1">nnCount<td>1
+<tr><td rowspan="1">searchPoint<td>Coordinates of a point in the new section
+<tr><td rowspan="1">searchMode<td>nearest
+<tr><td rowspan="1">maxSearchDist<td>-1       
+</table>
+
+
+With the point for which the class is to be predicted, the kdtree object is searched for its nearest neighbor. The maximum search radius is defined as -1.
+This means that the search continues until a nearest neighbor is found. If a neighbor is found, 'Classification' is set to the class of the neighbor and '_manuallyClassified' is set to 2.
+
+\section Shortcuts
+You can create shortcuts for classes to quickly change the selcted class for labelling.
+
+To create shortcuts choose the preferred class in the dropdown menu e.g. "2 ground", then press Ctrl + [your desired number (0-9)]. 
+To use the shortcut press Alt + [your number]. The shortcut bindings are shown in the shortcut bindings tab. Shortcuts can be overridden and a class can have multiple shortcuts.
+
+\section Commandline Arguments
+It is possible to give the inFile and axisFile as commandline arguments.
+
+	python PointCloudLabeler.pyw --inFile G111.odm --axisFile G111_axis.odm
+	
+To get a description pass -h or --help as commandline argument:
+	
+	python PointCloudLabeler.pyw -h
+	usage: PointCloudLabeler.pyw [-h] [-i INFILE] [-a AXISFILE] [-p PREDMODE]
+	
+	optional arguments:
+	-h, --help            show this help message and exit
+	-i INFILE, --inFile INFILE
+							filename of the file containing the pointcloud [.odm, .las, .laz]
+	-a AXISFILE, --axisFile AXISFILE
+							filename of the file containing the axis [.shp or .odm]
+	-p PREDMODE, --predMode PREDMODE
+							'no prediction' or 'predict previous' or 'always predict' or 'predict next'
+							
+\section Show Progress
+You can show the classification progress in the overview window by pressing the show progress button. Green means there are no points with the class Unclassified.
+<b>Note</b>: This feature is not recommended for larger datasets as it would be extremely slow.
 
 \section Examples
 The data (strip149.laz) used in the following example is contained in the demo directory and read in.
@@ -99,7 +163,7 @@ The data (strip149.laz) used in the following example is contained in the demo d
 
 2. Multipoint Picker: Marking several points is similar to the concept of the dynamic picker. The main difference is that the rectangle is drawn by holding down the left mouse button and moving the mouse. The current position of the mouse pointer on the widget is saved as the starting point. As long as the left mouse button is pressed and the mouse is moved, the rectangle changes size. If the left mouse button is released, the position of the mouse pointer is saved as the end position of the rectangle and all points within the rectangle are assigned to the selected classes. Like the dynamic picker, the rectangle is also displayed graphically. \image html Multipoint.png  "Fig.8: Multiple Point Classification" 
 
-\subsection knnpred Example 2: kNN Prediction
+\subsection knnpred Example 2: Prediction
 As mentioned before, it is possible to predict the classification for an unclassified section. This prediction is shown in Figure 9. On the left hand side <i>no prediction</i> has been selected. The predicted classification is shown on the right.
 \image html Pred.png  "Fig.9: Next Section without Prediction (left), Next Section with Prediction (right)" 
 
@@ -116,8 +180,8 @@ More information about the PCL can be find here: <a href="https://github.com/TUW
 \subsection Bugreports
 Bug reports can be sent to the <a href="mailto:opals@geo.tuwien.ac.at">OPALS Team</a>. Please include a short description of what you were trying to achieve, using what type of files, and the text from the error message. Copy-and-paste the messages printed to the console and include them in the bug report. Thank you!
 
-\author fmeixner
-\date   06.11.2024
+\author fmeixner, mvoggenb
+\date   18.08.2024
 
 */
 
