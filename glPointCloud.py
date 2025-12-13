@@ -333,7 +333,7 @@ class glPointCloud:
             posColArr_idx1 = posColArr[1::4]  # take every 4 byte starting from 1 index
             posColArr_idx2 = posColArr[2::4]  # take every 4 byte starting from 2 index
             # convert split col array into single id array
-            posIds = posColArr_idx0.astype(int) + posColArr_idx1 * 256 + posColArr_idx2 * 256 * 256
+            posIds = posColArr_idx0.astype(int) + posColArr_idx1.astype(int) * 256 + posColArr_idx2.astype(int) * 256 * 256
             # ignore empty ids (-1), make ids unique and convert it to a list
             idxPtArray = np.unique(posIds[posIds > 0]) - 1 # we need to remove one, since point ids start from 1 (not 0)
             idxPtList = idxPtArray.tolist()
